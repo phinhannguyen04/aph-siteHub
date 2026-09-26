@@ -1,0 +1,7 @@
+DEFINE TABLE IF NOT EXISTS websites SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS website_id ON TABLE websites TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON TABLE websites TYPE string;
+DEFINE FIELD IF NOT EXISTS url ON TABLE websites TYPE string;
+DEFINE FIELD IF NOT EXISTS created_at ON TABLE websites TYPE string;
+DEFINE FIELD IF NOT EXISTS updated_at ON TABLE websites TYPE string;
+DEFINE INDEX IF NOT EXISTS websites_by_website_id ON TABLE websites FIELDS website_id UNIQUE;

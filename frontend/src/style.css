@@ -1,0 +1,34 @@
+@import 'tailwindcss';
+@theme inline {
+  --color-background: #f7f8f7;
+  --color-foreground: #1d2924;
+  --color-primary: #185f4a;
+  --color-primary-foreground: #fff;
+  --color-muted: #eef2ef;
+  --color-muted-foreground: #5e6d65;
+  --color-border: #d8e0da;
+  --color-input: #d8e0da;
+  --color-ring: #21785d;
+  --color-card: #fff;
+  --color-card-foreground: #1d2924;
+  --color-secondary: #eef3ef;
+  --color-secondary-foreground: #185f4a;
+  --color-accent: #eef3ef;
+  --color-accent-foreground: #185f4a;
+  --color-destructive: #b4232a;
+  --color-destructive-foreground: #fff;
+  --radius: 0.5rem;
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply m-0 bg-background text-foreground font-sans antialiased;
+  }
+}
+/* Use only the InputGroup visibility action, including in Microsoft Edge. */
+.password-field input::-ms-reveal,
+.password-field input::-ms-clear {
+  display: none;
+}

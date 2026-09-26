@@ -1,0 +1,24 @@
+{
+  "name": "website-admin",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "bun --cwd backend dev",
+    "typecheck": "bun --cwd backend typecheck && bun --cwd frontend typecheck",
+    "build": "bun --cwd frontend build && bun --cwd backend build",
+    "test": "bun test",
+    "lint": "eslint backend/src backend/test frontend/src frontend/test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "prettier": "^3.9.9",
+    "typescript-eslint": "^8.70.1"
+  }
+}
