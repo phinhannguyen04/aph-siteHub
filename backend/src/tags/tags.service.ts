@@ -1,6 +1,7 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common'
 import type { Surreal } from 'surrealdb'
-import { DATABASE } from '../database/database.tokens'
+import { DATABASE, ORM } from '../database/database.tokens'
+import type { SiteOrm } from '../database/database.module'
 import { apiError } from '../common/errors/api-error'
 import type { Tag } from './tag.interface'
 
@@ -22,21 +23,25 @@ function conflict(error: unknown): never {
 }
 @Injectable()
 export class TagsService {
-  constructor(@Inject(DATABASE) private readonly db: Surreal) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Surreal,
+    @Inject(ORM) private readonly orm: SiteOrm,
+  ) {}
   async list(): Promise<Tag[]> {
-    const [rows] = await this.db.query<[TagRecord[]]>(
-      'SELECT tag_id, name, description, color, created_at, updated_at FROM tags ORDER BY name_key ASC',
-    )
+    const rows = await this.orm.select('tags').orderBy('name_key', 'ASC')
     return rows.map(toTag)
   }
   async create(input: { name: string; description: string; color: string }): Promise<Tag> {
     const now = new Date().toISOString()
     const tag: Tag = { id: crypto.randomUUID(), ...input, created_at: now, updated_at: now }
     try {
-      await this.db.query(
-        'CREATE tags CONTENT { tag_id: $id, name: $name, name_key: $key, description: $description, color: $color, created_at: $now, updated_at: $now }',
-        { ...input, id: tag.id, key: input.name.toLocaleLowerCase('vi'), now },
-      )
+      await this.orm.create('tags').content({
+        tag_id: tag.id,
+        ...input,
+        name_key: input.name.toLocaleLowerCase('vi'),
+        created_at: now,
+        updated_at: now,
+      })
     } catch (error) {
       conflict(error)
     }
@@ -47,10 +52,15 @@ export class TagsService {
     input: { name: string; description: string; color: string },
   ): Promise<Tag> {
     try {
-      const [rows] = await this.db.query<[TagRecord[]]>(
-        'UPDATE tags SET name = $name, name_key = $key, description = $description, color = $color, updated_at = $now WHERE tag_id = $id RETURN AFTER',
-        { ...input, id, key: input.name.toLocaleLowerCase('vi'), now: new Date().toISOString() },
-      )
+      const rows = await this.orm
+        .update('tags')
+        .where((tag) => tag.tag_id.eq(id))
+        .set({
+          ...input,
+          name_key: input.name.toLocaleLowerCase('vi'),
+          updated_at: new Date().toISOString(),
+        })
+        .return('after')
       if (!rows[0]) throw new HttpException(apiError('NOT_FOUND', 'Tag not found'), 404)
       return toTag(rows[0])
     } catch (error) {

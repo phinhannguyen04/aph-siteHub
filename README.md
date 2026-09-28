@@ -12,7 +12,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 │   ├── src/
 │   │   ├── main.ts, app.module.ts, app.factory.ts
 │   │   ├── config/{app-config,config.module,config.tokens}.ts
-│   │   ├── database/{database.module,database.tokens,surreal.client}.ts
+│   │   ├── database/{database.module,database.tokens,schema,surreal.client}.ts
 │   │   ├── common/errors/{api-error,validation-error}.ts
 │   │   ├── common/filters/api-exception.filter.ts
 │   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
@@ -38,9 +38,9 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 
 ## Backend architecture
 
-`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` establishes the SurrealDB connection through an async provider and closes its connection during NestJS shutdown. Feature controllers handle HTTP requests; services handle credentials, websites, and tags. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
+`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` establishes the SurrealDB connection through an async provider, exposes a Surqlize ORM built from `database/schema.ts`, and closes its connection during NestJS shutdown. Services use Surqlize for routine record access. Multi-statement transactions, aggregate queries, health checks, and schema migrations use SurrealQL through the official SDK. Feature controllers handle HTTP requests; services handle credentials, websites, and tags. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
 
-The root module accepts an existing database connection for isolated integration tests. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
+The root module accepts an existing database connection for isolated integration tests. The `surqlize@0.1.0` TypeScript declaration patch in `patches/` is applied by Bun during installation; the backend Docker build copies it before `bun install`. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
 
 ## Configuration
 

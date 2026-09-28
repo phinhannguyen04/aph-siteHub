@@ -24,6 +24,7 @@
         "fastify": "^5.12.5",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.2",
+        "surqlize": "^0.1.0",
         "surrealdb": "^2.0.8",
       },
       "devDependencies": {
@@ -52,6 +53,9 @@
         "vue-tsc": "^3.0.0",
       },
     },
+  },
+  "patchedDependencies": {
+    "surqlize@0.1.0": "patches/surqlize@0.1.0.patch",
   },
   "packages": {
     "@babel/helper-string-parser": ["@babel/helper-string-parser@7.29.7", "", {}, "sha512-Pb5ijPrZ89GDH8223L4UP8i6QApWxs04RbPQJTeWDV0/keR2E36MeKnyr6LYmUUvqRRI+Iv87SuF1W6ErINzYw=="],
@@ -661,6 +665,8 @@
     "split2": ["split2@4.2.0", "", {}, "sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg=="],
 
     "strtok3": ["strtok3@10.3.5", "", { "dependencies": { "@tokenizer/token": "^0.3.0" } }, "sha512-ki4hZQfh5rX0QDLLkOCj+h+CVNkqmp/CMf8v8kZpkNVK6jGQooMytqzLZYUVYIZcFZ6yDB70EfD8POcFXiF5oA=="],
+
+    "surqlize": ["surqlize@0.1.0", "", { "peerDependencies": { "surrealdb": "^2.0.0-alpha.18", "typescript": "^5.0.0" } }, "sha512-Pq8dvfLPwZZC3zaNaxQvefjt6K9CkpDQxlQ4n6m7XoZumFRAAbEG4nTi21d0s+sjY/xnunG8eLzFfxoKtk/smQ=="],
 
     "surrealdb": ["surrealdb@2.0.8", "", { "dependencies": { "@surrealdb/sqon": "0.1.0" }, "peerDependencies": { "tslib": "^2.6.3", "typescript": "^5.0.0 || ^6.0.0" } }, "sha512-nkoTAdnfJYc0EvB2Hut0MET/UiWTOT6+TJODoubHzoC952gJvjEbHMx5TLrecUYo1vIN3/qBgwMIcLKK0WC7zQ=="],
 

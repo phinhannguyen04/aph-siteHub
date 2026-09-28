@@ -38,7 +38,7 @@ function openWebsite() {
     >
       <PhGlobe class="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
       <span class="min-w-0 flex-1">
-        <span class="block break-words text-base font-semibold">{{ website.name }}</span>
+        <span class="block wrap-break-word text-base font-semibold">{{ website.name }}</span>
         <span
           class="mt-1 block truncate text-sm font-normal text-muted-foreground"
           :title="website.url"

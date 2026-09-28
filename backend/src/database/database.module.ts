@@ -7,10 +7,18 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common'
 import type { Surreal } from 'surrealdb'
+import { orm } from 'surqlize'
 import type { AppConfig } from '../config/app-config'
 import { APP_CONFIG } from '../config/config.tokens'
 import { connectDb } from './surreal.client'
-import { DATABASE, DATABASE_OWNED } from './database.tokens'
+import { DATABASE, DATABASE_OWNED, ORM } from './database.tokens'
+import { adminCredentials, tags, websites } from './schema'
+
+export function createOrm(db: Surreal) {
+  return orm(db, websites, tags, adminCredentials)
+}
+
+export type SiteOrm = ReturnType<typeof createOrm>
 
 @Injectable()
 class DatabaseShutdown implements OnApplicationShutdown {
@@ -36,10 +44,11 @@ export class DatabaseModule {
           useFactory: (config: AppConfig) => existingDatabase ?? connectDb(config),
           inject: [APP_CONFIG],
         },
+        { provide: ORM, useFactory: createOrm, inject: [DATABASE] },
         { provide: DATABASE_OWNED, useValue: !existingDatabase },
         DatabaseShutdown,
       ],
-      exports: [DATABASE],
+      exports: [DATABASE, ORM],
     }
   }
 }

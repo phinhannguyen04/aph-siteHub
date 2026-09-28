@@ -1,31 +1,24 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common'
 import type { Surreal } from 'surrealdb'
-import { DATABASE } from '../database/database.tokens'
+import { DATABASE, ORM } from '../database/database.tokens'
+import type { SiteOrm } from '../database/database.module'
 import { apiError } from '../common/errors/api-error'
 import { ValidationError } from '../common/errors/validation-error'
 import type { Website } from './website.interface'
 import { fold } from './search'
 import type { ListQuery } from './list-query'
 type WebsiteRecord = Omit<Website, 'id' | 'tags'> & { website_id: string; tag_ids?: string[] }
-type TagRecord = {
-  tag_id: string
-  name: string
-  description: string
-  color: string
-  created_at: string
-  updated_at: string
-}
 @Injectable()
 export class WebsitesService {
-  constructor(@Inject(DATABASE) private readonly db: Surreal) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Surreal,
+    @Inject(ORM) private readonly orm: SiteOrm,
+  ) {}
   private async hydrate(rows: WebsiteRecord[]): Promise<Website[]> {
     const ids = [...new Set(rows.flatMap((row) => row.tag_ids ?? []))]
-    const [tags] = ids.length
-      ? await this.db.query<[TagRecord[]]>(
-          'SELECT tag_id, name, description, color, created_at, updated_at FROM tags WHERE tag_id IN $ids',
-          { ids },
-        )
-      : [[]]
+    const tags = ids.length
+      ? await this.orm.select('tags').where((tag) => tag.tag_id.inside(ids))
+      : []
     const byId = new Map(
       tags.map((tag) => [
         tag.tag_id,
@@ -66,10 +59,21 @@ export class WebsitesService {
       `SELECT count() AS total FROM websites ${where} GROUP ALL`,
       bindings,
     )
-    const [rows] = await this.db.query<[WebsiteRecord[]]>(
-      `SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites ${where} ORDER BY created_at DESC, website_id DESC LIMIT $limit START $start`,
-      bindings,
-    )
+    const sites = this.orm.select('websites')
+    if (bindings.search && bindings.tagIds.length) {
+      sites.where((site) =>
+        site.search_text.contains(bindings.search).and(site.tag_ids.containsAny(bindings.tagIds)),
+      )
+    } else if (bindings.search) {
+      sites.where((site) => site.search_text.contains(bindings.search))
+    } else if (bindings.tagIds.length) {
+      sites.where((site) => site.tag_ids.containsAny(bindings.tagIds))
+    }
+    const rows = await sites
+      .orderBy('created_at', 'DESC')
+      .orderBy('website_id', 'DESC')
+      .limit(bindings.limit)
+      .start(bindings.start)
     return {
       websites: await this.hydrate(rows),
       total: Number(count[0]?.total ?? 0),
@@ -119,10 +123,7 @@ export class WebsitesService {
       await this.validTags(ids)
       throw error
     }
-    const [rows] = await this.db.query<[WebsiteRecord[]]>(
-      'SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites WHERE website_id = $id',
-      { id },
-    )
+    const rows = await this.orm.select('websites').where((site) => site.website_id.eq(id))
     return (await this.hydrate(rows))[0]!
   }
   async update(
@@ -130,10 +131,10 @@ export class WebsitesService {
     input: { name?: string; url?: string; tag_ids?: string[] },
   ): Promise<Website | null> {
     if (input.tag_ids !== undefined) await this.validTags(input.tag_ids)
-    const [existing] = await this.db.query<[WebsiteRecord[]]>(
-      'SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites WHERE website_id = $id LIMIT 1',
-      { id },
-    )
+    const existing = await this.orm
+      .select('websites')
+      .where((site) => site.website_id.eq(id))
+      .limit(1)
     if (!existing[0]) return null
     const name = input.name ?? existing[0].name
     const url = input.url ?? existing[0].url
@@ -155,10 +156,7 @@ export class WebsitesService {
       await this.validTags(input.tag_ids ?? existing[0].tag_ids ?? [])
       throw error
     }
-    const [rows] = await this.db.query<[WebsiteRecord[]]>(
-      'SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites WHERE website_id = $id',
-      { id },
-    )
+    const rows = await this.orm.select('websites').where((site) => site.website_id.eq(id))
     if (!rows[0]) throw new HttpException(apiError('NOT_FOUND', 'Website not found'), 404)
     return (await this.hydrate(rows))[0]!
   }
