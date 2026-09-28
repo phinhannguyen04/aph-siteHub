@@ -24,7 +24,7 @@ async function call(
 ) {
   return app.inject({
     url: path,
-    method: method as 'GET' | 'POST' | 'PATCH',
+    method: method as 'GET' | 'POST' | 'PATCH' | 'DELETE',
     headers: {
       origin,
       ...(authenticated ? { cookie, 'x-csrf-token': token } : {}),
@@ -69,7 +69,7 @@ integration('NestJS Fastify API with SurrealDB', () => {
       port: 3000,
     }
     db = await connectDb(config)
-    for (const name of ['001_websites.surql', '002_admin_credentials.surql'])
+    for (const name of ['001_websites.surql', '002_admin_credentials.surql', '003_tags.surql'])
       await db.query(await Bun.file(new URL(`../migrations/${name}`, import.meta.url)).text())
     app = await createApp(config, { database: db, logger: false })
     const login = await call(
@@ -146,6 +146,104 @@ integration('NestJS Fastify API with SurrealDB', () => {
     expect(list[0].name).toBe('Partial update')
     expect((await call('/api/websites/missing', 'PATCH', { name: 'Nothing' })).statusCode).toBe(404)
     expect((await call('/api/websites/count')).json().count).toBe(1)
+  })
+
+  test('tags, filtering, pagination and deletion', async () => {
+    expect((await call('/api/tags', 'GET', undefined, false)).statusCode).toBe(401)
+    expect(
+      (await call('/api/tags', 'POST', { name: 'A', color: '#166534' }, true, 'wrong')).statusCode,
+    ).toBe(403)
+    expect((await call('/api/tags', 'POST', { name: '  #  ', color: '#166534' })).statusCode).toBe(
+      400,
+    )
+    expect((await call('/api/tags', 'POST', { name: 'Bad', color: 'red' })).statusCode).toBe(400)
+    const first = await call('/api/tags', 'POST', {
+      name: ' #Công việc ',
+      description: 'Work',
+      color: '#166534',
+    })
+    expect(first.statusCode).toBe(201)
+    const tag = first.json().tag
+    expect(tag.name).toBe('Công việc')
+    expect(
+      (await call('/api/tags', 'POST', { name: 'cÔng Việc', color: '#166534' })).statusCode,
+    ).toBe(409)
+    const second = await call('/api/tags', 'POST', { name: 'Team', color: '#225577' })
+    expect(second.statusCode).toBe(201)
+    const other = second.json().tag
+    const created = await call('/api/websites', 'POST', {
+      name: 'Đường dẫn',
+      url: 'https://filter.example',
+      tag_ids: [tag.id, other.id],
+    })
+    expect(created.statusCode).toBe(201)
+    const id = created.json().website.id
+    expect(
+      (
+        await call('/api/websites', 'POST', {
+          name: 'Invalid',
+          url: 'https://invalid.example',
+          tag_ids: [crypto.randomUUID()],
+        })
+      ).statusCode,
+    ).toBe(400)
+    const list = await call(
+      `/api/websites?page=1&pageSize=1&search=duong&tagIds=${tag.id},${other.id}`,
+    )
+    expect(list.statusCode).toBe(200)
+    expect(list.json().total).toBe(1)
+    expect(list.json().websites[0].id).toBe(id)
+    expect((await call('/api/websites?page=0')).statusCode).toBe(400)
+    expect((await call('/api/websites?pageSize=100')).statusCode).toBe(400)
+    expect((await call('/api/websites?tagIds=bad')).statusCode).toBe(400)
+    expect((await call(`/api/websites/${id}`, 'PATCH', { tag_ids: [other.id] })).statusCode).toBe(
+      200,
+    )
+    expect((await call(`/api/websites?tagIds=${tag.id}`)).json().total).toBe(0)
+    expect((await call(`/api/websites?tagIds=${other.id}`)).json().total).toBe(1)
+    expect(
+      (
+        await call(`/api/tags/${other.id}`, 'PATCH', {
+          name: 'Team new',
+          description: 'Updated',
+          color: '#111111',
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect((await call(`/api/tags/${other.id}`, 'DELETE')).statusCode).toBe(200)
+    expect((await call('/api/websites?search=duong')).json().websites[0].tag_ids).toEqual([])
+  })
+
+  test('concurrent duplicate names and stable page boundaries', async () => {
+    const input = { name: 'Concurrent', description: '', color: '#166534' }
+    const results = await Promise.all([
+      call('/api/tags', 'POST', input),
+      call('/api/tags', 'POST', input),
+    ])
+    expect(results.map((result) => result.statusCode).sort()).toEqual([201, 409])
+    const names = ['Stable one', 'Stable two', 'Stable three']
+    const ids: string[] = []
+    for (const name of names) {
+      const created = await call('/api/websites', 'POST', { name, url: 'https://stable.example' })
+      expect(created.statusCode).toBe(201)
+      ids.push(created.json().website.id)
+    }
+    await db.query('UPDATE websites SET created_at = $when WHERE website_id IN $ids', {
+      when: '2026-01-01T00:00:00.000Z',
+      ids,
+    })
+    const pages = []
+    for (let page = 1; page <= 3; page++) {
+      const result = await call(`/api/websites?search=stable&page=${page}&pageSize=1`)
+      expect(result.statusCode).toBe(200)
+      expect(result.json().total).toBe(3)
+      pages.push(result.json().websites[0].id)
+    }
+    expect(pages).toEqual([...ids].sort().reverse())
+    expect((await call('/api/websites?search=stable&page=4&pageSize=1')).json().websites).toEqual(
+      [],
+    )
+    expect((await call('/api/websites?pageSize=no')).statusCode).toBe(400)
   })
 
   test('password change verifies current password and revokes older sessions', async () => {

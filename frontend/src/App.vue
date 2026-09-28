@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   PhGlobe,
   PhPlus,
@@ -26,8 +26,11 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Button } from '@/components/ui/button'
 import WebsiteCard from '@/components/WebsiteCard.vue'
 import WebsiteForm from '@/components/WebsiteForm.vue'
+import TagPicker from '@/components/TagPicker.vue'
+import TagChips from '@/components/TagChips.vue'
+import ManageTags from '@/components/ManageTags.vue'
 import PasswordDialog from '@/components/PasswordDialog.vue'
-import { api, setCsrfToken, type Website } from './api'
+import { api, setCsrfToken, type Website, type Tag } from './api'
 import { useWebsites } from './websites-state'
 
 const authenticated = ref(false)
@@ -44,25 +47,119 @@ const saving = ref(false)
 const passwordSaving = ref(false)
 const formError = ref('')
 const passwordError = ref('')
-const search = ref('')
-const { state, reload } = useWebsites()
-function fold(value: string) {
-  return value
-    .toLocaleLowerCase('vi')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replaceAll('\u0111', 'd')
-}
-const searchTerm = computed(() => fold(search.value.trim()))
-const visibleWebsites = computed(() =>
-  state.websites.filter((website) =>
-    fold(`${website.name} ${website.url}`).includes(searchTerm.value),
-  ),
+const urlState = new URLSearchParams(window.location.search)
+const search = ref(urlState.get('search') ?? '')
+const selectedTagIds = ref((urlState.get('tagIds') ?? '').split(',').filter(Boolean))
+const page = ref(Math.max(1, Number(urlState.get('page')) || 1))
+const pageSize = ref(
+  [12, 24, 48].includes(Number(urlState.get('pageSize'))) ? Number(urlState.get('pageSize')) : 12,
 )
-
+const tags = ref<Tag[]>([])
+const tagsLoading = ref(false)
+const tagsError = ref('')
+const manageOpen = ref(false)
+const manageCreate = ref(false)
+const { state, reload } = useWebsites()
+const activeTags = computed(() => tags.value.filter((tag) => selectedTagIds.value.includes(tag.id)))
+const pageCount = computed(() => Math.max(1, Math.ceil(state.total / pageSize.value)))
+const pages = computed(() => {
+  const result: (number | string)[] = []
+  for (let n = 1; n <= pageCount.value; n++) {
+    if (n === 1 || n === pageCount.value || Math.abs(n - page.value) <= 1) result.push(n)
+    else if (result[result.length - 1] !== '…') result.push('…')
+  }
+  return result
+})
+function syncUrl() {
+  const params = new URLSearchParams()
+  if (search.value) params.set('search', search.value)
+  if (selectedTagIds.value.length) params.set('tagIds', selectedTagIds.value.join(','))
+  if (page.value !== 1) params.set('page', String(page.value))
+  if (pageSize.value !== 12) params.set('pageSize', String(pageSize.value))
+  history.replaceState(null, '', location.pathname + (params.size ? '?' + params : ''))
+}
+let debounce: ReturnType<typeof setTimeout> | undefined
+let restoringUrl = false
+function schedule() {
+  syncUrl()
+  clearTimeout(debounce)
+  debounce = setTimeout(() => {
+    if (authenticated.value) void refresh()
+  }, 250)
+}
+watch(
+  [search, selectedTagIds, pageSize],
+  () => {
+    if (restoringUrl) return
+    page.value = 1
+    schedule()
+  },
+  { deep: true },
+)
+watch(page, () => {
+  if (!restoringUrl) schedule()
+})
+function restoreUrl() {
+  restoringUrl = true
+  const params = new URLSearchParams(window.location.search)
+  search.value = params.get('search') ?? ''
+  selectedTagIds.value = (params.get('tagIds') ?? '').split(',').filter(Boolean)
+  page.value = Math.max(1, Number(params.get('page')) || 1)
+  pageSize.value = [12, 24, 48].includes(Number(params.get('pageSize')))
+    ? Number(params.get('pageSize'))
+    : 12
+  queueMicrotask(() => {
+    restoringUrl = false
+    schedule()
+  })
+}
+onMounted(() => window.addEventListener('popstate', restoreUrl))
+onUnmounted(() => {
+  clearTimeout(debounce)
+  window.removeEventListener('popstate', restoreUrl)
+})
+async function loadTags() {
+  tagsLoading.value = true
+  tagsError.value = ''
+  try {
+    tags.value = (await api.tags()).tags
+    const valid = new Set(tags.value.map((tag) => tag.id))
+    selectedTagIds.value = selectedTagIds.value.filter((id) => valid.has(id))
+  } catch (cause) {
+    tagsError.value = cause instanceof Error ? cause.message : 'Unable to load tags'
+  } finally {
+    tagsLoading.value = false
+  }
+}
+function clearFilters() {
+  search.value = ''
+  selectedTagIds.value = []
+}
+function openManage(create = false) {
+  manageCreate.value = create
+  manageOpen.value = true
+}
+async function tagsChanged() {
+  await loadTags()
+  await refresh()
+}
 async function refresh() {
   banner.value = ''
-  await reload().catch(() => {})
+  await reload({
+    page: page.value,
+    pageSize: pageSize.value,
+    search: search.value.trim(),
+    tagIds: selectedTagIds.value,
+  }).catch(() => {})
+  if (!state.loading && !state.error && page.value > pageCount.value) {
+    page.value = pageCount.value
+    await reload({
+      page: page.value,
+      pageSize: pageSize.value,
+      search: search.value.trim(),
+      tagIds: selectedTagIds.value,
+    }).catch(() => {})
+  }
 }
 async function checkSession() {
   try {
@@ -75,7 +172,10 @@ async function checkSession() {
   } finally {
     checkingSession.value = false
   }
-  if (authenticated.value) await refresh()
+  if (authenticated.value) {
+    await loadTags()
+    await refresh()
+  }
 }
 onMounted(checkSession)
 async function login() {
@@ -86,6 +186,7 @@ async function login() {
     setCsrfToken(session.csrfToken)
     password.value = ''
     authenticated.value = true
+    await loadTags()
     await refresh()
   } catch (cause) {
     authError.value = cause instanceof Error ? cause.message : 'Sign in failed.'
@@ -105,15 +206,20 @@ async function logout() {
   authenticated.value = false
   state.websites = []
   state.count = 0
+  state.total = 0
+  tags.value = []
   banner.value = ''
   search.value = ''
+  selectedTagIds.value = []
+  page.value = 1
 }
 function openForm(website: Website | null) {
   editing.value = website
   formError.value = ''
   dialogOpen.value = true
 }
-async function save(input: { name: string; url: string }) {
+async function save(input: { name: string; url: string; tag_ids: string[] }) {
+  if (saving.value) return
   saving.value = true
   formError.value = ''
   banner.value = ''
@@ -124,7 +230,7 @@ async function save(input: { name: string; url: string }) {
     dialogOpen.value = false
     bannerError.value = false
     banner.value = wasEditing ? 'Website updated.' : 'Website added.'
-    await reload().catch(() => {})
+    await refresh()
   } catch (cause) {
     formError.value = cause instanceof Error ? cause.message : 'Unable to save the website.'
   } finally {
@@ -236,23 +342,41 @@ async function changePassword(input: { currentPassword: string; newPassword: str
         /></Button>
       </Alert>
       <section class="border-t border-border pt-5" aria-labelledby="website-list-title">
-        <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div class="flex items-center gap-2">
-            <h2 id="website-list-title" class="text-base font-semibold">Website list</h2>
-            <Badge v-if="searchTerm && !state.loading && !state.error" variant="secondary"
-              >{{ visibleWebsites.length }} results</Badge
-            >
+        <div class="mb-4 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex min-w-0 items-center gap-2">
+              <h2 id="website-list-title" class="shrink-0 text-base font-semibold">Website list</h2>
+              <Badge
+                v-if="(search || selectedTagIds.length) && !state.loading && !state.error"
+                variant="secondary"
+              >
+                {{ state.total }} {{ state.total === 1 ? 'result' : 'results' }}
+              </Badge>
+            </div>
+            <Button variant="ghost" size="sm" @click="openManage(false)">Manage tags</Button>
           </div>
-          <div class="flex min-w-0 items-center gap-2">
-            <InputGroup class="bg-card md:w-72">
+          <div
+            class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_auto]"
+            role="group"
+            aria-label="Website search and filters"
+          >
+            <InputGroup class="col-span-2 bg-card sm:col-span-1">
               <InputGroupInput
                 v-model="search"
                 type="search"
+                maxlength="160"
                 aria-label="Search websites"
                 placeholder="Search by name or URL"
               />
               <InputGroupAddon><PhMagnifyingGlass aria-hidden="true" /></InputGroupAddon>
             </InputGroup>
+            <TagPicker
+              v-model="selectedTagIds"
+              :tags="tags"
+              label="Filter by tags"
+              :show-selected="false"
+              :show-actions="false"
+            />
             <Button
               variant="outline"
               :disabled="state.loading"
@@ -262,8 +386,28 @@ async function changePassword(input: { currentPassword: string; newPassword: str
               <PhArrowsClockwise
                 :class="{ 'animate-spin motion-reduce:animate-none': state.loading }"
               />
-              <span class="hidden sm:inline">{{ state.loading ? 'Loading...' : 'Refresh' }}</span>
+              <span class="hidden sm:inline">Refresh</span>
             </Button>
+          </div>
+          <div
+            v-if="search || selectedTagIds.length"
+            class="space-y-2 rounded-md border bg-card px-3 py-2"
+            aria-label="Active filters"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs text-muted-foreground">
+                {{ selectedTagIds.length ? 'Matching any selected tag' : 'Search active' }}
+              </p>
+              <Button variant="ghost" size="sm" class="shrink-0" @click="clearFilters"
+                >Clear all</Button
+              >
+            </div>
+            <TagChips
+              v-if="activeTags.length"
+              :tags="activeTags"
+              class="max-h-40 overflow-y-auto pr-1"
+              @remove="(id) => (selectedTagIds = selectedTagIds.filter((value) => value !== id))"
+            />
           </div>
         </div>
         <div v-if="state.loading" role="status" aria-live="polite" aria-busy="true">
@@ -280,7 +424,7 @@ async function changePassword(input: { currentPassword: string; newPassword: str
           <AlertDescription>{{ state.error }}</AlertDescription>
           <Button variant="outline" class="mt-4" @click="refresh">Try again</Button>
         </Alert>
-        <Empty v-else-if="state.websites.length === 0" class="border bg-card">
+        <Empty v-else-if="state.count === 0" class="border bg-card">
           <EmptyHeader
             ><EmptyTitle>No websites yet</EmptyTitle
             ><EmptyDescription
@@ -291,7 +435,7 @@ async function changePassword(input: { currentPassword: string; newPassword: str
             ><Button @click="openForm(null)"><PhPlus /> Add website</Button></EmptyContent
           >
         </Empty>
-        <Empty v-else-if="visibleWebsites.length === 0" class="border bg-card">
+        <Empty v-else-if="state.websites.length === 0" class="border bg-card">
           <EmptyHeader
             ><EmptyTitle>No websites found</EmptyTitle
             ><EmptyDescription
@@ -299,16 +443,58 @@ async function changePassword(input: { currentPassword: string; newPassword: str
             ></EmptyHeader
           >
           <EmptyContent
-            ><Button variant="outline" @click="search = ''">Clear search</Button></EmptyContent
+            ><Button variant="outline" @click="clearFilters">Clear filters</Button></EmptyContent
           >
         </Empty>
         <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <WebsiteCard
-            v-for="website in visibleWebsites"
+            v-for="website in state.websites"
             :key="website.id"
             :website="website"
             @edit="openForm"
           />
+        </div>
+        <div
+          v-if="!state.loading && !state.error && state.total"
+          class="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm"
+        >
+          <span
+            >Showing {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, state.total) }} of
+            {{ state.total }} websites</span
+          >
+          <div class="flex items-center gap-1">
+            <Button variant="outline" size="sm" :disabled="page <= 1" @click="page--"
+              >Previous</Button
+            >
+            <template v-for="item in pages" :key="item">
+              <span v-if="item === '…'" class="px-1">…</span>
+              <Button
+                v-else
+                variant="outline"
+                size="sm"
+                :aria-label="`Page ${item}`"
+                :aria-current="page === item ? 'page' : undefined"
+                :disabled="page === item"
+                @click="page = Number(item)"
+                >{{ item }}</Button
+              >
+            </template>
+            <Button variant="outline" size="sm" :disabled="page >= pageCount" @click="page++"
+              >Next</Button
+            >
+          </div>
+          <label class="flex items-center gap-2"
+            >Per page
+            <select
+              v-model.number="pageSize"
+              class="rounded border bg-card px-2 py-1"
+              aria-label="Websites per page"
+            >
+              <option :value="12">12</option>
+              <option :value="24">24</option>
+              <option :value="48">48</option>
+            </select></label
+          >
         </div>
       </section>
     </main>
@@ -317,8 +503,21 @@ async function changePassword(input: { currentPassword: string; newPassword: str
       :website="editing"
       :saving="saving"
       :error="formError"
+      :tags="tags"
+      @create-tag="openManage(true)"
+      @manage-tags="openManage(false)"
       @close="dialogOpen = false"
       @save="save"
+    />
+    <ManageTags
+      :open="manageOpen"
+      :tags="tags"
+      :loading="tagsLoading"
+      :error="tagsError"
+      :start-create="manageCreate"
+      @close="manageOpen = false"
+      @refresh="loadTags"
+      @changed="tagsChanged"
     />
     <PasswordDialog
       :open="passwordDialogOpen"

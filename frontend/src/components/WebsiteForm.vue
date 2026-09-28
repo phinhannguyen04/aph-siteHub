@@ -12,25 +12,41 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { Website } from '@/api'
+import type { Website, Tag } from '@/api'
+import TagPicker from './TagPicker.vue'
 
 const props = defineProps<{
   open: boolean
   website: Website | null
   saving: boolean
   error: string
+  tags: Tag[]
 }>()
-const emit = defineEmits<{ close: []; save: [input: { name: string; url: string }] }>()
+const emit = defineEmits<{
+  close: []
+  save: [input: { name: string; url: string; tag_ids: string[] }]
+  createTag: []
+  manageTags: []
+}>()
 const name = ref('')
 const url = ref('')
+const tagIds = ref<string[]>([])
 const errors = reactive({ name: '', url: '' })
 watch(
   () => [props.open, props.website] as const,
   () => {
     name.value = props.website?.name ?? ''
     url.value = props.website?.url ?? ''
+    tagIds.value = [...(props.website?.tag_ids ?? [])]
     errors.name = ''
     errors.url = ''
+  },
+)
+watch(
+  () => props.tags,
+  (tags) => {
+    const valid = new Set(tags.map((tag) => tag.id))
+    tagIds.value = tagIds.value.filter((id) => valid.has(id))
   },
 )
 watch(name, () => {
@@ -68,9 +84,11 @@ function validateUrl() {
   return !errors.url
 }
 function submit() {
+  if (props.saving) return
   const validName = validateName()
   const validUrl = validateUrl()
-  if (validName && validUrl) emit('save', { name: name.value.trim(), url: url.value.trim() })
+  if (validName && validUrl)
+    emit('save', { name: name.value.trim(), url: url.value.trim(), tag_ids: tagIds.value })
 }
 </script>
 
@@ -122,6 +140,15 @@ function submit() {
           <FieldError v-if="errors.url" id="website-url-error">
             {{ errors.url }}
           </FieldError>
+        </Field>
+        <Field>
+          <FieldLabel>Tags</FieldLabel>
+          <TagPicker
+            v-model="tagIds"
+            :tags="tags"
+            @create="emit('createTag')"
+            @manage="emit('manageTags')"
+          />
         </Field>
         <Alert v-if="error" variant="destructive"
           ><AlertDescription>{{ error }}</AlertDescription></Alert

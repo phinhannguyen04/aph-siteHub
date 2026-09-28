@@ -1,5 +1,13 @@
 import { Transform } from 'class-transformer'
-import { IsDefined, IsString } from 'class-validator'
+import {
+  IsArray,
+  IsDefined,
+  IsString,
+  IsUUID,
+  ArrayMaxSize,
+  ArrayUnique,
+  IsOptional,
+} from 'class-validator'
 import { normalizeName, normalizeUrl } from '../website-normalization'
 
 export class CreateWebsiteDto {
@@ -12,4 +20,11 @@ export class CreateWebsiteDto {
   @IsDefined({ message: 'URL is required' })
   @IsString({ message: 'Invalid URL' })
   url!: string
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  tag_ids?: string[]
 }

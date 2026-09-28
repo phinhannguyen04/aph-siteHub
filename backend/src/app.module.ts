@@ -5,6 +5,7 @@ import type { AppConfig } from './config/app-config'
 import { ConfigModule } from './config/config.module'
 import { DatabaseModule } from './database/database.module'
 import { HealthModule } from './health/health.module'
+import { TagsModule } from './tags/tags.module'
 import { WebsitesModule } from './websites/websites.module'
 
 @Module({})
@@ -18,6 +19,7 @@ export class AppModule {
         AuthModule,
         HealthModule,
         WebsitesModule,
+        TagsModule,
       ],
     }
   }

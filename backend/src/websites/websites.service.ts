@@ -1,58 +1,165 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { HttpException, Inject, Injectable } from '@nestjs/common'
 import type { Surreal } from 'surrealdb'
 import { DATABASE } from '../database/database.tokens'
-
+import { apiError } from '../common/errors/api-error'
+import { ValidationError } from '../common/errors/validation-error'
 import type { Website } from './website.interface'
-
-type WebsiteRecord = Omit<Website, 'id'> & { website_id: string }
-
-function toWebsite(record: WebsiteRecord): Website {
-  return {
-    id: record.website_id,
-    name: record.name,
-    url: record.url,
-    created_at: record.created_at,
-    updated_at: record.updated_at,
-  }
+import { fold } from './search'
+import type { ListQuery } from './list-query'
+type WebsiteRecord = Omit<Website, 'id' | 'tags'> & { website_id: string; tag_ids?: string[] }
+type TagRecord = {
+  tag_id: string
+  name: string
+  description: string
+  color: string
+  created_at: string
+  updated_at: string
 }
-
 @Injectable()
 export class WebsitesService {
   constructor(@Inject(DATABASE) private readonly db: Surreal) {}
-  async list(): Promise<Website[]> {
-    const [records] = await this.db.query<[WebsiteRecord[]]>(
-      'SELECT website_id, name, url, created_at, updated_at FROM websites ORDER BY created_at DESC, website_id DESC',
+  private async hydrate(rows: WebsiteRecord[]): Promise<Website[]> {
+    const ids = [...new Set(rows.flatMap((row) => row.tag_ids ?? []))]
+    const [tags] = ids.length
+      ? await this.db.query<[TagRecord[]]>(
+          'SELECT tag_id, name, description, color, created_at, updated_at FROM tags WHERE tag_id IN $ids',
+          { ids },
+        )
+      : [[]]
+    const byId = new Map(
+      tags.map((tag) => [
+        tag.tag_id,
+        {
+          id: tag.tag_id,
+          name: tag.name,
+          description: tag.description,
+          color: tag.color,
+          created_at: tag.created_at,
+          updated_at: tag.updated_at,
+        },
+      ]),
     )
-    return records.map(toWebsite)
+    return rows.map((row) => ({
+      id: row.website_id,
+      name: row.name,
+      url: row.url,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      tag_ids: row.tag_ids ?? [],
+      tags: (row.tag_ids ?? [])
+        .map((id) => byId.get(id))
+        .filter((tag): tag is NonNullable<typeof tag> => !!tag),
+    }))
+  }
+  async list(
+    query: ListQuery,
+  ): Promise<{ websites: Website[]; total: number; page: number; pageSize: number }> {
+    const bindings = {
+      search: fold(query.search),
+      tagIds: query.tagIds,
+      limit: query.pageSize,
+      start: (query.page - 1) * query.pageSize,
+    }
+    const where =
+      'WHERE ($search = "" OR string::contains(search_text, $search)) AND (array::len($tagIds) = 0 OR tag_ids CONTAINSANY $tagIds)'
+    const [count] = await this.db.query<[{ total: number }[]]>(
+      `SELECT count() AS total FROM websites ${where} GROUP ALL`,
+      bindings,
+    )
+    const [rows] = await this.db.query<[WebsiteRecord[]]>(
+      `SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites ${where} ORDER BY created_at DESC, website_id DESC LIMIT $limit START $start`,
+      bindings,
+    )
+    return {
+      websites: await this.hydrate(rows),
+      total: Number(count[0]?.total ?? 0),
+      page: query.page,
+      pageSize: query.pageSize,
+    }
   }
   async count(): Promise<number> {
-    const [records] = await this.db.query<[{ total: number }[]]>(
+    const [rows] = await this.db.query<[{ total: number }[]]>(
       'SELECT count() AS total FROM websites GROUP ALL',
     )
-    return Number(records[0]?.total ?? 0)
+    return Number(rows[0]?.total ?? 0)
   }
-  async create(input: { name: string; url: string }): Promise<Website> {
+  private async validTags(ids: string[]) {
+    if (
+      ids.length > 50 ||
+      ids.some((id) => !/^[0-9a-f-]{36}$/i.test(id)) ||
+      new Set(ids).size !== ids.length
+    )
+      throw new ValidationError('Invalid tag IDs')
+    const [rows] = await this.db.query<[{ tag_id: string }[]]>(
+      'SELECT tag_id FROM tags WHERE tag_id IN $ids',
+      { ids },
+    )
+    if (rows.length !== ids.length) throw new ValidationError('One or more tags do not exist')
+  }
+  async create(input: { name: string; url: string; tag_ids?: string[] }): Promise<Website> {
+    const ids = input.tag_ids ?? []
+    await this.validTags(ids)
     const now = new Date().toISOString()
-    const website: Website = {
-      id: crypto.randomUUID(),
-      ...input,
-      created_at: now,
-      updated_at: now,
+    const id = crypto.randomUUID()
+    try {
+      await this.db.query(
+        'BEGIN TRANSACTION; LET $found = (SELECT tag_id FROM tags WHERE tag_id IN $tag_ids); IF array::len($found) != array::len($tag_ids) { THROW "INVALID_TAG_IDS" }; CREATE websites CONTENT { website_id: $id, name: $name, url: $url, tag_ids: $tag_ids, search_text: $search_text, created_at: $now, updated_at: $now }; COMMIT TRANSACTION;',
+        {
+          id,
+          name: input.name,
+          url: input.url,
+          tag_ids: ids,
+          search_text: fold(input.name + ' ' + input.url),
+          now,
+        },
+      )
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('INVALID_TAG_IDS'))
+        throw new ValidationError('One or more tags do not exist')
+      await this.validTags(ids)
+      throw error
     }
-    await this.db.query(
-      'CREATE websites CONTENT { website_id: $website_id, name: $name, url: $url, created_at: $created_at, updated_at: $updated_at }',
-      { website_id: website.id, ...input, created_at: now, updated_at: now },
+    const [rows] = await this.db.query<[WebsiteRecord[]]>(
+      'SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites WHERE website_id = $id',
+      { id },
     )
-    return website
+    return (await this.hydrate(rows))[0]!
   }
-  async update(id: string, input: { name?: string; url?: string }): Promise<Website | null> {
-    const setFields: string[] = ['updated_at = $updated_at']
-    if (input.name !== undefined) setFields.push('name = $name')
-    if (input.url !== undefined) setFields.push('url = $url')
-    const [records] = await this.db.query<[WebsiteRecord[]]>(
-      `UPDATE websites SET ${setFields.join(', ')} WHERE website_id = $website_id RETURN AFTER`,
-      { website_id: id, updated_at: new Date().toISOString(), ...input },
+  async update(
+    id: string,
+    input: { name?: string; url?: string; tag_ids?: string[] },
+  ): Promise<Website | null> {
+    if (input.tag_ids !== undefined) await this.validTags(input.tag_ids)
+    const [existing] = await this.db.query<[WebsiteRecord[]]>(
+      'SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites WHERE website_id = $id LIMIT 1',
+      { id },
     )
-    return records[0] ? toWebsite(records[0]) : null
+    if (!existing[0]) return null
+    const name = input.name ?? existing[0].name
+    const url = input.url ?? existing[0].url
+    try {
+      await this.db.query(
+        'BEGIN TRANSACTION; LET $found = (SELECT tag_id FROM tags WHERE tag_id IN $tag_ids); IF array::len($found) != array::len($tag_ids) { THROW "INVALID_TAG_IDS" }; UPDATE websites SET name = $name, url = $url, tag_ids = $tag_ids, search_text = $search_text, updated_at = $now WHERE website_id = $id; COMMIT TRANSACTION;',
+        {
+          id,
+          name,
+          url,
+          tag_ids: input.tag_ids ?? existing[0].tag_ids ?? [],
+          search_text: fold(name + ' ' + url),
+          now: new Date().toISOString(),
+        },
+      )
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('INVALID_TAG_IDS'))
+        throw new ValidationError('One or more tags do not exist')
+      await this.validTags(input.tag_ids ?? existing[0].tag_ids ?? [])
+      throw error
+    }
+    const [rows] = await this.db.query<[WebsiteRecord[]]>(
+      'SELECT website_id, name, url, tag_ids, created_at, updated_at FROM websites WHERE website_id = $id',
+      { id },
+    )
+    if (!rows[0]) throw new HttpException(apiError('NOT_FOUND', 'Website not found'), 404)
+    return (await this.hydrate(rows))[0]!
   }
 }

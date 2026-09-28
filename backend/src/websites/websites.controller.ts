@@ -7,12 +7,14 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import { SessionGuard } from '../auth/guards/session.guard'
 import { apiError } from '../common/errors/api-error'
 import { CreateWebsiteDto } from './dto/create-website.dto'
 import { UpdateWebsiteDto } from './dto/update-website.dto'
+import { parseListQuery } from './list-query'
 import { WebsitesService } from './websites.service'
 
 @Controller('api/websites')
@@ -21,8 +23,8 @@ export class WebsitesController {
   constructor(private readonly websites: WebsitesService) {}
 
   @Get()
-  async list() {
-    return { websites: await this.websites.list() }
+  async list(@Query() query: Record<string, unknown>) {
+    return this.websites.list(parseListQuery(query))
   }
 
   @Get('count')

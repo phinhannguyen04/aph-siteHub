@@ -8,7 +8,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 .
 ├── .env.example
 ├── backend/
-│   ├── migrations/{001_websites,002_admin_credentials}.surql
+│   ├── migrations/{001_websites,002_admin_credentials,003_tags}.surql
 │   ├── src/
 │   │   ├── main.ts, app.module.ts, app.factory.ts
 │   │   ├── config/{app-config,config.module,config.tokens}.ts
@@ -18,14 +18,15 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 │   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
 │   │   ├── auth/guards/session.guard.ts
 │   │   ├── auth/dto/{login,change-password}.dto.ts
-│   │   ├── websites/{websites.module,websites.controller,websites.service,website.interface,website-normalization}.ts
+│   │   ├── websites/{websites.module,websites.controller,websites.service,website.interface,website-normalization,list-query,search}.ts
 │   │   ├── websites/dto/{create-website,update-website}.dto.ts
+│   │   ├── tags/{tags.module,tags.controller,tags.service,tag-normalization,tag.interface}.ts
 │   │   ├── health/{health.module,health.controller}.ts
 │   │   └── cli/{migrate,reset-password,hash-password}.ts
 │   ├── test/api.test.ts
 │   └── Dockerfile
 ├── frontend/
-│   ├── src/components/{WebsiteCard,WebsiteForm,PasswordDialog}.vue
+│   ├── src/components/{WebsiteCard,WebsiteForm,PasswordDialog,TagPicker,ManageTags}.vue
 │   ├── src/components/ui/         # shadcn-vue component source
 │   ├── src/{App,api,main,websites-state,style}.*
 │   ├── test/websites-state.test.ts
@@ -37,9 +38,9 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 
 ## Backend architecture
 
-`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` establishes the SurrealDB connection through an async provider and closes its connection during NestJS shutdown. Feature controllers handle HTTP requests; services handle credentials and website data. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
+`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` establishes the SurrealDB connection through an async provider and closes its connection during NestJS shutdown. Feature controllers handle HTTP requests; services handle credentials, websites, and tags. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
 
-The root module accepts an existing database connection for isolated integration tests. Production bootstrapping creates and owns its connection. API routes, response shapes, and SurrealDB records remain compatible with previous versions.
+The root module accepts an existing database connection for isolated integration tests. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
 
 ## Configuration
 
@@ -103,7 +104,7 @@ Vite proxies `/api` and `/health` to backend port 3000. Set `SITEHUB_DEV_PORT` a
 
 ## API and manual checks
 
-NestJS DTOs live in `backend/src/{auth,websites}/dto/`. `ValidationPipe` rejects unknown fields and normalizes website names and URLs before storage. The API provides `GET /health`, `GET /api/auth/session`, `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/change-password`, `GET /api/websites`, `GET /api/websites/count`, `POST /api/websites`, and `PATCH /api/websites/:id`. Errors use `{ error: { code, message } }`.
+NestJS DTOs live in `backend/src/{auth,websites}/dto/`. `ValidationPipe` rejects unknown fields and normalizes website names and URLs before storage. The API provides health and authentication routes, paged website listing and count, website create/update, and tag CRUD as described below. Errors use `{ error: { code, message } }`.
 
 1. Signed out: the sign-in form appears and `GET /api/websites` returns 401.
 2. Signed in: the website count and cards reflect SurrealDB data.
@@ -142,4 +143,23 @@ The interface uses shadcn-vue components stored in `frontend/src/components/ui/`
 
 Components are added from the official registry with `bunx --bun shadcn-vue@latest add <component>` inside `frontend/`. Their source is committed locally; Reka UI supplies the underlying interaction primitives. Keep Phosphor icons and the shared theme in `frontend/src/style.css` when adding components. The stylesheet contains theme tokens, base styles, and the browser password-reveal override; layout uses Tailwind utilities.
 
-Browser checks using a separate real SurrealDB instance cover sign-in, empty lists, add/edit validation, list/count updates, search, opening links, password controls, loading, API failure, and retry at 1440, 768, and 375 px. Screenshots: [desktop](artifacts/shadcn-desktop.png), [tablet](artifacts/shadcn-tablet.png), [mobile](artifacts/shadcn-mobile.png).
+Previous browser checks (before tag and pagination changes) covered sign-in, empty lists, add/edit validation, list/count updates, search, opening links, password controls, loading, API failure, and retry at 1440, 768, and 375 px. Screenshots: [desktop](artifacts/shadcn-desktop.png), [tablet](artifacts/shadcn-tablet.png), [mobile](artifacts/shadcn-mobile.png).
+
+## Tags, filtering, and pagination
+
+Run the migrations before starting the updated backend when upgrading an existing installation:
+
+```bash
+docker compose build backend
+docker compose up -d --wait surrealdb
+docker compose run --rm backend bun backend/dist/cli/migrate.js
+docker compose up -d --wait
+```
+
+Migration `003_tags.surql` adds a `tags` table with stable UUIDs, unique normalized names, description, color, and timestamps. Websites store tag IDs in `tag_ids`, defaulting to an empty array. The migration command backfills `search_text` for existing websites, including Vietnamese accent and đ/Đ folding. Re-running the migration preserves existing website and tag data.
+
+Tag names are trimmed, leading `#` characters are removed, and names must contain 1–64 characters. Names are unique without regard to case. Descriptions allow up to 240 characters and colors must be six-digit hex values. The unique database index resolves concurrent duplicate creates. Tag deletion removes its ID from all websites in one transaction while preserving the websites.
+
+The authenticated tag API uses `GET /api/tags`, `POST /api/tags`, `PATCH /api/tags/:id`, and `DELETE /api/tags/:id`. Create and update accept `{ name, description, color }`. Website create and update accept optional `tag_ids: string[]`; responses include `tag_ids` and expanded `tags`. All writes use the existing origin and CSRF checks. Errors retain `{ error: { code, message } }`.
+
+`GET /api/websites` now returns `{ websites, total, page, pageSize }`. Query parameters are `page` (default 1), `pageSize` (default 12, maximum 48), `search`, and comma-separated `tagIds`. Tag filtering uses OR across selected tags, then AND with accent-insensitive name/URL search. Results are ordered by newest `created_at`, then `website_id` descending, before pagination. `total` counts filtered results; `GET /api/websites/count` continues to count all saved websites. The frontend keeps the search, tags, page, and page size in the URL query.

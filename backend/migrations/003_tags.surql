@@ -1,0 +1,15 @@
+DEFINE TABLE IF NOT EXISTS tags SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS tag_id ON TABLE tags TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON TABLE tags TYPE string;
+DEFINE FIELD IF NOT EXISTS name_key ON TABLE tags TYPE string;
+DEFINE FIELD IF NOT EXISTS description ON TABLE tags TYPE string;
+DEFINE FIELD IF NOT EXISTS color ON TABLE tags TYPE string;
+DEFINE FIELD IF NOT EXISTS created_at ON TABLE tags TYPE string;
+DEFINE FIELD IF NOT EXISTS updated_at ON TABLE tags TYPE string;
+DEFINE INDEX IF NOT EXISTS tags_by_tag_id ON TABLE tags FIELDS tag_id UNIQUE;
+DEFINE INDEX IF NOT EXISTS tags_by_name_key ON TABLE tags FIELDS name_key UNIQUE;
+DEFINE FIELD IF NOT EXISTS tag_ids ON TABLE websites TYPE array<string> DEFAULT [] ASSERT array::len($value) = array::len(array::distinct($value));
+DEFINE FIELD IF NOT EXISTS search_text ON TABLE websites TYPE string DEFAULT '';
+UPDATE websites SET tag_ids = [], search_text = string::lowercase(name + ' ' + url) WHERE tag_ids = NONE;
+DEFINE INDEX IF NOT EXISTS websites_by_created ON TABLE websites FIELDS created_at, website_id;
+DEFINE INDEX IF NOT EXISTS websites_by_tag ON TABLE websites FIELDS tag_ids.*;

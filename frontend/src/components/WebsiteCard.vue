@@ -44,6 +44,19 @@ function openWebsite() {
           :title="website.url"
           >{{ displayUrl }}</span
         >
+        <span v-if="website.tags?.length" class="mt-2 flex flex-wrap gap-1">
+          <span
+            v-for="tag in website.tags"
+            :key="tag.id"
+            class="max-w-full break-all rounded border bg-secondary px-2 py-0.5 text-xs font-bold italic"
+            :title="tag.description"
+            ><span
+              class="mr-1 inline-block size-2 rounded-full border"
+              :style="{ backgroundColor: tag.color }"
+              aria-hidden="true"
+            />#{{ tag.name }}</span
+          >
+        </span>
       </span>
       <PhArrowUpRight class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
     </Button>

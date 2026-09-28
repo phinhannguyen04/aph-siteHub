@@ -4,7 +4,7 @@ import { CreateWebsiteDto } from './create-website.dto'
 
 export class UpdateWebsiteDto extends PartialType(CreateWebsiteDto) {
   assertHasChanges(): void {
-    if (this.name === undefined && this.url === undefined)
-      throw new ValidationError('Provide a website name or URL')
+    if (this.name === undefined && this.url === undefined && this.tag_ids === undefined)
+      throw new ValidationError('Provide a website name, URL or tags')
   }
 }
