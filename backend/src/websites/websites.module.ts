@@ -1,5 +1,5 @@
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { WebsiteEntity } from '../entities/website.entity'
+import { WebsiteEntity } from './entities/website.entity'
 import { Module } from '@nestjs/common'
 import { AuthModule } from '../auth/auth.module'
 import { WebsitesController } from './websites.controller'

@@ -1,10 +1,10 @@
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
 import pg from 'pg'
-import { WebsiteEntity } from '../entities/website.entity'
-import { TagEntity } from '../entities/tag.entity'
-import { WebsiteTagEntity } from '../entities/website-tag.entity'
-import { AdminCredentialEntity } from '../entities/admin-credential.entity'
+import { WebsiteEntity } from '../websites/entities/website.entity'
+import { TagEntity } from '../tags/entities/tag.entity'
+import { WebsiteTagEntity } from '../websites/entities/website-tag.entity'
+import { AdminCredentialEntity } from '../auth/entities/admin-credential.entity'
 import { InitialSchema1791158400000 } from './initial-migration'
 import {
   attempt,

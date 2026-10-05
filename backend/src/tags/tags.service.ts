@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { TagEntity } from '../entities/tag.entity'
+import { TagEntity } from './entities/tag.entity'
 import { query } from '../database/error'
 import { operation, serviceFailure, success, type ServiceResult } from '../common/errors/result'
 import { toTag, type Tag } from './tag.interface'

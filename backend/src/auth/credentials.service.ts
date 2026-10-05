@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { AdminCredentialEntity } from '../entities/admin-credential.entity'
+import { AdminCredentialEntity } from './entities/admin-credential.entity'
 import type { AppConfig } from '../config/app-config'
 import { APP_CONFIG } from '../config/config.tokens'
 import { query } from '../database/error'

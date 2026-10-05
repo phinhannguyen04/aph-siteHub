@@ -1,6 +1,6 @@
 import { operation, success, type ServiceResult } from '../common/errors/result'
 import type { Database } from '../database/client'
-import { WebsiteEntity } from '../entities/website.entity'
+import { WebsiteEntity } from './entities/website.entity'
 import { fold } from './search'
 export async function backfillWebsiteSearch(db: Database): Promise<ServiceResult<void>> {
   return operation(async () => {

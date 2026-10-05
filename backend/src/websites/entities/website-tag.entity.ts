@@ -1,5 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn, type Relation } from 'typeorm'
-import { TagEntity } from './tag.entity'
+import { TagEntity } from '../../tags/entities/tag.entity'
 import { WebsiteEntity } from './website.entity'
 
 @Entity('website_tags')

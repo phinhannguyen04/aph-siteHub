@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { Database } from '../database/client'
-import { AdminCredentialEntity } from '../entities/admin-credential.entity'
+import { AdminCredentialEntity } from './entities/admin-credential.entity'
 import { query } from '../database/error'
 import { operation, success, type ServiceResult } from '../common/errors/result'
 export async function resetAdminPassword(db: Database): Promise<ServiceResult<string>> {
