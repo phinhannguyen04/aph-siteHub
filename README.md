@@ -31,15 +31,39 @@ backend/
 
 Files use short package-local names such as `handler.ts`, `service.ts`, `repository.ts`, `schema.ts`, and `model.ts`. Tests sit next to the packages they exercise as `*.test.ts`. Entry points only compose and run the application. Handlers handle HTTP, services handle business rules, and repositories implement small interfaces using Drizzle. Dependencies are passed explicitly; no framework dependency injection is used. This layout is a convention in TypeScript, rather than Go's compiler-enforced `internal` visibility.
 
-`createApp` returns `{ app, close }` inside a success result. `app` exposes Hono's Fetch API; `close` closes only connections created by the application. The Bun entrypoint drains the HTTP server and closes PostgreSQL on SIGINT/SIGTERM.
+`createApp` returns `{ app, close }` inside a success result. `app` exposes Hono's Fetch API; `close` closes only connections created by the application. The Bun entrypoint drains the HTTP server, shuts down the limiter store, and closes PostgreSQL on SIGINT/SIGTERM.
 
 ## Database and error handling
 
 Drizzle manages the `websites`, `tags`, `website_tags`, and `admin_credentials` tables. The association table preserves tag order and uses foreign keys with cascading association deletion. Deleting a tag keeps its websites. Unique normalized tag names resolve concurrent creates. Website writes run in transactions; invalid tag references roll back both website changes and associations. List/count/hydration use one repeatable-read transaction for consistent pagination.
 
-Services and repositories return `{ code: 0, data }` or `{ code: 1, error }`. Callers check `if (result.code !== 0)` before reading data. HTTP failures remain `{ error: { code, message } }`. PostgreSQL SQLSTATE codes are mapped to API validation/conflict errors at the repository boundary. HTTP validation uses `sValidator` from `@hono/standard-validator` with strict Zod schemas. Handlers read typed, normalized inputs using `c.req.valid('json')` and `c.req.valid('query')`. A shared validation hook preserves `{ error: { code, message } }` responses; JSON preparation preserves the existing 415 media-type and 400 malformed-JSON errors. Hono routes return HTTP errors directly. `attempt` adapts exception-based libraries, and `attemptSync` isolates synchronous APIs such as `JSON.parse`.
+Services and repositories return `{ code: 0, data }` or `{ code: 1, error }`. Callers check `if (result.code !== 0)` before reading data. HTTP failures remain `{ error: { code, message } }`. PostgreSQL SQLSTATE codes are mapped to API validation/conflict errors at the repository boundary. HTTP validation uses `sValidator` from `@hono/standard-validator` with strict Zod schemas. Handlers read typed, normalized inputs using `c.req.valid('json')` and `c.req.valid('query')`. A documented validation hook preserves `{ error: { code, message } }` responses. Hono parses JSON itself; malformed JSON raises its native 400 `HTTPException`, while a missing or nonmatching content type supplies an empty object that the schema rejects with 400. Hono routes return HTTP errors directly. `attempt` adapts exception-based libraries, and `attemptSync` isolates synchronous APIs such as `JSON.parse`.
 
 Runtime database queries and schema migrations use PostgreSQL and Drizzle exclusively.
+
+## Hono facilities
+
+Prefer facilities documented by Hono over reimplementing framework behavior. See [backend/AGENTS.md](backend/AGENTS.md) for the coding rules.
+
+| Concern                                    | Facility used                                                                                               |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| JSON, query, and header validation         | [`sValidator` with Zod](https://hono.dev/docs/guides/validation) and `c.req.valid()`                        |
+| Request body parsing                       | Hono's validator; no preliminary JSON parser or content-type regex                                          |
+| Session signature and expiry               | [`sign` and JWT middleware](https://hono.dev/docs/middleware/builtin/jwt), explicitly pinned to HS256       |
+| Cookie reading, serialization and deletion | [`hono/cookie`](https://hono.dev/docs/helpers/cookie), with `setCookie` and `deleteCookie`                  |
+| Middleware composition                     | [`every` and `except`](https://hono.dev/docs/middleware/builtin/combine)                                    |
+| Form-based CSRF defense                    | [`hono/csrf`](https://hono.dev/docs/middleware/builtin/csrf)                                                |
+| JSON origin and session-token policy       | `sValidator('header', ...)` with application constraints                                                    |
+| Client connection address                  | [`getConnInfo` from `@hono/bun`](https://hono.dev/docs/helpers/conninfo)                                    |
+| CORS and body size                         | Built-in `cors({ origin: origins })` and `bodyLimit`                                                        |
+| Framework HTTP failures                    | [`HTTPException` and `app.onError`](https://hono.dev/docs/api/exception), adapted to the API envelope       |
+| Login request quota                        | [`hono-rate-limiter`](https://hono.dev/docs/middleware/third-party), an ecosystem middleware listed by Hono |
+
+Hono's CSRF middleware only checks unsafe requests with form-compatible content types. JSON writes additionally require an allowed `Origin` and `x-csrf-token` matching the signed session, enforced through header validators. The credential version stored in PostgreSQL is application policy: a password change/reset invalidates JWTs containing an older version. The JWT must include the application claims `sub`, `exp`, `csrf`, and `version`.
+
+Cookies retain their name, eight-hour duration, HttpOnly/SameSite/path/secure options, and API response shapes. Switching the previous custom token to a standard JWT requires one new sign-in for existing sessions. The password and database records remain unchanged.
+
+The login limiter uses its built-in `MemoryStore` and fixed fifteen-minute window, counting only 401 credential failures with a limit of five. A successful login resets the client's key. Its timers are shut down when the application closes. Nginx overwrites `X-Real-IP` on the private backend proxy; requests reaching Bun directly use ConnInfo. The store is per application instance, as in the previous in-memory policy.
 
 ## Configuration
 

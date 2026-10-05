@@ -6,8 +6,6 @@ import { WebsitesService } from '../website/service'
 import type { Repository as WebsiteRepository } from '../website/repository'
 import { CredentialsService } from '../auth/service'
 import type { Repository as CredentialRepository } from '../auth/repository'
-import { createHmac } from 'node:crypto'
-import { createSession, readSession } from '../auth/session'
 import { createApp } from '../app/app'
 import type { Connection, Database } from '../database/client'
 import { unwrap } from '../testutil/helpers'
@@ -66,16 +64,6 @@ test('credential service returns the winning initialization and preserves reposi
   const failed = serviceFailure('INTERNAL_ERROR', 'Internal server error', 500)
   repository.find = async () => failed
   expect(await new CredentialsService(repository, {}).current()).toEqual(failed)
-})
-
-test('session parser handles signed malformed payloads without throwing', () => {
-  const secret = 'test-secret'
-  for (const content of ['{', 'null', '[]', '"text"', '{"exp":0}']) {
-    const payload = Buffer.from(content).toString('base64url')
-    const signature = createHmac('sha256', secret).update(payload).digest('base64url')
-    expect(readSession(`${payload}.${signature}`, secret)).toBeNull()
-  }
-  expect(readSession(createSession(secret, 'v1').token, secret)?.version).toBe('v1')
 })
 
 test('Hono preserves health failure and external connection ownership', async () => {

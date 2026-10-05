@@ -1,3 +1,6 @@
+import { csrf } from 'hono/csrf'
+import { HTTPException } from 'hono/http-exception'
+import { newLoginLimiter } from '../auth/limiter'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { bodyLimit } from 'hono/body-limit'
@@ -34,7 +37,9 @@ export async function createApp(
   if (connected.code !== 0) return connected
   const connection = connected.data
   const db = connection.db
+  let disposeLimiter: (() => void) | undefined
   const close = async (): Promise<ServiceResult<void>> => {
+    disposeLimiter?.()
     if (options.database) return success(undefined)
     const closed = await attempt(() => connection.close())
     if (closed.code !== 0) return unexpectedFailure(closed.error)
@@ -46,20 +51,41 @@ export async function createApp(
     app.use(
       '*',
       cors({
-        origin: (origin) => (origins.includes(origin) ? origin : null),
+        origin: origins,
         credentials: true,
         allowMethods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'X-CSRF-Token'],
       }),
     )
+    app.use('*', csrf({ origin: origins }))
     app.use(
       '*',
       bodyLimit({
         maxSize: 1024 * 1024,
-        onError: (c) => c.json(apiError('HTTP_ERROR', 'Request body too large'), 413),
       }),
     )
     app.onError((error, c) => {
+      if (error instanceof HTTPException) {
+        const code =
+          error.status === 400
+            ? 'VALIDATION_ERROR'
+            : error.status === 401
+              ? 'UNAUTHORIZED'
+              : error.status === 403
+                ? 'FORBIDDEN'
+                : 'HTTP_ERROR'
+        const response = error.getResponse()
+        response.headers.forEach((value, key) => {
+          if (key.toLowerCase() !== 'content-type') c.header(key, value)
+        })
+        return c.json(
+          apiError(
+            code,
+            error.status === 401 ? 'Please sign in' : error.message || `HTTP error ${error.status}`,
+          ),
+          error.status,
+        )
+      }
       console.error(error)
       return c.json(apiError('INTERNAL_ERROR', 'Internal server error'), 500)
     })
@@ -67,7 +93,9 @@ export async function createApp(
     const credentials = new CredentialsService(authRepository(db), config)
     const guard = sessionMiddleware(config, credentials)
     app.route('/', healthRoutes(db))
-    app.route('/api/auth', authRoutes(config, credentials, guard))
+    const limiter = newLoginLimiter()
+    disposeLimiter = limiter.close
+    app.route('/api/auth', authRoutes(config, credentials, guard, limiter))
     app.route('/api/websites', websiteRoutes(new WebsitesService(websiteRepository(db)), guard))
     app.route('/api/tags', tagRoutes(new TagsService(tagRepository(db)), guard))
     return { app, close }

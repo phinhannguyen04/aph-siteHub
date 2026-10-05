@@ -23,3 +23,10 @@ export const changePasswordSchema = z
     (input) => input.currentPassword !== input.newPassword,
     'New password must differ from the current password',
   )
+
+export const sessionClaimsSchema = z.object({
+  sub: z.literal('admin'),
+  exp: z.number().int().positive(),
+  csrf: z.string().min(1),
+  version: z.string().min(1),
+})
