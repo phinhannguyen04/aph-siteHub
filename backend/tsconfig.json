@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "types": ["bun"],
@@ -8,5 +10,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["cmd/**/*.ts", "internal/**/*.ts", "drizzle.config.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts"]
 }

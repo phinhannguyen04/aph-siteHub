@@ -10,7 +10,7 @@
     "typecheck": "bun --cwd backend typecheck && bun --cwd frontend typecheck",
     "build": "bun --cwd frontend build && bun --cwd backend build",
     "test": "bun test",
-    "lint": "eslint backend/cmd backend/internal frontend/src frontend/test",
+    "lint": "eslint backend/src backend/test frontend/src frontend/test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
