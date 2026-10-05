@@ -1,4 +1,3 @@
-import { httpData } from '../common/errors/result'
 import {
   DynamicModule,
   Global,
@@ -7,50 +6,47 @@ import {
   Module,
   OnApplicationShutdown,
 } from '@nestjs/common'
-import type { Surreal } from 'surrealdb'
-import { orm } from 'surqlize'
+import { httpData } from '../common/errors/result'
 import type { AppConfig } from '../config/app-config'
 import { APP_CONFIG } from '../config/config.tokens'
-import { connectDb } from './surreal.client'
-import { DATABASE, DATABASE_OWNED, ORM } from './database.tokens'
-import { adminCredentials, tags, websites } from './schema'
+import { connectDb, type Connection, type Database } from './client'
+import { DATABASE, DATABASE_OWNED } from './database.tokens'
 
-export function createOrm(db: Surreal) {
-  return orm(db, websites, tags, adminCredentials)
-}
-
-export type SiteOrm = ReturnType<typeof createOrm>
-
+const CONNECTION = Symbol('CONNECTION')
 @Injectable()
 class DatabaseShutdown implements OnApplicationShutdown {
   constructor(
-    @Inject(DATABASE) private readonly db: Surreal,
+    @Inject(CONNECTION) private readonly connection: Connection,
     @Inject(DATABASE_OWNED) private readonly owned: boolean,
   ) {}
-
   async onApplicationShutdown(): Promise<void> {
-    if (this.owned) await this.db.close()
+    if (this.owned) await this.connection.close()
   }
 }
-
 @Global()
 @Module({})
 export class DatabaseModule {
-  static forRoot(existingDatabase?: Surreal): DynamicModule {
+  static forRoot(existingDatabase?: Database): DynamicModule {
     return {
       module: DatabaseModule,
       providers: [
         {
-          provide: DATABASE,
-          useFactory: async (config: AppConfig) =>
-            existingDatabase ?? httpData(await connectDb(config)),
+          provide: CONNECTION,
+          useFactory: async (config: AppConfig): Promise<Connection> =>
+            existingDatabase
+              ? { db: existingDatabase, close: async () => {} }
+              : httpData(await connectDb(config)),
           inject: [APP_CONFIG],
         },
-        { provide: ORM, useFactory: createOrm, inject: [DATABASE] },
+        {
+          provide: DATABASE,
+          useFactory: (connection: Connection) => connection.db,
+          inject: [CONNECTION],
+        },
         { provide: DATABASE_OWNED, useValue: !existingDatabase },
         DatabaseShutdown,
       ],
-      exports: [DATABASE, ORM],
+      exports: [DATABASE],
     }
   }
 }

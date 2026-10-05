@@ -1,15 +1,13 @@
-import type { Surreal } from 'surrealdb'
+import { eq } from 'drizzle-orm'
+import type { Database } from '../database/client'
+import { websites } from '../database/schema'
 import { fold } from './search'
-export async function backfillWebsiteSearch(db: Surreal): Promise<void> {
-  const [websites] = await db.query<
-    [{ website_id: string; name: string; url: string; search_text?: string }[]]
-  >('SELECT website_id, name, url, search_text FROM websites')
-  for (const website of websites) {
-    const searchText = fold(website.name + ' ' + website.url)
-    if (website.search_text !== searchText)
-      await db.query('UPDATE websites SET search_text = $searchText WHERE website_id = $id', {
-        searchText,
-        id: website.website_id,
-      })
-  }
+export async function backfillWebsiteSearch(db: Database): Promise<void> {
+  await db.transaction(async (tx) => {
+    for (const website of await tx.select().from(websites).for('update')) {
+      const searchText = fold(website.name + ' ' + website.url)
+      if (website.searchText !== searchText)
+        await tx.update(websites).set({ searchText }).where(eq(websites.id, website.id))
+    }
+  })
 }

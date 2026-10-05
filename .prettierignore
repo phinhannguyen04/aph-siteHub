@@ -6,3 +6,7 @@ bun.lock
 *.sqlite
 *.sqlite-*
 coverage
+
+.migration-backups/
+
+.env.pg-*

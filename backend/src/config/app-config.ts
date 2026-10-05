@@ -1,9 +1,5 @@
 export interface AppConfig {
-  surrealUrl: string
-  surrealUser: string
-  surrealPass: string
-  surrealNamespace: string
-  surrealDatabase: string
+  databaseUrl: string
   adminPasswordHash?: string
   sessionSecret: string
   appOrigin: string
@@ -18,9 +14,9 @@ export function readConfig(env = Bun.env): AppConfig {
     if (!value) throw new Error(`Missing environment variable ${key}`)
     return value
   }
-  const surrealUrl = required('SURREAL_URL')
-  if (!['ws:', 'wss:', 'http:', 'https:'].includes(new URL(surrealUrl).protocol))
-    throw new Error('SURREAL_URL must use ws, wss, http, or https')
+  const databaseUrl = required('DATABASE_URL')
+  if (!['postgres:', 'postgresql:'].includes(URL.parse(databaseUrl)?.protocol ?? ''))
+    throw new Error('DATABASE_URL must use postgres or postgresql')
   const sessionSecret = required('SESSION_SECRET')
   if (sessionSecret.length < 32) throw new Error('SESSION_SECRET must be at least 32 characters')
   const encodedHash = env.ADMIN_PASSWORD_HASH_BASE64
@@ -30,11 +26,7 @@ export function readConfig(env = Bun.env): AppConfig {
   if (adminPasswordHash && !adminPasswordHash.startsWith('$argon2id$'))
     throw new Error('ADMIN_PASSWORD_HASH_BASE64 must contain a valid Argon2id hash')
   return {
-    surrealUrl,
-    surrealUser: required('SURREAL_USER'),
-    surrealPass: required('SURREAL_PASS'),
-    surrealNamespace: required('SURREAL_NAMESPACE'),
-    surrealDatabase: required('SURREAL_DATABASE'),
+    databaseUrl,
     adminPasswordHash,
     sessionSecret,
     appOrigin: new URL(required('APP_ORIGIN')).origin,

@@ -1,17 +1,20 @@
 import { httpData } from '../src/common/errors/result'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import type { NestFastifyApplication } from '@nestjs/platform-fastify'
-import type { Surreal } from 'surrealdb'
+import type { Database } from '../src/database/client'
+import { testDatabase } from './helpers'
+import { inArray } from 'drizzle-orm'
+import { websites } from '../src/database/schema'
 import { createApp } from '../src/app.factory'
 import { readConfig, type AppConfig } from '../src/config/app-config'
-import { connectDb } from '../src/database/surreal.client'
 import { normalizeUrl } from '../src/websites/website-normalization'
 import { ValidationError } from '../src/common/errors/validation-error'
 import { resetAdminPassword } from '../src/auth/password-reset'
 
 const origin = 'http://localhost:8111'
-const testUrl = Bun.env.SURREAL_TEST_URL
-let db: Surreal
+const testUrl = Bun.env.POSTGRES_TEST_URL
+let db: Database
+let fixture: Awaited<ReturnType<typeof testDatabase>>
 let app: NestFastifyApplication
 let cookie = ''
 let csrf = ''
@@ -52,14 +55,10 @@ describe('URL validation', () => {
 })
 
 const integration = testUrl ? describe : describe.skip
-integration('NestJS Fastify API with SurrealDB', () => {
+integration('NestJS Fastify API with PostgreSQL', () => {
   beforeAll(async () => {
     const config: AppConfig = {
-      surrealUrl: testUrl!,
-      surrealUser: Bun.env.SURREAL_USER || 'root',
-      surrealPass: Bun.env.SURREAL_PASS || '',
-      surrealNamespace: 'sitehub_tests',
-      surrealDatabase: `test_${crypto.randomUUID().replaceAll('-', '')}`,
+      databaseUrl: testUrl!,
       adminPasswordHash: await Bun.password.hash('correct-horse-battery', {
         algorithm: 'argon2id',
       }),
@@ -69,9 +68,8 @@ integration('NestJS Fastify API with SurrealDB', () => {
       cookieSecure: false,
       port: 3000,
     }
-    db = httpData(await connectDb(config))
-    for (const name of ['001_websites.surql', '002_admin_credentials.surql', '003_tags.surql'])
-      await db.query(await Bun.file(new URL(`../migrations/${name}`, import.meta.url)).text())
+    fixture = await testDatabase(testUrl!)
+    db = fixture.connection.db
     app = httpData(await createApp(config, { database: db, logger: false }))
     const login = await call(
       '/api/auth/login',
@@ -85,7 +83,7 @@ integration('NestJS Fastify API with SurrealDB', () => {
   })
   afterAll(async () => {
     if (app) await app.close()
-    if (db) await db.close()
+    if (fixture) await fixture.close()
   })
 
   test('authentication and CSRF protect administration', async () => {
@@ -229,10 +227,10 @@ integration('NestJS Fastify API with SurrealDB', () => {
       expect(created.statusCode).toBe(201)
       ids.push(created.json().website.id)
     }
-    await db.query('UPDATE websites SET created_at = $when WHERE website_id IN $ids', {
-      when: '2026-01-01T00:00:00.000Z',
-      ids,
-    })
+    await db
+      .update(websites)
+      .set({ created_at: '2026-01-01T00:00:00.000Z' })
+      .where(inArray(websites.id, ids))
     const pages = []
     for (let page = 1; page <= 3; page++) {
       const result = await call(`/api/websites?search=stable&page=${page}&pageSize=1`)
@@ -301,11 +299,7 @@ integration('NestJS Fastify API with SurrealDB', () => {
 test('encoded administrator hash loads without dollar-sign interpolation', async () => {
   const hash = await Bun.password.hash('example-long-password', { algorithm: 'argon2id' })
   const loaded = readConfig({
-    SURREAL_URL: 'ws://localhost:8000',
-    SURREAL_USER: 'root',
-    SURREAL_PASS: 'test-password',
-    SURREAL_NAMESPACE: 'sitehub',
-    SURREAL_DATABASE: 'sitehub',
+    DATABASE_URL: 'postgresql://sitehub:test@localhost:5432/sitehub',
     SESSION_SECRET: 'test-secret-with-at-least-thirty-two-characters',
     ADMIN_PASSWORD_HASH_BASE64: Buffer.from(hash).toString('base64'),
     APP_ORIGIN: origin,

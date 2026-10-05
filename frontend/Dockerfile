@@ -3,7 +3,6 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
-COPY patches patches
 RUN bun install --frozen-lockfile
 COPY frontend frontend
 COPY shared shared

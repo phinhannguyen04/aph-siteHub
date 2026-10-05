@@ -3,14 +3,14 @@ import { attempt, success, unexpectedFailure, type ServiceResult } from './commo
 import { HttpException, ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
-import type { Surreal } from 'surrealdb'
+import type { Database } from './database/client'
 import { AppModule } from './app.module'
 import { ApiExceptionFilter } from './common/filters/api-exception.filter'
 import { apiError } from './common/errors/api-error'
 import type { AppConfig } from './config/app-config'
 
 interface AppOptions {
-  database?: Surreal
+  database?: Database
   logger?: boolean
 }
 

@@ -1,6 +1,6 @@
 # APH SiteHub
 
-An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vue, and Phosphor Icons. The backend uses NestJS with Fastify, Bun, TypeScript, and SurrealDB. Website data comes from the API; the application contains no sample records.
+An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vue, and Phosphor Icons. The backend uses NestJS with Fastify, Bun, TypeScript, and PostgreSQL. Website data comes from the API; the application contains no sample records.
 
 ## Project structure
 
@@ -12,7 +12,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 │   ├── src/
 │   │   ├── main.ts, app.module.ts, app.factory.ts
 │   │   ├── config/{app-config,config.module,config.tokens}.ts
-│   │   ├── database/{database.module,database.tokens,schema,surreal.client}.ts
+│   │   ├── database/{database.module,database.tokens,schema,client}.ts
 │   │   ├── common/errors/{api-error,validation-error,result}.ts
 │   │   ├── common/filters/api-exception.filter.ts
 │   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
@@ -39,9 +39,9 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 
 ## Backend architecture
 
-`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` establishes the SurrealDB connection through an async provider, exposes a Surqlize ORM built from `database/schema.ts`, and closes its connection during NestJS shutdown. Services use Surqlize for routine record access. Multi-statement transactions, aggregate queries, health checks, and schema migrations use SurrealQL through the official SDK. Feature controllers handle HTTP requests; services handle credentials, websites, and tags. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
+`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` provides a Drizzle database using the postgres driver and closes its owned connection during NestJS shutdown. Feature controllers retain the NestJS API from commit `cfe41cc`; services use PostgreSQL repositories for credentials, websites, and tags. Website/tag associations use foreign keys and cascade deletion of associations. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
 
-The root module accepts an existing database connection for isolated integration tests. The `surqlize@0.1.0` TypeScript declaration patch in `patches/` is applied by Bun during installation; the backend Docker build copies it before `bun install`. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
+The root module accepts an existing database connection for isolated integration tests. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
 
 ## Error handling
 
@@ -51,10 +51,10 @@ Frontend API calls, backend services, `connectDb`, and `createApp` return a shar
 
 ## Configuration
 
-Copy `.env.example` to `.env` if `.env` does not already exist. Git ignores `.env`. When upgrading an existing installation, keep the current `.env` so the SurrealDB connection settings remain intact.
+Copy `.env.example` to `.env` if `.env` does not already exist. Git ignores `.env`. When upgrading an existing installation, keep the current `.env` so the PostgreSQL connection settings remain intact.
 
-- `SURREAL_URL=ws://surrealdb:8000`, `SURREAL_USER`, `SURREAL_PASS`, `SURREAL_NAMESPACE`, and `SURREAL_DATABASE` configure the backend connection. Compose runs SurrealDB with RocksDB on the `surreal_data` volume. Changing `SURREAL_PASS` in `.env` alone does not change the password of an existing database.
-- `ADMIN_PASSWORD_HASH_BASE64` is the Argon2id hash used to initialize the administrator account if `admin_credentials` has no record. After initialization, the current password is stored in SurrealDB. Changing the hash in `.env` does not change the current password.
+- `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` configure the PostgreSQL container. `DATABASE_URL` configures the backend (for example `postgresql://sitehub:password@postgres:5432/sitehub`). URL-encode password characters. The existing `.env` and `postgres_data` volume are reused; changing environment settings does not change credentials in an existing database.
+- `ADMIN_PASSWORD_HASH_BASE64` is the Argon2id hash used to initialize the administrator account if `admin_credentials` has no record. After initialization, the current password is stored in PostgreSQL. Changing the hash in `.env` does not change the current password.
 - `SESSION_SECRET` must contain at least 32 characters. Generate one with `openssl rand -hex 32`.
 - For local HTTP, use `APP_ORIGIN=http://localhost:8111` and `COOKIE_SECURE=false`. If the dashboard is accessed through a LAN IP or another hostname, add the complete origins, including scheme and port, to comma-separated `APP_ORIGINS`. For HTTPS, set the actual origin and `COOKIE_SECURE=true`. Login and write requests require an allowed origin.
 
@@ -75,13 +75,13 @@ bun install
 # Create .env from the example only if it does not already exist, then configure it.
 cp -n .env.example .env
 docker compose build
-docker compose up -d --wait surrealdb
+docker compose up -d --wait postgres
 docker compose run --rm backend bun backend/dist/cli/migrate.js
 docker compose up -d --wait
 curl http://localhost:8111/health
 ```
 
-Open `http://localhost:8111`. Only the frontend is published on port 8111; the backend and SurrealDB stay on the Compose network. `docker compose down` preserves data. Avoid `docker compose down -v` if you want to keep the database. Use HTTPS in front of the application for public deployments.
+Open `http://localhost:8111`. Only the frontend is published on port 8111; the backend and PostgreSQL stay on the Compose network. `docker compose down` preserves data. Avoid `docker compose down -v` if you want to keep the database. Use HTTPS in front of the application for public deployments.
 
 ### Change or reset the administrator password
 
@@ -97,12 +97,12 @@ The command creates a password and displays it once in the terminal. Save it sec
 
 ## Local development with Bun
 
-Stop the Compose frontend and backend if ports 8111 or 3000 are occupied. Expose SurrealDB only on localhost with the development override:
+Stop the Compose frontend and backend if ports 8111 or 3000 are occupied. Expose PostgreSQL only on localhost with the development override:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait surrealdb
-SURREAL_URL=ws://127.0.0.1:8000 bun --env-file=.env backend/src/cli/migrate.ts
-SURREAL_URL=ws://127.0.0.1:8000 bun --env-file=.env backend/src/main.ts
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
+DATABASE_URL='postgresql://sitehub:password@127.0.0.1:5432/sitehub' bun --env-file=.env backend/src/cli/migrate.ts
+DATABASE_URL='postgresql://sitehub:password@127.0.0.1:5432/sitehub' bun --env-file=.env backend/src/main.ts
 # In another terminal:
 bun --cwd frontend dev
 ```
@@ -114,7 +114,7 @@ Vite proxies `/api` and `/health` to backend port 3000. Set `SITEHUB_DEV_PORT` a
 NestJS DTOs live in `backend/src/{auth,websites}/dto/`. `ValidationPipe` rejects unknown fields and normalizes website names and URLs before storage. The API provides health and authentication routes, paged website listing and count, website create/update, and tag CRUD as described below. Errors use `{ error: { code, message } }`.
 
 1. Signed out: the sign-in form appears and `GET /api/websites` returns 401.
-2. Signed in: the website count and cards reflect SurrealDB data.
+2. Signed in: the website count and cards reflect PostgreSQL data.
 3. Add a website: empty names and invalid URLs show field errors; a successful save closes the form and updates the cards and count.
 4. Search by name or URL, including accent-insensitive searches. Select the main card area to open a new tab; **Edit** opens only the edit form.
 5. Edit a name or URL and save. Select **Refresh** to reload the list and count from the API.
@@ -130,11 +130,11 @@ bun run format:check
 bun run lint
 bun run typecheck
 bun run build
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait surrealdb
-SURREAL_TEST_URL=ws://127.0.0.1:8000 bun test
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
+POSTGRES_TEST_URL='postgresql://sitehub:password@127.0.0.1:5432/sitehub' bun test
 ```
 
-API tests use a separate SurrealDB test database. If `SURREAL_TEST_URL` is unset, the integration tests are skipped.
+API tests create uniquely named disposable PostgreSQL databases and drop them after use. The test role needs CREATEDB; use a dedicated test server. If `POSTGRES_TEST_URL` is unset, the integration tests are skipped.
 
 ## Shared UI components
 
@@ -158,7 +158,7 @@ Run the migrations before starting the updated backend when upgrading an existin
 
 ```bash
 docker compose build backend
-docker compose up -d --wait surrealdb
+docker compose up -d --wait postgres
 docker compose run --rm backend bun backend/dist/cli/migrate.js
 docker compose up -d --wait
 ```

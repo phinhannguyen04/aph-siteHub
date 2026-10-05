@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common'
-import type { Surreal } from 'surrealdb'
+import type { Database } from './database/client'
 import { AuthModule } from './auth/auth.module'
 import type { AppConfig } from './config/app-config'
 import { ConfigModule } from './config/config.module'
@@ -10,7 +10,7 @@ import { WebsitesModule } from './websites/websites.module'
 
 @Module({})
 export class AppModule {
-  static forRoot(config: AppConfig, existingDatabase?: Surreal): DynamicModule {
+  static forRoot(config: AppConfig, existingDatabase?: Database): DynamicModule {
     return {
       module: AppModule,
       imports: [
