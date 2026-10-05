@@ -1,3 +1,4 @@
+import { attemptSync } from '../common/errors/result'
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { FastifyRequest } from 'fastify'
 import type { AppConfig } from '../config/app-config'
@@ -23,25 +24,25 @@ export function readSession(
 ): { csrf: string; version: string } | null {
   if (!token) return null
   const [payload, signature, extra] = token.split('.')
+
   if (!payload || !signature || extra) return null
   const expected = Buffer.from(sign(payload, secret))
   const actual = Buffer.from(signature)
+
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null
-  try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString()) as {
-      exp: number
-      csrf: string
-      version: string
-    }
-    return typeof data.exp === 'number' &&
-      data.exp > Date.now() &&
-      typeof data.csrf === 'string' &&
-      typeof data.version === 'string'
-      ? { csrf: data.csrf, version: data.version }
-      : null
-  } catch {
+  const parsed = attemptSync(
+    () => JSON.parse(Buffer.from(payload, 'base64url').toString()) as unknown,
+  )
+  if (parsed.code !== 0 || typeof parsed.data !== 'object' || parsed.data === null) return null
+  const data = parsed.data as { exp?: unknown; csrf?: unknown; version?: unknown }
+  if (
+    typeof data.exp !== 'number' ||
+    data.exp <= Date.now() ||
+    typeof data.csrf !== 'string' ||
+    typeof data.version !== 'string'
+  )
     return null
-  }
+  return { csrf: data.csrf, version: data.version }
 }
 
 export function getSession(request: FastifyRequest, secret: string) {

@@ -1,3 +1,4 @@
+import { httpData } from '../common/errors/result'
 import {
   DynamicModule,
   Global,
@@ -41,7 +42,8 @@ export class DatabaseModule {
       providers: [
         {
           provide: DATABASE,
-          useFactory: (config: AppConfig) => existingDatabase ?? connectDb(config),
+          useFactory: async (config: AppConfig) =>
+            existingDatabase ?? httpData(await connectDb(config)),
           inject: [APP_CONFIG],
         },
         { provide: ORM, useFactory: createOrm, inject: [DATABASE] },

@@ -121,15 +121,15 @@ onUnmounted(() => {
 async function loadTags() {
   tagsLoading.value = true
   tagsError.value = ''
-  try {
-    tags.value = (await api.tags()).tags
-    const valid = new Set(tags.value.map((tag) => tag.id))
-    selectedTagIds.value = selectedTagIds.value.filter((id) => valid.has(id))
-  } catch (cause) {
-    tagsError.value = cause instanceof Error ? cause.message : 'Unable to load tags'
-  } finally {
-    tagsLoading.value = false
+  const result = await api.tags()
+  tagsLoading.value = false
+  if (result.code !== 0) {
+    tagsError.value = result.error.message
+    return
   }
+  tags.value = result.data.tags
+  const valid = new Set(tags.value.map((tag) => tag.id))
+  selectedTagIds.value = selectedTagIds.value.filter((id) => valid.has(id))
 }
 function clearFilters() {
   search.value = ''
@@ -150,7 +150,7 @@ async function refresh() {
     pageSize: pageSize.value,
     search: search.value.trim(),
     tagIds: selectedTagIds.value,
-  }).catch(() => {})
+  })
   if (!state.loading && !state.error && page.value > pageCount.value) {
     page.value = pageCount.value
     await reload({
@@ -158,48 +158,43 @@ async function refresh() {
       pageSize: pageSize.value,
       search: search.value.trim(),
       tagIds: selectedTagIds.value,
-    }).catch(() => {})
+    })
   }
 }
 async function checkSession() {
-  try {
-    const session = await api.session()
-    setCsrfToken(session.csrfToken)
-    authenticated.value = true
-  } catch (cause) {
-    if (!(cause instanceof Error && 'status' in cause && cause.status === 401))
-      authError.value = cause instanceof Error ? cause.message : 'Unable to check your session.'
-  } finally {
-    checkingSession.value = false
+  const result = await api.session()
+  checkingSession.value = false
+  if (result.code !== 0) {
+    if (result.error.status !== 401) authError.value = result.error.message
+    return
   }
-  if (authenticated.value) {
-    await loadTags()
-    await refresh()
-  }
+  setCsrfToken(result.data.csrfToken)
+  authenticated.value = true
+  await loadTags()
+  await refresh()
 }
 onMounted(checkSession)
 async function login() {
   authLoading.value = true
   authError.value = ''
-  try {
-    const session = await api.login(password.value)
-    setCsrfToken(session.csrfToken)
-    password.value = ''
-    authenticated.value = true
-    await loadTags()
-    await refresh()
-  } catch (cause) {
-    authError.value = cause instanceof Error ? cause.message : 'Sign in failed.'
-  } finally {
+  const result = await api.login(password.value)
+  if (result.code !== 0) {
+    authError.value = result.error.message
     authLoading.value = false
+    return
   }
+  setCsrfToken(result.data.csrfToken)
+  password.value = ''
+  authenticated.value = true
+  await loadTags()
+  await refresh()
+  authLoading.value = false
 }
 async function logout() {
-  try {
-    await api.logout()
-  } catch (cause) {
+  const result = await api.logout()
+  if (result.code !== 0) {
     bannerError.value = true
-    banner.value = cause instanceof Error ? cause.message : 'Unable to sign out.'
+    banner.value = result.error.message
     return
   }
   setCsrfToken('')
@@ -223,34 +218,32 @@ async function save(input: { name: string; url: string; tag_ids: string[] }) {
   saving.value = true
   formError.value = ''
   banner.value = ''
-  try {
-    const wasEditing = !!editing.value
-    if (editing.value) await api.update(editing.value.id, input)
-    else await api.create(input)
-    dialogOpen.value = false
-    bannerError.value = false
-    banner.value = wasEditing ? 'Website updated.' : 'Website added.'
-    await refresh()
-  } catch (cause) {
-    formError.value = cause instanceof Error ? cause.message : 'Unable to save the website.'
-  } finally {
+  const wasEditing = !!editing.value
+  const result = editing.value ? await api.update(editing.value.id, input) : await api.create(input)
+  if (result.code !== 0) {
+    formError.value = result.error.message
     saving.value = false
+    return
   }
+  dialogOpen.value = false
+  bannerError.value = false
+  banner.value = wasEditing ? 'Website updated.' : 'Website added.'
+  await refresh()
+  saving.value = false
 }
 async function changePassword(input: { currentPassword: string; newPassword: string }) {
   passwordSaving.value = true
   passwordError.value = ''
-  try {
-    const session = await api.changePassword(input)
-    setCsrfToken(session.csrfToken)
-    passwordDialogOpen.value = false
-    bannerError.value = false
-    banner.value = 'Password changed. Other sessions have been signed out.'
-  } catch (cause) {
-    passwordError.value = cause instanceof Error ? cause.message : 'Unable to change the password.'
-  } finally {
-    passwordSaving.value = false
+  const result = await api.changePassword(input)
+  passwordSaving.value = false
+  if (result.code !== 0) {
+    passwordError.value = result.error.message
+    return
   }
+  setCsrfToken(result.data.csrfToken)
+  passwordDialogOpen.value = false
+  bannerError.value = false
+  banner.value = 'Password changed. Other sessions have been signed out.'
 }
 </script>
 

@@ -13,7 +13,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 │   │   ├── main.ts, app.module.ts, app.factory.ts
 │   │   ├── config/{app-config,config.module,config.tokens}.ts
 │   │   ├── database/{database.module,database.tokens,schema,surreal.client}.ts
-│   │   ├── common/errors/{api-error,validation-error}.ts
+│   │   ├── common/errors/{api-error,validation-error,result}.ts
 │   │   ├── common/filters/api-exception.filter.ts
 │   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
 │   │   ├── auth/guards/session.guard.ts
@@ -32,6 +32,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 │   ├── test/websites-state.test.ts
 │   ├── nginx.conf
 │   └── Dockerfile
+├── shared/result.ts
 ├── docker-compose.yml
 └── docker-compose.dev.yml
 ```
@@ -41,6 +42,12 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 `main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` establishes the SurrealDB connection through an async provider, exposes a Surqlize ORM built from `database/schema.ts`, and closes its connection during NestJS shutdown. Services use Surqlize for routine record access. Multi-statement transactions, aggregate queries, health checks, and schema migrations use SurrealQL through the official SDK. Feature controllers handle HTTP requests; services handle credentials, websites, and tags. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
 
 The root module accepts an existing database connection for isolated integration tests. The `surqlize@0.1.0` TypeScript declaration patch in `patches/` is applied by Bun during installation; the backend Docker build copies it before `bun install`. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
+
+## Error handling
+
+Frontend API calls, backend services, `connectDb`, and `createApp` return a shared `Result<T, E>`: `{ code: 0, data }` on success or `{ code: 1, error }` on failure. Callers check `if (result.code !== 0)` before accessing `result.data`. Error details include a stable string `error.code`, `message`, and HTTP `status`; unexpected backend errors also retain their original `cause` for logging.
+
+`attempt` adapts exception-based asynchronous libraries to return codes, including synchronous throws while starting an operation. `attemptSync` isolates the catch required by synchronous APIs such as `JSON.parse`. URL parsing uses `URL.parse` and checks for `null`. NestJS controllers and providers use `httpData` to translate service failures at the framework boundary; DTO validation and guards retain NestJS exception handling. HTTP response bodies remain unchanged. CLI commands return a nonzero exit code on failure and close their database connections before reporting the result.
 
 ## Configuration
 

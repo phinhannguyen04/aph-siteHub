@@ -1,9 +1,15 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import type { Surreal } from 'surrealdb'
 import { DATABASE, ORM } from '../database/database.tokens'
 import type { SiteOrm } from '../database/database.module'
-import { apiError } from '../common/errors/api-error'
-import { ValidationError } from '../common/errors/validation-error'
+import {
+  attempt,
+  operation,
+  serviceFailure,
+  success,
+  unexpectedFailure,
+  type ServiceResult,
+} from '../common/errors/result'
 import type { Website } from './website.interface'
 import { fold } from './search'
 import type { ListQuery } from './list-query'
@@ -46,118 +52,144 @@ export class WebsitesService {
   }
   async list(
     query: ListQuery,
-  ): Promise<{ websites: Website[]; total: number; page: number; pageSize: number }> {
-    const bindings = {
-      search: fold(query.search),
-      tagIds: query.tagIds,
-      limit: query.pageSize,
-      start: (query.page - 1) * query.pageSize,
-    }
-    const where =
-      'WHERE ($search = "" OR string::contains(search_text, $search)) AND (array::len($tagIds) = 0 OR tag_ids CONTAINSANY $tagIds)'
-    const [count] = await this.db.query<[{ total: number }[]]>(
-      `SELECT count() AS total FROM websites ${where} GROUP ALL`,
-      bindings,
-    )
-    const sites = this.orm.select('websites')
-    if (bindings.search && bindings.tagIds.length) {
-      sites.where((site) =>
-        site.search_text.contains(bindings.search).and(site.tag_ids.containsAny(bindings.tagIds)),
+  ): Promise<
+    ServiceResult<{ websites: Website[]; total: number; page: number; pageSize: number }>
+  > {
+    return operation(async () => {
+      const bindings = {
+        search: fold(query.search),
+        tagIds: query.tagIds,
+        limit: query.pageSize,
+        start: (query.page - 1) * query.pageSize,
+      }
+      const where =
+        'WHERE ($search = "" OR string::contains(search_text, $search)) AND (array::len($tagIds) = 0 OR tag_ids CONTAINSANY $tagIds)'
+      const [count] = await this.db.query<[{ total: number }[]]>(
+        `SELECT count() AS total FROM websites ${where} GROUP ALL`,
+        bindings,
       )
-    } else if (bindings.search) {
-      sites.where((site) => site.search_text.contains(bindings.search))
-    } else if (bindings.tagIds.length) {
-      sites.where((site) => site.tag_ids.containsAny(bindings.tagIds))
-    }
-    const rows = await sites
-      .orderBy('created_at', 'DESC')
-      .orderBy('website_id', 'DESC')
-      .limit(bindings.limit)
-      .start(bindings.start)
-    return {
-      websites: await this.hydrate(rows),
-      total: Number(count[0]?.total ?? 0),
-      page: query.page,
-      pageSize: query.pageSize,
-    }
+      const sites = this.orm.select('websites')
+      if (bindings.search && bindings.tagIds.length) {
+        sites.where((site) =>
+          site.search_text.contains(bindings.search).and(site.tag_ids.containsAny(bindings.tagIds)),
+        )
+      } else if (bindings.search) {
+        sites.where((site) => site.search_text.contains(bindings.search))
+      } else if (bindings.tagIds.length) {
+        sites.where((site) => site.tag_ids.containsAny(bindings.tagIds))
+      }
+      const rows = await sites
+        .orderBy('created_at', 'DESC')
+        .orderBy('website_id', 'DESC')
+        .limit(bindings.limit)
+        .start(bindings.start)
+      return success({
+        websites: await this.hydrate(rows),
+        total: Number(count[0]?.total ?? 0),
+        page: query.page,
+        pageSize: query.pageSize,
+      })
+    })
   }
-  async count(): Promise<number> {
-    const [rows] = await this.db.query<[{ total: number }[]]>(
-      'SELECT count() AS total FROM websites GROUP ALL',
-    )
-    return Number(rows[0]?.total ?? 0)
-  }
-  private async validTags(ids: string[]) {
-    if (
-      ids.length > 50 ||
-      ids.some((id) => !/^[0-9a-f-]{36}$/i.test(id)) ||
-      new Set(ids).size !== ids.length
-    )
-      throw new ValidationError('Invalid tag IDs')
-    const [rows] = await this.db.query<[{ tag_id: string }[]]>(
-      'SELECT tag_id FROM tags WHERE tag_id IN $ids',
-      { ids },
-    )
-    if (rows.length !== ids.length) throw new ValidationError('One or more tags do not exist')
-  }
-  async create(input: { name: string; url: string; tag_ids?: string[] }): Promise<Website> {
-    const ids = input.tag_ids ?? []
-    await this.validTags(ids)
-    const now = new Date().toISOString()
-    const id = crypto.randomUUID()
-    try {
-      await this.db.query(
-        'BEGIN TRANSACTION; LET $found = (SELECT tag_id FROM tags WHERE tag_id IN $tag_ids); IF array::len($found) != array::len($tag_ids) { THROW "INVALID_TAG_IDS" }; CREATE websites CONTENT { website_id: $id, name: $name, url: $url, tag_ids: $tag_ids, search_text: $search_text, created_at: $now, updated_at: $now }; COMMIT TRANSACTION;',
-        {
-          id,
-          name: input.name,
-          url: input.url,
-          tag_ids: ids,
-          search_text: fold(input.name + ' ' + input.url),
-          now,
-        },
+  async count(): Promise<ServiceResult<number>> {
+    return operation(async () => {
+      const [rows] = await this.db.query<[{ total: number }[]]>(
+        'SELECT count() AS total FROM websites GROUP ALL',
       )
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('INVALID_TAG_IDS'))
-        throw new ValidationError('One or more tags do not exist')
-      await this.validTags(ids)
-      throw error
-    }
-    const rows = await this.orm.select('websites').where((site) => site.website_id.eq(id))
-    return (await this.hydrate(rows))[0]!
+      return success(Number(rows[0]?.total ?? 0))
+    })
+  }
+  private async validTags(ids: string[]): Promise<ServiceResult<void>> {
+    return operation(async () => {
+      if (
+        ids.length > 50 ||
+        ids.some((id) => !/^[0-9a-f-]{36}$/i.test(id)) ||
+        new Set(ids).size !== ids.length
+      )
+        return serviceFailure('VALIDATION_ERROR', 'Invalid tag IDs', 400)
+      const [rows] = await this.db.query<[{ tag_id: string }[]]>(
+        'SELECT tag_id FROM tags WHERE tag_id IN $ids',
+        { ids },
+      )
+      if (rows.length !== ids.length)
+        return serviceFailure('VALIDATION_ERROR', 'One or more tags do not exist', 400)
+      return success(undefined)
+    })
+  }
+  async create(input: {
+    name: string
+    url: string
+    tag_ids?: string[]
+  }): Promise<ServiceResult<Website>> {
+    return operation(async () => {
+      const ids = input.tag_ids ?? []
+      const validation = await this.validTags(ids)
+      if (validation.code !== 0) return validation
+      const now = new Date().toISOString()
+      const id = crypto.randomUUID()
+      const write = await attempt(() =>
+        this.db.query(
+          'BEGIN TRANSACTION; LET $found = (SELECT tag_id FROM tags WHERE tag_id IN $tag_ids); IF array::len($found) != array::len($tag_ids) { THROW "INVALID_TAG_IDS" }; CREATE websites CONTENT { website_id: $id, name: $name, url: $url, tag_ids: $tag_ids, search_text: $search_text, created_at: $now, updated_at: $now }; COMMIT TRANSACTION;',
+          {
+            id,
+            name: input.name,
+            url: input.url,
+            tag_ids: ids,
+            search_text: fold(input.name + ' ' + input.url),
+            now,
+          },
+        ),
+      )
+      if (write.code !== 0) {
+        if (write.error instanceof Error && write.error.message.includes('INVALID_TAG_IDS'))
+          return serviceFailure('VALIDATION_ERROR', 'One or more tags do not exist', 400)
+        const validation = await this.validTags(ids)
+        if (validation.code !== 0) return validation
+        return unexpectedFailure(write.error)
+      }
+      const rows = await this.orm.select('websites').where((site) => site.website_id.eq(id))
+      return success((await this.hydrate(rows))[0]!)
+    })
   }
   async update(
     id: string,
     input: { name?: string; url?: string; tag_ids?: string[] },
-  ): Promise<Website | null> {
-    if (input.tag_ids !== undefined) await this.validTags(input.tag_ids)
-    const existing = await this.orm
-      .select('websites')
-      .where((site) => site.website_id.eq(id))
-      .limit(1)
-    if (!existing[0]) return null
-    const name = input.name ?? existing[0].name
-    const url = input.url ?? existing[0].url
-    try {
-      await this.db.query(
-        'BEGIN TRANSACTION; LET $found = (SELECT tag_id FROM tags WHERE tag_id IN $tag_ids); IF array::len($found) != array::len($tag_ids) { THROW "INVALID_TAG_IDS" }; UPDATE websites SET name = $name, url = $url, tag_ids = $tag_ids, search_text = $search_text, updated_at = $now WHERE website_id = $id; COMMIT TRANSACTION;',
-        {
-          id,
-          name,
-          url,
-          tag_ids: input.tag_ids ?? existing[0].tag_ids ?? [],
-          search_text: fold(name + ' ' + url),
-          now: new Date().toISOString(),
-        },
+  ): Promise<ServiceResult<Website>> {
+    return operation(async () => {
+      if (input.tag_ids !== undefined) {
+        const validation = await this.validTags(input.tag_ids)
+        if (validation.code !== 0) return validation
+      }
+      const existing = await this.orm
+        .select('websites')
+        .where((site) => site.website_id.eq(id))
+        .limit(1)
+      if (!existing[0]) return serviceFailure('NOT_FOUND', 'Website not found', 404)
+      const name = input.name ?? existing[0].name
+      const url = input.url ?? existing[0].url
+      const write = await attempt(() =>
+        this.db.query(
+          'BEGIN TRANSACTION; LET $found = (SELECT tag_id FROM tags WHERE tag_id IN $tag_ids); IF array::len($found) != array::len($tag_ids) { THROW "INVALID_TAG_IDS" }; UPDATE websites SET name = $name, url = $url, tag_ids = $tag_ids, search_text = $search_text, updated_at = $now WHERE website_id = $id; COMMIT TRANSACTION;',
+          {
+            id,
+            name,
+            url,
+            tag_ids: input.tag_ids ?? existing[0].tag_ids ?? [],
+            search_text: fold(name + ' ' + url),
+            now: new Date().toISOString(),
+          },
+        ),
       )
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('INVALID_TAG_IDS'))
-        throw new ValidationError('One or more tags do not exist')
-      await this.validTags(input.tag_ids ?? existing[0].tag_ids ?? [])
-      throw error
-    }
-    const rows = await this.orm.select('websites').where((site) => site.website_id.eq(id))
-    if (!rows[0]) throw new HttpException(apiError('NOT_FOUND', 'Website not found'), 404)
-    return (await this.hydrate(rows))[0]!
+      if (write.code !== 0) {
+        if (write.error instanceof Error && write.error.message.includes('INVALID_TAG_IDS'))
+          return serviceFailure('VALIDATION_ERROR', 'One or more tags do not exist', 400)
+        const validation = await this.validTags(input.tag_ids ?? existing[0].tag_ids ?? [])
+        if (validation.code !== 0) return validation
+        return unexpectedFailure(write.error)
+      }
+      const rows = await this.orm.select('websites').where((site) => site.website_id.eq(id))
+      if (!rows[0]) return serviceFailure('NOT_FOUND', 'Website not found', 404)
+      return success((await this.hydrate(rows))[0]!)
+    })
   }
 }

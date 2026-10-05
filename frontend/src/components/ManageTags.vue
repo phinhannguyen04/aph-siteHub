@@ -61,16 +61,16 @@ async function save() {
   formError.value = validateTag(input)
   if (formError.value) return
   saving.value = true
-  try {
-    if (editing.value) await api.updateTag(editing.value.id, input)
-    else await api.createTag(input)
-    formOpen.value = false
-    emit('changed')
-  } catch (cause) {
-    formError.value = cause instanceof Error ? cause.message : 'Unable to save tag'
-  } finally {
-    saving.value = false
+  const result = editing.value
+    ? await api.updateTag(editing.value.id, input)
+    : await api.createTag(input)
+  saving.value = false
+  if (result.code !== 0) {
+    formError.value = result.error.message
+    return
   }
+  formOpen.value = false
+  emit('changed')
 }
 function confirmDelete(tag: Tag) {
   deleting.value = tag
@@ -79,15 +79,14 @@ function confirmDelete(tag: Tag) {
 async function remove() {
   if (!deleting.value || saving.value) return
   saving.value = true
-  try {
-    await api.deleteTag(deleting.value.id)
-    deleting.value = null
-    emit('changed')
-  } catch (cause) {
-    formError.value = cause instanceof Error ? cause.message : 'Unable to delete tag'
-  } finally {
-    saving.value = false
+  const result = await api.deleteTag(deleting.value.id)
+  saving.value = false
+  if (result.code !== 0) {
+    formError.value = result.error.message
+    return
   }
+  deleting.value = null
+  emit('changed')
 }
 </script>
 <template>

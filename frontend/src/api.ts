@@ -1,3 +1,5 @@
+import { attempt, failure, success, type Result } from '../../shared/result'
+
 export interface Tag {
   id: string
   name: string
@@ -27,22 +29,19 @@ export interface WebsitePage {
   page: number
   pageSize: number
 }
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
-    super(message)
-  }
+export interface ApiFailure {
+  code: string
+  message: string
+  status: number
 }
+export type ApiResult<T> = Result<T, ApiFailure>
 let csrfToken = ''
 export function setCsrfToken(token: string) {
   csrfToken = token
 }
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  let response: Response
-  try {
-    response = await fetch(path, {
+async function request<T>(path: string, options: RequestInit = {}): Promise<ApiResult<T>> {
+  const fetched = await attempt(() =>
+    fetch(path, {
       ...options,
       credentials: 'same-origin',
       headers: {
@@ -52,14 +51,26 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
           : {}),
         ...options.headers,
       },
-    })
-  } catch {
-    throw new ApiError('Unable to connect to the server', 0)
-  }
-  const data = await response.json().catch(() => null)
+    }),
+  )
+  if (fetched.code !== 0)
+    return failure({ code: 'NETWORK_ERROR', message: 'Unable to connect to the server', status: 0 })
+  const response = fetched.data
+  const parsed = await attempt(() => response.json())
+  const data = parsed.code === 0 ? parsed.data : null
   if (!response.ok)
-    throw new ApiError(data?.error?.message || `HTTP error ${response.status}`, response.status)
-  return data as T
+    return failure({
+      code: data?.error?.code || 'HTTP_ERROR',
+      message: data?.error?.message || `HTTP error ${response.status}`,
+      status: response.status,
+    })
+  if (parsed.code !== 0 || data === null)
+    return failure({
+      code: 'INVALID_RESPONSE',
+      message: 'Invalid server response',
+      status: response.status,
+    })
+  return success(data as T)
 }
 export const api = {
   session: () => request<{ csrfToken: string }>('/api/auth/session'),

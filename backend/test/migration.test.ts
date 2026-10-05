@@ -1,16 +1,19 @@
+import { httpData } from '../src/common/errors/result'
 import { expect, test } from 'bun:test'
 import { connectDb } from '../src/database/surreal.client'
 import { backfillWebsiteSearch } from '../src/websites/search-backfill'
 const testUrl = Bun.env.SURREAL_TEST_URL
 const integration = testUrl ? test : test.skip
 integration('upgrade preserves old websites and backfills search', async () => {
-  const db = await connectDb({
-    surrealUrl: testUrl!,
-    surrealUser: Bun.env.SURREAL_USER || 'root',
-    surrealPass: Bun.env.SURREAL_PASS || '',
-    surrealNamespace: 'sitehub_tests',
-    surrealDatabase: `migration_${crypto.randomUUID().replaceAll('-', '')}`,
-  })
+  const db = httpData(
+    await connectDb({
+      surrealUrl: testUrl!,
+      surrealUser: Bun.env.SURREAL_USER || 'root',
+      surrealPass: Bun.env.SURREAL_PASS || '',
+      surrealNamespace: 'sitehub_tests',
+      surrealDatabase: `migration_${crypto.randomUUID().replaceAll('-', '')}`,
+    }),
+  )
   try {
     for (const name of ['001_websites.surql', '002_admin_credentials.surql'])
       await db.query(await Bun.file(new URL(`../migrations/${name}`, import.meta.url)).text())

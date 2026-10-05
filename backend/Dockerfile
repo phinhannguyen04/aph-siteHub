@@ -6,6 +6,7 @@ COPY frontend/package.json frontend/package.json
 COPY patches patches
 RUN bun install --frozen-lockfile
 COPY backend backend
+COPY shared shared
 RUN bun --cwd backend build
 
 FROM oven/bun:1.4.2

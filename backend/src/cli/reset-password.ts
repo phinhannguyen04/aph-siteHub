@@ -1,11 +1,10 @@
-import { readConfig } from '../config/app-config'
-import { connectDb } from '../database/surreal.client'
 import { resetAdminPassword } from '../auth/password-reset'
+import { runWithDatabase } from './run-with-database'
 
-const db = await connectDb(readConfig())
-try {
-  const password = await resetAdminPassword(db)
-  console.log(`New administrator password (shown once): ${password}`)
-} finally {
-  await db.close()
+const result = await runWithDatabase(resetAdminPassword)
+if (result.code !== 0) {
+  console.error(result.error.cause ?? result.error.message)
+  process.exitCode = result.code
+} else {
+  console.log(`New administrator password (shown once): ${result.data}`)
 }

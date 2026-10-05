@@ -1,3 +1,4 @@
+import { httpData } from '../src/common/errors/result'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import type { NestFastifyApplication } from '@nestjs/platform-fastify'
 import type { Surreal } from 'surrealdb'
@@ -68,10 +69,10 @@ integration('NestJS Fastify API with SurrealDB', () => {
       cookieSecure: false,
       port: 3000,
     }
-    db = await connectDb(config)
+    db = httpData(await connectDb(config))
     for (const name of ['001_websites.surql', '002_admin_credentials.surql', '003_tags.surql'])
       await db.query(await Bun.file(new URL(`../migrations/${name}`, import.meta.url)).text())
-    app = await createApp(config, { database: db, logger: false })
+    app = httpData(await createApp(config, { database: db, logger: false }))
     const login = await call(
       '/api/auth/login',
       'POST',

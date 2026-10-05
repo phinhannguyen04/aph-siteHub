@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
-import { api, type Website, type ListOptions } from './api'
+import { failure, success } from '../../shared/result'
+import { api, type Website, type ListOptions, type ApiFailure } from './api'
 export function useWebsites() {
   const state = reactive({
     websites: [] as Website[],
@@ -13,22 +14,28 @@ export function useWebsites() {
     const current = ++sequence
     state.loading = true
     state.error = ''
-    try {
-      const [list, all] = await Promise.all([api.list(options), api.count()])
-      if (current !== sequence) return
-      state.websites = list.websites
-      state.total = list.total
-      state.count = all.count
-    } catch (cause) {
-      if (current !== sequence) return
+    const [list, all] = await Promise.all([api.list(options), api.count()])
+    if (current !== sequence) 
+      return success(undefined)
+    
+    state.loading = false
+    function fail(error: ApiFailure) {
       state.websites = []
       state.total = 0
       state.count = 0
-      state.error = cause instanceof Error ? cause.message : 'Unable to load data'
-      throw cause
-    } finally {
-      if (current === sequence) state.loading = false
+      state.error = error.message
+      return failure(error)
     }
+    
+    if (list.code !== 0) 
+      return fail(list.error)
+    if (all.code !== 0) 
+      return fail(all.error)
+    
+    state.websites = list.data.websites
+    state.total = list.data.total
+    state.count = all.data.count
+    return success(undefined)
   }
   function clear() {
     ++sequence

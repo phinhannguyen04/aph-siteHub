@@ -66,8 +66,9 @@ function validateName() {
 function validateUrl() {
   if (!url.value.trim()) errors.url = 'Enter a URL.'
   else {
-    try {
-      const parsed = new URL(url.value.trim())
+    const parsed = URL.parse(url.value.trim())
+    if (!parsed) errors.url = 'Enter a valid URL, such as https://example.com'
+    else
       errors.url =
         !['http:', 'https:'].includes(parsed.protocol) ||
         !parsed.hostname ||
@@ -77,9 +78,6 @@ function validateUrl() {
           : parsed.href.length > 2048
             ? 'URL must be at most 2048 characters.'
             : ''
-    } catch {
-      errors.url = 'Enter a valid URL, such as https://example.com'
-    }
   }
   return !errors.url
 }

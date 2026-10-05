@@ -1,3 +1,4 @@
+import { httpData } from '../common/errors/result'
 import {
   Body,
   Controller,
@@ -49,7 +50,7 @@ export class AuthController {
     if (this.limiter.isBlocked(key))
       throw new HttpException(apiError('RATE_LIMITED', 'Please try again in 15 minutes'), 429)
     const password = body.password
-    const credential = await this.credentials.current()
+    const credential = httpData(await this.credentials.current())
     if (!(await verifyAdminPassword(password, credential.password_hash))) {
       this.limiter.recordFailure(key)
       throw new HttpException(apiError('UNAUTHORIZED', 'Incorrect password'), 401)
@@ -76,10 +77,10 @@ export class AuthController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     input.assertDifferent()
-    const credential = await this.credentials.current()
+    const credential = httpData(await this.credentials.current())
     if (!(await verifyAdminPassword(input.currentPassword, credential.password_hash)))
       throw new HttpException(apiError('UNAUTHORIZED', 'Incorrect current password'), 401)
-    const updated = await this.credentials.replace(input.newPassword, credential.version)
+    const updated = httpData(await this.credentials.replace(input.newPassword, credential.version))
     if (!updated)
       throw new HttpException(
         apiError('CONFLICT', 'The password was changed. Please try again'),

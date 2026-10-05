@@ -8,22 +8,20 @@ import type { Website } from '@/api'
 const props = defineProps<{ website: Website }>()
 const emit = defineEmits<{ edit: [website: Website] }>()
 const displayUrl = computed(() => {
-  try {
-    const parsed = new URL(props.website.url)
-    return `${parsed.host}${parsed.pathname === '/' ? '' : parsed.pathname}${parsed.search}`
-  } catch {
-    return props.website.url
-  }
+  const parsed = URL.parse(props.website.url)
+  if (!parsed) return props.website.url
+  return `${parsed.host}${parsed.pathname === '/' ? '' : parsed.pathname}${parsed.search}`
 })
 function openWebsite() {
-  try {
-    const url = new URL(props.website.url)
-    if ((url.protocol !== 'https:' && url.protocol !== 'http:') || url.username || url.password)
-      return
-    window.open(url.href, '_blank', 'noopener,noreferrer')
-  } catch {
-    // Invalid stored URLs are not opened.
-  }
+  const url = URL.parse(props.website.url)
+  if (
+    !url ||
+    (url.protocol !== 'https:' && url.protocol !== 'http:') ||
+    url.username ||
+    url.password
+  )
+    return
+  window.open(url.href, '_blank', 'noopener,noreferrer')
 }
 </script>
 

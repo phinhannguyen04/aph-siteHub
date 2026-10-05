@@ -1,4 +1,9 @@
-import { expect, test, mock } from 'bun:test'
+import { afterEach, expect, test, mock } from 'bun:test'
+import { api } from '../src/api'
+const originalFetch = globalThis.fetch
+afterEach(() => {
+  globalThis.fetch = originalFetch
+})
 import { useWebsites } from '../src/websites-state'
 const website = {
   id: '1',
@@ -42,7 +47,9 @@ test('failed API reload clears stale list and count', async () => {
       ? response({ error: { message: 'Database unavailable' } }, 503)
       : response({ websites: [website], total: 1, page: 1, pageSize: 12 }),
   ) as typeof fetch
-  await expect(reload()).rejects.toThrow('Database unavailable')
+  const result = await reload()
+  expect(result.code).toBe(1)
+  if (result.code !== 0) expect(result.error.message).toBe('Database unavailable')
   expect([state.websites.length, state.count, state.total]).toEqual([0, 0, 0])
   expect(state.error).toBe('Database unavailable')
 })
@@ -64,4 +71,66 @@ test('older responses cannot overwrite newer filter results', async () => {
   await old
   expect(state.websites).toHaveLength(1)
   expect(state.total).toBe(1)
+})
+
+test('network failure returns a code and releases loading state', async () => {
+  globalThis.fetch = mock(() => Promise.reject(new TypeError('Failed to fetch'))) as typeof fetch
+  const { state, reload } = useWebsites()
+  const result = await reload()
+  expect(result.code).toBe(1)
+  if (result.code !== 0) {
+    expect(result.error.code).toBe('NETWORK_ERROR')
+    expect(result.error.status).toBe(0)
+  }
+  expect(state.loading).toBe(false)
+  expect(state.error).toBe('Unable to connect to the server')
+})
+
+test('API preserves HTTP error codes and handles malformed responses', async () => {
+  globalThis.fetch = mock(async () =>
+    response({ error: { code: 'UNAUTHORIZED', message: 'Please sign in' } }, 401),
+  ) as typeof fetch
+  const unauthorized = await api.session()
+  expect(unauthorized.code).toBe(1)
+  if (unauthorized.code !== 0) {
+    expect(unauthorized.error).toEqual({
+      code: 'UNAUTHORIZED',
+      message: 'Please sign in',
+      status: 401,
+    })
+  }
+  globalThis.fetch = mock(async () => new Response('not JSON')) as typeof fetch
+  const malformed = await api.session()
+  expect(malformed.code).toBe(1)
+  if (malformed.code !== 0) expect(malformed.error.code).toBe('INVALID_RESPONSE')
+  globalThis.fetch = mock(async () => new Response('not JSON', { status: 502 })) as typeof fetch
+  const unavailable = await api.session()
+  expect(unavailable.code).toBe(1)
+  if (unavailable.code !== 0)
+    expect(unavailable.error).toEqual({
+      code: 'HTTP_ERROR',
+      message: 'HTTP error 502',
+      status: 502,
+    })
+})
+
+test('an older failed response cannot clear newer data or set an error', async () => {
+  let finishOld!: (value: Response) => void
+  globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+    const path = String(input)
+    if (path.endsWith('/count')) return response({ count: 1 })
+    if (path.includes('search=old'))
+      return new Promise<Response>((resolve) => {
+        finishOld = resolve
+      })
+    return response({ websites: [website], total: 1, page: 1, pageSize: 12 })
+  }) as typeof fetch
+  const { state, reload } = useWebsites()
+  const old = reload({ page: 1, pageSize: 12, search: 'old', tagIds: [] })
+  await reload({ page: 1, pageSize: 12, search: 'new', tagIds: [] })
+  finishOld(response({ error: { code: 'INTERNAL_ERROR', message: 'Old failure' } }, 500))
+  await old
+  expect(state.websites).toHaveLength(1)
+  expect(state.error).toBe('')
+  expect(state.loading).toBe(false)
 })

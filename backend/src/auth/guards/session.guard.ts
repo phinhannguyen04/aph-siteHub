@@ -1,3 +1,4 @@
+import { httpData } from '../../common/errors/result'
 import { CanActivate, ExecutionContext, HttpException, Inject, Injectable } from '@nestjs/common'
 import type { FastifyRequest } from 'fastify'
 import type { AppConfig } from '../../config/app-config'
@@ -16,7 +17,7 @@ export class SessionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<FastifyRequest>()
     const session = getSession(request, this.config.sessionSecret)
-    const credential = session ? await this.credentials.current() : null
+    const credential = session ? httpData(await this.credentials.current()) : null
     if (!session || !credential || session.version !== credential.version)
       throw new HttpException(apiError('UNAUTHORIZED', 'Please sign in'), 401)
     if (

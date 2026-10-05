@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+import { attempt, success, unexpectedFailure, type ServiceResult } from './common/errors/result'
 import { HttpException, ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
@@ -16,12 +17,16 @@ interface AppOptions {
 export async function createApp(
   config: AppConfig,
   options: AppOptions = {},
-): Promise<NestFastifyApplication> {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule.forRoot(config, options.database),
-    new FastifyAdapter(),
-    { logger: options.logger === false ? false : ['error', 'warn', 'log'] },
+): Promise<ServiceResult<NestFastifyApplication>> {
+  const created = await attempt(() =>
+    NestFactory.create<NestFastifyApplication>(
+      AppModule.forRoot(config, options.database),
+      new FastifyAdapter(),
+      { logger: options.logger === false ? false : ['error', 'warn', 'log'], abortOnError: false },
+    ),
   )
+  if (created.code !== 0) return unexpectedFailure(created.error)
+  const app = created.data
   app.enableCors({ origin: [config.appOrigin, ...(config.appOrigins || [])], credentials: true })
   app.useGlobalFilters(new ApiExceptionFilter())
   app.useGlobalPipes(
@@ -36,11 +41,11 @@ export async function createApp(
       },
     }),
   )
-  try {
-    await app.init()
-    return app
-  } catch (error) {
-    await app.close()
-    throw error
+  const initialized = await attempt(() => app.init())
+  if (initialized.code !== 0) {
+    const closed = await attempt(() => app.close())
+    if (closed.code !== 0) console.error(closed.error)
+    return unexpectedFailure(initialized.error)
   }
+  return success(app)
 }
