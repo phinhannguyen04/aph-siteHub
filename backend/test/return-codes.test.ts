@@ -1,3 +1,4 @@
+import { WebsitesRepository } from '../src/modules/websites/websites.repository'
 import { describe, expect, mock, test } from 'bun:test'
 import { createHmac } from 'node:crypto'
 import { createApp } from '../src/app.factory'
@@ -45,9 +46,11 @@ describe('PostgreSQL return codes', () => {
     const transaction = mock(() => {
       throw new Error('must not query')
     })
-    const service = new WebsitesService({
-      manager: { transaction },
-    } as unknown as Repository<WebsiteEntity>)
+    const service = new WebsitesService(
+      new WebsitesRepository({
+        manager: { transaction },
+      } as unknown as Repository<WebsiteEntity>),
+    )
     const id = crypto.randomUUID()
     for (const tag_ids of [['invalid'], [id, id]]) {
       const result = await service.create({ name: 'Site', url: 'https://example.com', tag_ids })

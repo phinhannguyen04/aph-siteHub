@@ -1,3 +1,5 @@
+import { TagsRepository } from '../src/modules/tags/tags.repository'
+import { WebsitesRepository } from '../src/modules/websites/websites.repository'
 import { CredentialsService } from '../src/modules/auth/credentials.service'
 import type { AppConfig } from '../src/config/app.config'
 import { WebsiteEntity } from '../src/modules/websites/entities/website.entity'
@@ -19,8 +21,10 @@ integration(
     const fixture = await testDatabase(testUrl!)
     try {
       const database = fixture.connection.db
-      const tags = new TagsService(database.getRepository(TagEntity))
-      const sites = new WebsitesService(database.getRepository(WebsiteEntity))
+      const tags = new TagsService(new TagsRepository(database.getRepository(TagEntity)))
+      const sites = new WebsitesService(
+        new WebsitesRepository(database.getRepository(WebsiteEntity)),
+      )
       const first = unwrap(await tags.create({ name: 'First', description: '', color: '#166534' }))
       const second = unwrap(
         await tags.create({ name: 'Second', description: '', color: '#166534' }),
@@ -57,8 +61,8 @@ integration(
       await db.query(
         `CREATE SCHEMA drizzle; CREATE TABLE drizzle.__drizzle_migrations (id serial PRIMARY KEY, hash text NOT NULL, created_at bigint); INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('legacy-hash', 1)`,
       )
-      const tags = new TagsService(db.getRepository(TagEntity))
-      const sites = new WebsitesService(db.getRepository(WebsiteEntity))
+      const tags = new TagsService(new TagsRepository(db.getRepository(TagEntity)))
+      const sites = new WebsitesService(new WebsitesRepository(db.getRepository(WebsiteEntity)))
       const tag = unwrap(
         await tags.create({ name: 'Existing', description: 'Keep me', color: '#166534' }),
       )

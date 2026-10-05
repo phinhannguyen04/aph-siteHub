@@ -214,6 +214,35 @@ integration('NestJS Fastify API with PostgreSQL', () => {
     expect((await call('/api/websites?search=duong')).json().websites[0].tag_ids).toEqual([])
   })
 
+  test('failed tag assignments roll back website creation and updates', async () => {
+    const before = (await call('/api/websites/count')).json().count
+    const invalidTag = crypto.randomUUID()
+    const failedCreate = await call('/api/websites', 'POST', {
+      name: 'Rollback create',
+      url: 'https://rollback.example',
+      tag_ids: [invalidTag],
+    })
+    expect(failedCreate.statusCode).toBe(400)
+    expect((await call('/api/websites/count')).json().count).toBe(before)
+    const tagResponse = await call('/api/tags', 'POST', { name: 'Rollback tag', color: '#123456' })
+    expect(tagResponse.statusCode).toBe(201)
+    const tagId = tagResponse.json().tag.id
+    const created = await call('/api/websites', 'POST', {
+      name: 'Rollback original',
+      url: 'https://rollback.example',
+      tag_ids: [tagId],
+    })
+    expect(created.statusCode).toBe(201)
+    const original = created.json().website
+    const failedUpdate = await call(`/api/websites/${original.id}`, 'PATCH', {
+      name: 'Rollback changed',
+      tag_ids: [invalidTag],
+    })
+    expect(failedUpdate.statusCode).toBe(400)
+    const listed = (await call('/api/websites?search=rollback')).json().websites
+    expect(listed.find((item: { id: string }) => item.id === original.id)).toEqual(original)
+  })
+
   test('concurrent duplicate names and stable page boundaries', async () => {
     const input = { name: 'Concurrent', description: '', color: '#166534' }
     const results = await Promise.all([
