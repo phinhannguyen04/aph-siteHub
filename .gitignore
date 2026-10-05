@@ -4,3 +4,7 @@ dist/
 *.sqlite
 *.sqlite-*
 coverage/
+
+.migration-backups/
+
+.env.pg-*

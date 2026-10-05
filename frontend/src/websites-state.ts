@@ -15,9 +15,8 @@ export function useWebsites() {
     state.loading = true
     state.error = ''
     const [list, all] = await Promise.all([api.list(options), api.count()])
-    if (current !== sequence) 
-      return success(undefined)
-    
+    if (current !== sequence) return success(undefined)
+
     state.loading = false
     function fail(error: ApiFailure) {
       state.websites = []
@@ -26,12 +25,10 @@ export function useWebsites() {
       state.error = error.message
       return failure(error)
     }
-    
-    if (list.code !== 0) 
-      return fail(list.error)
-    if (all.code !== 0) 
-      return fail(all.error)
-    
+
+    if (list.code !== 0) return fail(list.error)
+    if (all.code !== 0) return fail(all.error)
+
     state.websites = list.data.websites
     state.total = list.data.total
     state.count = all.data.count

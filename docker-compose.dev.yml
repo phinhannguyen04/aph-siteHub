@@ -1,5 +1,5 @@
-# For host-run Bun development and integration tests only.
+# Host-run Bun development and isolated integration tests.
 services:
-  surrealdb:
+  postgres:
     ports:
-      - '127.0.0.1:8000:8000'
+      - '127.0.0.1:5432:5432'

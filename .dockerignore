@@ -6,3 +6,7 @@ node_modules
 *.sqlite-*
 coverage
 artifacts
+
+.migration-backups/
+
+.env.pg-*
