@@ -3,7 +3,6 @@ import type { AppConfig } from '../src/config/app-config'
 import { WebsiteEntity } from '../src/websites/entities/website.entity'
 import { TagEntity } from '../src/tags/entities/tag.entity'
 import { AdminCredentialEntity } from '../src/auth/entities/admin-credential.entity'
-import { backfillWebsiteSearch } from '../src/websites/search-backfill'
 import { httpData as unwrap } from '../src/common/errors/result'
 import { expect, test } from 'bun:test'
 import { testDatabase } from './helpers'
@@ -33,15 +32,7 @@ integration(
           tag_ids: [second.id, first.id],
         }),
       )
-      await database
-        .getRepository(WebsiteEntity)
-        .createQueryBuilder()
-        .update()
-        .set({ searchText: '' })
-        .where('1 = 1')
-        .execute()
       unwrap(await migrateDatabase(database))
-      unwrap(await backfillWebsiteSearch(database))
       const page = unwrap(
         await sites.list({ page: 1, pageSize: 12, search: 'duong dan', tagIds: [] }),
       )

@@ -11,7 +11,6 @@ import { parseListQuery } from '../src/websites/list-query'
 import { UpdateWebsiteDto } from '../src/websites/dto/update-website.dto'
 import { ChangePasswordDto } from '../src/auth/dto/change-password.dto'
 import { verifyAdminPassword } from '../src/auth/credentials.service'
-import { backfillWebsiteSearch } from '../src/websites/search-backfill'
 import { runWithDatabase } from '../src/cli/run-with-database'
 import { createApp } from '../src/app.factory'
 import {
@@ -101,11 +100,6 @@ describe('infrastructure result propagation', () => {
     } finally {
       verifier.mockRestore()
     }
-  })
-  test('backfill converts failed transactions into a result preserving the cause', async () => {
-    const cause = new Error('Database unavailable')
-    const db = { transaction: mock(() => Promise.reject(cause)) } as unknown as Database
-    expect(await backfillWebsiteSearch(db)).toEqual(unexpectedFailure(cause))
   })
   test('CLI preserves operation errors, closes connections, and reports cleanup failures', async () => {
     const configured = configModule.readConfig(env as typeof Bun.env)

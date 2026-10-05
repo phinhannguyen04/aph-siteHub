@@ -11,7 +11,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 │   ├── src/
 │   │   ├── main.ts, app.module.ts, app.factory.ts
 │   │   ├── config/{app-config,config.module,config.tokens}.ts
-│   │   ├── database/{database.module,database.tokens,client,migrate,initial-migration}.ts
+│   │   ├── database/{database.module,client,migrate,initial-migration}.ts
 │   │   ├── common/errors/{api-error,result}.ts
 │   │   ├── common/filters/api-exception.filter.ts
 │   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
@@ -165,7 +165,7 @@ docker compose run --rm backend bun backend/dist/cli/migrate.js
 docker compose up -d --wait
 ```
 
-Migration `003_tags.surql` adds a `tags` table with stable UUIDs, unique normalized names, description, color, and timestamps. Websites store tag IDs in `tag_ids`, defaulting to an empty array. The migration command backfills `search_text` for existing websites, including Vietnamese accent and đ/Đ folding. Re-running the migration preserves existing website and tag data.
+The initial TypeORM migration creates or adopts `websites`, `tags`, `website_tags`, and `admin_credentials`. Tags have stable UUIDs and unique normalized names; `website_tags` preserves their assignment order. Website create/update operations maintain `search_text`, including Vietnamese accent and đ/Đ folding. Migration only applies schema changes; re-running it preserves existing website, tag, and credential data.
 
 Tag names are trimmed, leading `#` characters are removed, and names must contain 1–64 characters. Names are unique without regard to case. Descriptions allow up to 240 characters and colors must be six-digit hex values. The unique database index resolves concurrent duplicate creates. Tag deletion removes its ID from all websites in one transaction while preserving the websites.
 

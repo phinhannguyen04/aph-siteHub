@@ -8,9 +8,9 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common'
 import type { Connection } from './client'
-import { DATABASE_OWNED } from './database.tokens'
 
 const CONNECTION = Symbol('CONNECTION')
+const DATABASE_OWNED = Symbol('DATABASE_OWNED')
 @Injectable()
 class DatabaseShutdown implements OnApplicationShutdown {
   constructor(

@@ -2,7 +2,7 @@ import { HttpException } from '@nestjs/common'
 import { attempt, failure, type Result } from '../../../../shared/result'
 import { apiError } from './api-error'
 
-export { attempt, attemptSync, failure, success } from '../../../../shared/result'
+export { attempt, attemptSync, success } from '../../../../shared/result'
 export interface ServiceFailure {
   code: string
   message: string
