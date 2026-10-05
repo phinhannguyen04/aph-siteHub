@@ -1,19 +1,26 @@
-import { ValidationError } from '../common/errors/validation-error'
+import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
 
-export function normalizeName(value: unknown): string {
+export function normalizeName(value: unknown): ServiceResult<string> {
   if (typeof value !== 'string' || !value.trim())
-    throw new ValidationError('Website name is required')
+    return serviceFailure('VALIDATION_ERROR', 'Website name is required', 400)
   const name = value.trim()
-  if (name.length > 160) throw new ValidationError('Website name must be at most 160 characters')
-  return name
+  if (name.length > 160)
+    return serviceFailure('VALIDATION_ERROR', 'Website name must be at most 160 characters', 400)
+  return success(name)
 }
 
-export function normalizeUrl(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim()) throw new ValidationError('URL is required')
+export function normalizeUrl(value: unknown): ServiceResult<string> {
+  if (typeof value !== 'string' || !value.trim())
+    return serviceFailure('VALIDATION_ERROR', 'URL is required', 400)
   const url = URL.parse(value.trim())
-  if (!url) throw new ValidationError('Invalid URL')
+  if (!url) return serviceFailure('VALIDATION_ERROR', 'Invalid URL', 400)
   if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password)
-    throw new ValidationError('URL must use HTTP or HTTPS and must not contain credentials')
-  if (url.href.length > 2048) throw new ValidationError('URL must be at most 2048 characters')
-  return url.href
+    return serviceFailure(
+      'VALIDATION_ERROR',
+      'URL must use HTTP or HTTPS and must not contain credentials',
+      400,
+    )
+  if (url.href.length > 2048)
+    return serviceFailure('VALIDATION_ERROR', 'URL must be at most 2048 characters', 400)
+  return success(url.href)
 }

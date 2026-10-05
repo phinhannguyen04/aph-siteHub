@@ -2,13 +2,19 @@ import postgres from 'postgres'
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { sql } from 'drizzle-orm'
 import * as schema from './schema'
-import { attempt, success, unexpectedFailure, type ServiceResult } from '../common/errors/result'
+import {
+  attempt,
+  operation,
+  success,
+  unexpectedFailure,
+  type ServiceResult,
+} from '../common/errors/result'
 
 export type Database = PostgresJsDatabase<typeof schema>
 export type Executor = Pick<Database, 'select' | 'insert' | 'update' | 'delete'>
 export interface Connection {
   db: Database
-  close(): Promise<void>
+  close(): Promise<ServiceResult<void>>
 }
 
 export async function connectDb(config: {
@@ -30,5 +36,12 @@ export async function connectDb(config: {
     if (closed.code !== 0) console.error(closed.error)
     return unexpectedFailure(connected.error)
   }
-  return success({ db, close: () => client.end({ timeout: 5 }) })
+  return success({
+    db,
+    close: () =>
+      operation(async () => {
+        await client.end({ timeout: 5 })
+        return success(undefined)
+      }),
+  })
 }

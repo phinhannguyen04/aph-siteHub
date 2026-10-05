@@ -1,3 +1,4 @@
+import { httpData } from '../../common/errors/result'
 import { Transform } from 'class-transformer'
 import {
   IsArray,
@@ -11,12 +12,12 @@ import {
 import { normalizeName, normalizeUrl } from '../website-normalization'
 
 export class CreateWebsiteDto {
-  @Transform(({ value }) => normalizeName(value))
+  @Transform(({ value }) => httpData(normalizeName(value)))
   @IsDefined({ message: 'Website name is required' })
   @IsString({ message: 'Invalid website name' })
   name!: string
 
-  @Transform(({ value }) => normalizeUrl(value))
+  @Transform(({ value }) => httpData(normalizeUrl(value)))
   @IsDefined({ message: 'URL is required' })
   @IsString({ message: 'Invalid URL' })
   url!: string

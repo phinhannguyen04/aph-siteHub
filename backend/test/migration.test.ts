@@ -31,8 +31,8 @@ integration(
       await database
         .update((await import('../src/database/schema')).websites)
         .set({ searchText: '' })
-      await migrateDatabase(database)
-      await backfillWebsiteSearch(database)
+      unwrap(await migrateDatabase(database))
+      unwrap(await backfillWebsiteSearch(database))
       const page = unwrap(
         await sites.list({ page: 1, pageSize: 12, search: 'duong dan', tagIds: [] }),
       )

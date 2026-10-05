@@ -3,7 +3,7 @@ import { attempt, success, unexpectedFailure, type ServiceResult } from './commo
 import { HttpException, ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
-import type { Database } from './database/client'
+import { connectDb, type Database } from './database/client'
 import { AppModule } from './app.module'
 import { ApiExceptionFilter } from './common/filters/api-exception.filter'
 import { apiError } from './common/errors/api-error'
@@ -18,30 +18,44 @@ export async function createApp(
   config: AppConfig,
   options: AppOptions = {},
 ): Promise<ServiceResult<NestFastifyApplication>> {
+  const connected = options.database
+    ? success({ db: options.database, close: async () => success(undefined) })
+    : await connectDb(config)
+  if (connected.code !== 0) return connected
+  const connection = connected.data
+  const owned = !options.database
   const created = await attempt(() =>
     NestFactory.create<NestFastifyApplication>(
-      AppModule.forRoot(config, options.database),
+      AppModule.forRoot(config, connection, owned),
       new FastifyAdapter(),
       { logger: options.logger === false ? false : ['error', 'warn', 'log'], abortOnError: false },
     ),
   )
-  if (created.code !== 0) return unexpectedFailure(created.error)
+  if (created.code !== 0) {
+    if (owned) {
+      const closed = await connection.close()
+      if (closed.code !== 0) console.error(closed.error)
+    }
+    return unexpectedFailure(created.error)
+  }
   const app = created.data
-  app.enableCors({ origin: [config.appOrigin, ...(config.appOrigins || [])], credentials: true })
-  app.useGlobalFilters(new ApiExceptionFilter())
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      stopAtFirstError: true,
-      exceptionFactory: (errors) => {
-        const message = Object.values(errors[0]?.constraints ?? {})[0] ?? 'Invalid input'
-        return new HttpException(apiError('VALIDATION_ERROR', message), 400)
-      },
-    }),
-  )
-  const initialized = await attempt(() => app.init())
+  const initialized = await attempt(async () => {
+    app.enableCors({ origin: [config.appOrigin, ...(config.appOrigins || [])], credentials: true })
+    app.useGlobalFilters(new ApiExceptionFilter())
+    app.useGlobalPipes(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        stopAtFirstError: true,
+        exceptionFactory: (errors) => {
+          const message = Object.values(errors[0]?.constraints ?? {})[0] ?? 'Invalid input'
+          return new HttpException(apiError('VALIDATION_ERROR', message), 400)
+        },
+      }),
+    )
+    await app.init()
+  })
   if (initialized.code !== 0) {
     const closed = await attempt(() => app.close())
     if (closed.code !== 0) console.error(closed.error)

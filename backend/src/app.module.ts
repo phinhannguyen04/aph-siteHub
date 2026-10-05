@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common'
-import type { Database } from './database/client'
+import type { Connection } from './database/client'
 import { AuthModule } from './auth/auth.module'
 import type { AppConfig } from './config/app-config'
 import { ConfigModule } from './config/config.module'
@@ -10,12 +10,12 @@ import { WebsitesModule } from './websites/websites.module'
 
 @Module({})
 export class AppModule {
-  static forRoot(config: AppConfig, existingDatabase?: Database): DynamicModule {
+  static forRoot(config: AppConfig, connection: Connection, owned: boolean): DynamicModule {
     return {
       module: AppModule,
       imports: [
         ConfigModule.forRoot(config),
-        DatabaseModule.forRoot(existingDatabase),
+        DatabaseModule.forRoot(connection, owned),
         AuthModule,
         HealthModule,
         WebsitesModule,

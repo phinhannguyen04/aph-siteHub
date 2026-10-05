@@ -13,7 +13,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 │   │   ├── main.ts, app.module.ts, app.factory.ts
 │   │   ├── config/{app-config,config.module,config.tokens}.ts
 │   │   ├── database/{database.module,database.tokens,schema,client}.ts
-│   │   ├── common/errors/{api-error,validation-error,result}.ts
+│   │   ├── common/errors/{api-error,result}.ts
 │   │   ├── common/filters/api-exception.filter.ts
 │   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
 │   │   ├── auth/guards/session.guard.ts
@@ -45,9 +45,9 @@ The root module accepts an existing database connection for isolated integration
 
 ## Error handling
 
-Frontend API calls, backend services, `connectDb`, and `createApp` return a shared `Result<T, E>`: `{ code: 0, data }` on success or `{ code: 1, error }` on failure. Callers check `if (result.code !== 0)` before accessing `result.data`. Error details include a stable string `error.code`, `message`, and HTTP `status`; unexpected backend errors also retain their original `cause` for logging.
+Frontend API calls, backend services and repositories, configuration/validation helpers, database migrations and cleanup, password maintenance, `connectDb`, and `createApp` return a shared `Result<T, E>`: `{ code: 0, data }` on success or `{ code: 1, error }` on failure. Callers check `if (result.code !== 0)` before accessing `result.data`. Error details include a stable string `error.code`, `message`, and HTTP `status`; unexpected backend errors also retain their original `cause` for logging.
 
-`attempt` adapts exception-based asynchronous libraries to return codes, including synchronous throws while starting an operation. `attemptSync` isolates the catch required by synchronous APIs such as `JSON.parse`. URL parsing uses `URL.parse` and checks for `null`. NestJS controllers and providers use `httpData` to translate service failures at the framework boundary; DTO validation and guards retain NestJS exception handling. HTTP response bodies remain unchanged. CLI commands return a nonzero exit code on failure and close their database connections before reporting the result.
+`attempt` adapts exception-based asynchronous libraries to return codes, including synchronous throws while starting an operation. `attemptSync` isolates the catch required by synchronous APIs such as `JSON.parse`. URL parsing uses `URL.parse` and checks for `null`. Business and infrastructure functions return errors as values. Only the NestJS HTTP adapter `httpData` throws `HttpException`; controllers, DTO transforms, and guards use it to translate returned failures into the existing API responses. Startup checks the database connection result before constructing the NestJS modules. HTTP response bodies remain unchanged. CLI commands return a nonzero exit code on failure and close their database connections before reporting the result.
 
 ## Configuration
 

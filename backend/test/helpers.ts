@@ -1,4 +1,3 @@
-import { attempt } from '../../shared/result'
 import { httpData as unwrap } from '../src/common/errors/result'
 import postgres from 'postgres'
 import { connectDb } from '../src/database/client'
@@ -18,9 +17,9 @@ export async function testDatabase(url: string) {
     return unwrap<never>(connected)
   }
   const connection = connected.data
-  const migrated = await attempt(() => migrateDatabase(connection.db))
+  const migrated = await migrateDatabase(connection.db)
   if (migrated.code !== 0) {
-    await connection.close()
+    unwrap(await connection.close())
     await admin`DROP DATABASE ${admin(name)}`
     await admin.end()
     throw new Error('Test migration failed', { cause: migrated.error })
@@ -28,7 +27,7 @@ export async function testDatabase(url: string) {
   return {
     connection,
     async close() {
-      await connection.close()
+      unwrap(await connection.close())
       await admin`DROP DATABASE ${admin(name)}`
       await admin.end()
     },

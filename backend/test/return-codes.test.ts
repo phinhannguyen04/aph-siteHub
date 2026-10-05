@@ -53,9 +53,9 @@ describe('PostgreSQL return codes', () => {
     expect(transaction).not.toHaveBeenCalled()
   })
   test('configuration rejects non-PostgreSQL connections', () => {
-    expect(() => readConfig({ DATABASE_URL: 'https://example.com' } as typeof Bun.env)).toThrow(
-      'DATABASE_URL must use postgres or postgresql',
-    )
+    const result = readConfig({ DATABASE_URL: 'https://example.com' } as typeof Bun.env)
+    expect(result.code).toBe(1)
+    if (result.code !== 0) expect(result.error.code).toBe('CONFIGURATION_ERROR')
   })
 })
 test('session parser handles signed malformed payloads without throwing', () => {
@@ -65,7 +65,7 @@ test('session parser handles signed malformed payloads without throwing', () => 
     const signature = createHmac('sha256', secret).update(payload).digest('base64url')
     expect(readSession(`${payload}.${signature}`, secret)).toBeNull()
   }
-  expect(readSession(createSession(secret, 'v1').token, secret)?.version).toBe('v1')
+  expect(readSession(httpData(createSession(secret, 'v1')).token, secret)?.version).toBe('v1')
 })
 test('NestJS HTTP boundary preserves health and authentication errors', async () => {
   const config: AppConfig = {

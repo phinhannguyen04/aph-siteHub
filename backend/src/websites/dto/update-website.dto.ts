@@ -1,10 +1,11 @@
 import { PartialType } from '@nestjs/mapped-types'
-import { ValidationError } from '../../common/errors/validation-error'
+import { serviceFailure, success, type ServiceResult } from '../../common/errors/result'
 import { CreateWebsiteDto } from './create-website.dto'
 
 export class UpdateWebsiteDto extends PartialType(CreateWebsiteDto) {
-  assertHasChanges(): void {
+  assertHasChanges(): ServiceResult<void> {
     if (this.name === undefined && this.url === undefined && this.tag_ids === undefined)
-      throw new ValidationError('Provide a website name, URL or tags')
+      return serviceFailure('VALIDATION_ERROR', 'Provide a website name, URL or tags', 400)
+    return success(undefined)
   }
 }

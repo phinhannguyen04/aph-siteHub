@@ -23,7 +23,7 @@ export class WebsitesController {
 
   @Get()
   async list(@Query() query: Record<string, unknown>) {
-    return httpData(await this.websites.list(parseListQuery(query)))
+    return httpData(await this.websites.list(httpData(parseListQuery(query))))
   }
 
   @Get('count')
@@ -39,7 +39,7 @@ export class WebsitesController {
   @Patch(':id')
   @HttpCode(200)
   async update(@Param('id') id: string, @Body() input: UpdateWebsiteDto) {
-    input.assertHasChanges()
+    httpData(input.assertHasChanges())
     const website = httpData(await this.websites.update(id, input))
     return { website }
   }

@@ -1,38 +1,43 @@
-import { ValidationError } from '../common/errors/validation-error'
+import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
 export interface ListQuery {
   page: number
   pageSize: number
   search: string
   tagIds: string[]
 }
-export function parseListQuery(raw: Record<string, unknown>): ListQuery {
+export function parseListQuery(raw: Record<string, unknown>): ServiceResult<ListQuery> {
   const allowed = new Set(['page', 'pageSize', 'search', 'tagIds'])
   if (Object.keys(raw).some((key) => !allowed.has(key)))
-    throw new ValidationError('Unknown query parameter')
-  function integer(value: unknown, fallback: number, max: number, label: string) {
-    if (value === undefined) return fallback
+    return serviceFailure('VALIDATION_ERROR', 'Unknown query parameter', 400)
+  function integer(
+    value: unknown,
+    fallback: number,
+    max: number,
+    label: string,
+  ): ServiceResult<number> {
+    if (value === undefined) return success(fallback)
     if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value))
-      throw new ValidationError('Invalid ' + label)
+      return serviceFailure('VALIDATION_ERROR', 'Invalid ' + label, 400)
     const parsed = Number(value)
-    if (!Number.isSafeInteger(parsed) || parsed > max) throw new ValidationError('Invalid ' + label)
-    return parsed
+    if (!Number.isSafeInteger(parsed) || parsed > max)
+      return serviceFailure('VALIDATION_ERROR', 'Invalid ' + label, 400)
+    return success(parsed)
   }
   const page = integer(raw.page, 1, 1000000, 'page')
+  if (page.code !== 0) return page
   const pageSize = integer(raw.pageSize, 12, 48, 'pageSize')
-  if (
-    typeof raw.search !== 'undefined' &&
-    (typeof raw.search !== 'string' || raw.search.length > 160)
-  )
-    throw new ValidationError('Invalid search')
+  if (pageSize.code !== 0) return pageSize
+  if (raw.search !== undefined && (typeof raw.search !== 'string' || raw.search.length > 160))
+    return serviceFailure('VALIDATION_ERROR', 'Invalid search', 400)
   const search = typeof raw.search === 'string' ? raw.search.trim() : ''
   if (raw.tagIds !== undefined && typeof raw.tagIds !== 'string')
-    throw new ValidationError('Invalid tagIds')
+    return serviceFailure('VALIDATION_ERROR', 'Invalid tagIds', 400)
   const tagIds = raw.tagIds ? (raw.tagIds as string).split(',') : []
   if (
     tagIds.length > 50 ||
     tagIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id)) ||
     new Set(tagIds).size !== tagIds.length
   )
-    throw new ValidationError('Invalid tagIds')
-  return { page, pageSize, search, tagIds }
+    return serviceFailure('VALIDATION_ERROR', 'Invalid tagIds', 400)
+  return success({ page: page.data, pageSize: pageSize.data, search, tagIds })
 }

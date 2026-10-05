@@ -1,9 +1,8 @@
-import { httpData } from '../../common/errors/result'
-import { CanActivate, ExecutionContext, HttpException, Inject, Injectable } from '@nestjs/common'
+import { httpData, serviceFailure } from '../../common/errors/result'
+import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common'
 import type { FastifyRequest } from 'fastify'
 import type { AppConfig } from '../../config/app-config'
 import { APP_CONFIG } from '../../config/config.tokens'
-import { apiError } from '../../common/errors/api-error'
 import { CredentialsService } from '../credentials.service'
 import { getSession, sameOrigin, validCsrf } from '../session'
 
@@ -19,12 +18,12 @@ export class SessionGuard implements CanActivate {
     const session = getSession(request, this.config.sessionSecret)
     const credential = session ? httpData(await this.credentials.current()) : null
     if (!session || !credential || session.version !== credential.version)
-      throw new HttpException(apiError('UNAUTHORIZED', 'Please sign in'), 401)
+      return httpData(serviceFailure('UNAUTHORIZED', 'Please sign in', 401))
     if (
       request.method !== 'GET' &&
       (!sameOrigin(request, this.config) || !validCsrf(request, session.csrf))
     )
-      throw new HttpException(apiError('FORBIDDEN', 'Invalid session or request origin'), 403)
+      return httpData(serviceFailure('FORBIDDEN', 'Invalid session or request origin', 403))
     return true
   }
 }

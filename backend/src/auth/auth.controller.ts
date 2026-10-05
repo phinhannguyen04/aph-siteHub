@@ -1,20 +1,8 @@
-import { httpData } from '../common/errors/result'
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpException,
-  Inject,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common'
+import { httpData, serviceFailure } from '../common/errors/result'
+import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res, UseGuards } from '@nestjs/common'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { AppConfig } from '../config/app-config'
 import { APP_CONFIG } from '../config/config.tokens'
-import { apiError } from '../common/errors/api-error'
 import { LoginDto } from './dto/login.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
 import { SessionGuard } from './guards/session.guard'
@@ -43,20 +31,25 @@ export class AuthController {
     @Res({ passthrough: true }) reply: FastifyReply,
     @Body() body: LoginDto,
   ) {
-    if (!sameOrigin(request, this.config))
-      throw new HttpException(apiError('FORBIDDEN', 'Invalid request origin'), 403)
+    if (!sameOrigin(request, this.config)) {
+      return httpData(serviceFailure('FORBIDDEN', 'Invalid request origin', 403))
+    }
+
     const key =
       typeof request.headers['x-real-ip'] === 'string' ? request.headers['x-real-ip'] : request.ip
-    if (this.limiter.isBlocked(key))
-      throw new HttpException(apiError('RATE_LIMITED', 'Please try again in 15 minutes'), 429)
+
+    if (this.limiter.isBlocked(key)) {
+      return httpData(serviceFailure('RATE_LIMITED', 'Please try again in 15 minutes', 429))
+    }
+
     const password = body.password
     const credential = httpData(await this.credentials.current())
-    if (!(await verifyAdminPassword(password, credential.password_hash))) {
+    if (!httpData(await verifyAdminPassword(password, credential.password_hash))) {
       this.limiter.recordFailure(key)
-      throw new HttpException(apiError('UNAUTHORIZED', 'Incorrect password'), 401)
+      return httpData(serviceFailure('UNAUTHORIZED', 'Incorrect password', 401))
     }
     this.limiter.reset(key)
-    const session = createSession(this.config.sessionSecret, credential.version)
+    const session = httpData(createSession(this.config.sessionSecret, credential.version))
     reply.header('set-cookie', sessionCookie(session.token, this.config))
     return { csrfToken: session.csrf }
   }
@@ -76,17 +69,14 @@ export class AuthController {
     @Body() input: ChangePasswordDto,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    input.assertDifferent()
+    httpData(input.assertDifferent())
     const credential = httpData(await this.credentials.current())
-    if (!(await verifyAdminPassword(input.currentPassword, credential.password_hash)))
-      throw new HttpException(apiError('UNAUTHORIZED', 'Incorrect current password'), 401)
+    if (!httpData(await verifyAdminPassword(input.currentPassword, credential.password_hash)))
+      return httpData(serviceFailure('UNAUTHORIZED', 'Incorrect current password', 401))
     const updated = httpData(await this.credentials.replace(input.newPassword, credential.version))
     if (!updated)
-      throw new HttpException(
-        apiError('CONFLICT', 'The password was changed. Please try again'),
-        409,
-      )
-    const session = createSession(this.config.sessionSecret, updated.version)
+      return httpData(serviceFailure('CONFLICT', 'The password was changed. Please try again', 409))
+    const session = httpData(createSession(this.config.sessionSecret, updated.version))
     reply.header('set-cookie', sessionCookie(session.token, this.config))
     return { csrfToken: session.csrf }
   }

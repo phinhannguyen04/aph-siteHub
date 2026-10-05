@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator'
-import { ValidationError } from '../../common/errors/validation-error'
+import { serviceFailure, success, type ServiceResult } from '../../common/errors/result'
 
 export class ChangePasswordDto {
   @IsString({ message: 'Current password is required' })
@@ -13,8 +13,13 @@ export class ChangePasswordDto {
   @Matches(/\S/, { message: 'New password cannot be blank' })
   newPassword!: string
 
-  assertDifferent(): void {
+  assertDifferent(): ServiceResult<void> {
     if (this.currentPassword === this.newPassword)
-      throw new ValidationError('New password must differ from the current password')
+      return serviceFailure(
+        'VALIDATION_ERROR',
+        'New password must differ from the current password',
+        400,
+      )
+    return success(undefined)
   }
 }

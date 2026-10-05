@@ -1,7 +1,6 @@
 import { HttpException } from '@nestjs/common'
 import { attempt, failure, type Result } from '../../../../shared/result'
 import { apiError } from './api-error'
-import { ValidationError } from './validation-error'
 
 export { attempt, attemptSync, failure, success } from '../../../../shared/result'
 export interface ServiceFailure {
@@ -21,8 +20,6 @@ export function serviceFailure(
 }
 
 export function unexpectedFailure(cause: unknown): ServiceResult<never> {
-  if (cause instanceof ValidationError)
-    return serviceFailure('VALIDATION_ERROR', cause.message, 400)
   return failure({ code: 'INTERNAL_ERROR', message: 'Internal server error', status: 500, cause })
 }
 

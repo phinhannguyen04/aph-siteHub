@@ -3,8 +3,8 @@ import { readConfig } from './config/app-config'
 import { attempt, success, unexpectedFailure, type ServiceResult } from './common/errors/result'
 
 async function bootstrap(): Promise<ServiceResult<void>> {
-  const configured = await attempt(() => readConfig())
-  if (configured.code !== 0) return unexpectedFailure(configured.error)
+  const configured = readConfig()
+  if (configured.code !== 0) return configured
   const config = configured.data
   const created = await createApp(config)
   if (created.code !== 0) return created

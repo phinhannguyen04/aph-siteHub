@@ -4,11 +4,20 @@ import { APP_CONFIG } from '../config/config.tokens'
 import { DATABASE } from '../database/database.tokens'
 import type { Database } from '../database/client'
 import { newRepository, type Repository } from './repository'
-import { attempt, operation, unexpectedFailure, type ServiceResult } from '../common/errors/result'
-export function verifyAdminPassword(password: string, hash: string) {
-  return attempt(() => Bun.password.verify(password, hash)).then(
-    (result) => result.code === 0 && result.data,
-  )
+import {
+  attempt,
+  operation,
+  success,
+  unexpectedFailure,
+  type ServiceResult,
+} from '../common/errors/result'
+export async function verifyAdminPassword(
+  password: string,
+  hash: string,
+): Promise<ServiceResult<boolean>> {
+  const result = await attempt(() => Bun.password.verify(password, hash))
+  if (result.code !== 0) return unexpectedFailure(result.error)
+  return success(result.data)
 }
 export interface Credential {
   password_hash: string

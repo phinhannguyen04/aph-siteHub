@@ -1,4 +1,9 @@
-import { attemptSync } from '../common/errors/result'
+import {
+  attemptSync,
+  success,
+  unexpectedFailure,
+  type ServiceResult,
+} from '../common/errors/result'
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { FastifyRequest } from 'fastify'
 import type { AppConfig } from '../config/app-config'
@@ -10,12 +15,19 @@ function sign(text: string, secret: string): string {
   return createHmac('sha256', secret).update(text).digest('base64url')
 }
 
-export function createSession(secret: string, version: string): { token: string; csrf: string } {
-  const csrf = randomBytes(32).toString('base64url')
-  const payload = Buffer.from(
-    JSON.stringify({ exp: Date.now() + lifetimeSeconds * 1000, csrf, version }),
-  ).toString('base64url')
-  return { token: `${payload}.${sign(payload, secret)}`, csrf }
+export function createSession(
+  secret: string,
+  version: string,
+): ServiceResult<{ token: string; csrf: string }> {
+  const result = attemptSync(() => {
+    const csrf = randomBytes(32).toString('base64url')
+    const payload = Buffer.from(
+      JSON.stringify({ exp: Date.now() + lifetimeSeconds * 1000, csrf, version }),
+    ).toString('base64url')
+    return { token: `${payload}.${sign(payload, secret)}`, csrf }
+  })
+  if (result.code !== 0) return unexpectedFailure(result.error)
+  return success(result.data)
 }
 
 export function readSession(

@@ -1,15 +1,11 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common'
 import type { FastifyReply } from 'fastify'
-import { ValidationError } from '../errors/validation-error'
 import { apiError } from '../errors/api-error'
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const reply = host.switchToHttp().getResponse<FastifyReply>()
-    if (exception instanceof ValidationError) {
-      return reply.status(400).send(apiError('VALIDATION_ERROR', exception.message))
-    }
     if (exception instanceof HttpException) {
       const status = exception.getStatus()
       const response = exception.getResponse()

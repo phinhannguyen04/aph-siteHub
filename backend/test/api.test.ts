@@ -8,7 +8,6 @@ import { websites } from '../src/database/schema'
 import { createApp } from '../src/app.factory'
 import { readConfig, type AppConfig } from '../src/config/app-config'
 import { normalizeUrl } from '../src/websites/website-normalization'
-import { ValidationError } from '../src/common/errors/validation-error'
 import { resetAdminPassword } from '../src/auth/password-reset'
 
 const origin = 'http://localhost:8111'
@@ -40,7 +39,7 @@ async function call(
 
 describe('URL validation', () => {
   test('normalizes valid HTTP URLs', () => {
-    expect(normalizeUrl('  HTTPS://Example.COM/path  ')).toBe('https://example.com/path')
+    expect(httpData(normalizeUrl('  HTTPS://Example.COM/path  '))).toBe('https://example.com/path')
   })
   test('rejects scripts, credentials and invalid URLs', () => {
     for (const url of [
@@ -49,7 +48,9 @@ describe('URL validation', () => {
       'https://user:pass@example.com',
       'not a url',
     ]) {
-      expect(() => normalizeUrl(url)).toThrow(ValidationError)
+      const result = normalizeUrl(url)
+      expect(result.code).toBe(1)
+      if (result.code !== 0) expect(result.error.code).toBe('VALIDATION_ERROR')
     }
   })
 })
@@ -283,7 +284,7 @@ integration('NestJS Fastify API with PostgreSQL', () => {
   })
 
   test('reset generates a new password and invalidates all existing sessions', async () => {
-    const generated = await resetAdminPassword(db)
+    const generated = httpData(await resetAdminPassword(db))
     expect(generated.length).toBeGreaterThanOrEqual(32)
     expect((await call('/api/websites')).statusCode).toBe(401)
     expect(
@@ -298,11 +299,13 @@ integration('NestJS Fastify API with PostgreSQL', () => {
 
 test('encoded administrator hash loads without dollar-sign interpolation', async () => {
   const hash = await Bun.password.hash('example-long-password', { algorithm: 'argon2id' })
-  const loaded = readConfig({
-    DATABASE_URL: 'postgresql://sitehub:test@localhost:5432/sitehub',
-    SESSION_SECRET: 'test-secret-with-at-least-thirty-two-characters',
-    ADMIN_PASSWORD_HASH_BASE64: Buffer.from(hash).toString('base64'),
-    APP_ORIGIN: origin,
-  } as typeof Bun.env)
+  const loaded = httpData(
+    readConfig({
+      DATABASE_URL: 'postgresql://sitehub:test@localhost:5432/sitehub',
+      SESSION_SECRET: 'test-secret-with-at-least-thirty-two-characters',
+      ADMIN_PASSWORD_HASH_BASE64: Buffer.from(hash).toString('base64'),
+      APP_ORIGIN: origin,
+    } as typeof Bun.env),
+  )
   expect(loaded.adminPasswordHash).toBe(hash)
 })

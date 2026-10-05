@@ -6,10 +6,7 @@ import {
   Module,
   OnApplicationShutdown,
 } from '@nestjs/common'
-import { httpData } from '../common/errors/result'
-import type { AppConfig } from '../config/app-config'
-import { APP_CONFIG } from '../config/config.tokens'
-import { connectDb, type Connection, type Database } from './client'
+import type { Connection } from './client'
 import { DATABASE, DATABASE_OWNED } from './database.tokens'
 
 const CONNECTION = Symbol('CONNECTION')
@@ -20,30 +17,29 @@ class DatabaseShutdown implements OnApplicationShutdown {
     @Inject(DATABASE_OWNED) private readonly owned: boolean,
   ) {}
   async onApplicationShutdown(): Promise<void> {
-    if (this.owned) await this.connection.close()
+    if (this.owned) {
+      const closed = await this.connection.close()
+      if (closed.code !== 0) console.error(closed.error.cause ?? closed.error.message)
+    }
   }
 }
 @Global()
 @Module({})
 export class DatabaseModule {
-  static forRoot(existingDatabase?: Database): DynamicModule {
+  static forRoot(connection: Connection, owned: boolean): DynamicModule {
     return {
       module: DatabaseModule,
       providers: [
         {
           provide: CONNECTION,
-          useFactory: async (config: AppConfig): Promise<Connection> =>
-            existingDatabase
-              ? { db: existingDatabase, close: async () => {} }
-              : httpData(await connectDb(config)),
-          inject: [APP_CONFIG],
+          useValue: connection,
         },
         {
           provide: DATABASE,
           useFactory: (connection: Connection) => connection.db,
           inject: [CONNECTION],
         },
-        { provide: DATABASE_OWNED, useValue: !existingDatabase },
+        { provide: DATABASE_OWNED, useValue: owned },
         DatabaseShutdown,
       ],
       exports: [DATABASE],
