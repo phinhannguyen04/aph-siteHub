@@ -76,7 +76,7 @@ test('NestJS HTTP boundary preserves health and authentication errors', async ()
     port: 3000,
   }
   const db = {
-    execute: async () => {
+    query: async () => {
       throw new Error('Database disconnected')
     },
   } as unknown as Database

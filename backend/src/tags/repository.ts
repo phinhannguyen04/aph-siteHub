@@ -1,10 +1,8 @@
-import { eq, asc } from 'drizzle-orm'
 import type { Database } from '../database/client'
-import { tags } from '../database/schema'
+import { tags, toTag } from '../database/schema'
 import { query } from '../database/error'
 import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
 import type { Tag } from './tag.interface'
-
 export interface Repository {
   list(): Promise<ServiceResult<Tag[]>>
   create(input: Tag): Promise<ServiceResult<Tag>>
@@ -14,49 +12,41 @@ export interface Repository {
   ): Promise<ServiceResult<Tag>>
   delete(id: string): Promise<ServiceResult<void>>
 }
-const columns = {
-  id: tags.id,
-  name: tags.name,
-  description: tags.description,
-  color: tags.color,
-  created_at: tags.created_at,
-  updated_at: tags.updated_at,
-}
-
 export function newRepository(db: Database): Repository {
   return {
-    list: () => query(() => db.select(columns).from(tags).orderBy(asc(tags.nameKey))),
+    list: () =>
+      query(async () =>
+        (await db.getRepository(tags).find({ order: { nameKey: 'ASC' } })).map(toTag),
+      ),
     create: (input) =>
       query(async () => {
-        const [row] = await db
-          .insert(tags)
-          .values({ ...input, nameKey: input.name.toLocaleLowerCase('vi') })
-          .returning(columns)
-        return row!
+        await db
+          .getRepository(tags)
+          .insert({ ...input, nameKey: input.name.toLocaleLowerCase('vi') })
+        return input
       }),
     update: async (id, input) => {
       const result = await query(() =>
-        db
-          .update(tags)
-          .set({
+        db.transaction(async (tx) => {
+          const repo = tx.getRepository(tags)
+          const write = await repo.update(id, {
             ...input,
             nameKey: input.name.toLocaleLowerCase('vi'),
             updated_at: new Date().toISOString(),
           })
-          .where(eq(tags.id, id))
-          .returning(columns),
+          if (!write.affected) return null
+          const row = await repo.findOneBy({ id })
+          return row ? toTag(row) : null
+        }),
       )
       if (result.code !== 0) return result
-      if (!result.data[0]) return serviceFailure('NOT_FOUND', 'Tag not found', 404)
-      return success(result.data[0])
+      if (!result.data) return serviceFailure('NOT_FOUND', 'Tag not found', 404)
+      return success(result.data)
     },
     delete: async (id) => {
-      const result = await query(() =>
-        db.delete(tags).where(eq(tags.id, id)).returning({ id: tags.id }),
-      )
+      const result = await query(() => db.getRepository(tags).delete(id))
       if (result.code !== 0) return result
-      if (!result.data[0]) return serviceFailure('NOT_FOUND', 'Tag not found', 404)
-      // PostgreSQL cascades only the association rows, preserving websites.
+      if (!result.data.affected) return serviceFailure('NOT_FOUND', 'Tag not found', 404)
       return success(undefined)
     },
   }

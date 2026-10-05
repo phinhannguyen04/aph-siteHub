@@ -10,9 +10,10 @@ RUN bun --cwd backend build
 
 FROM oven/bun:1.4.2
 WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/backend/node_modules ./backend/node_modules
 COPY --from=build /app/backend/package.json ./backend/package.json
 COPY --from=build /app/backend/dist ./backend/dist
-COPY --from=build /app/backend/migrations ./backend/migrations
 USER bun
 EXPOSE 3000
 CMD ["bun", "backend/dist/main.js"]

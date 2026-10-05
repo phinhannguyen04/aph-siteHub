@@ -17,9 +17,12 @@ function postgresError(error: unknown): { code?: string; constraint_name?: strin
         constraint_name:
           'constraint_name' in current && typeof current.constraint_name === 'string'
             ? current.constraint_name
-            : undefined,
+            : 'constraint' in current && typeof current.constraint === 'string'
+              ? current.constraint
+              : undefined,
       }
-    current = 'cause' in current ? current.cause : null
+    current =
+      'driverError' in current ? current.driverError : 'cause' in current ? current.cause : null
   }
   return null
 }

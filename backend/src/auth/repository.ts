@@ -1,10 +1,8 @@
-import { and, eq } from 'drizzle-orm'
 import type { Database } from '../database/client'
 import { adminCredentials } from '../database/schema'
 import { query } from '../database/error'
 import type { ServiceResult } from '../common/errors/result'
 import type { Credential } from './credentials.service'
-
 export interface Repository {
   find(): Promise<ServiceResult<Credential | null>>
   initialize(credential: Credential): Promise<ServiceResult<Credential>>
@@ -14,49 +12,38 @@ export interface Repository {
   ): Promise<ServiceResult<Credential | null>>
   reset(credential: Credential): Promise<ServiceResult<void>>
 }
-const columns = { password_hash: adminCredentials.password_hash, version: adminCredentials.version }
-
 export function newRepository(db: Database): Repository {
+  const find = () =>
+    db
+      .getRepository(adminCredentials)
+      .findOne({ where: { id: 'primary' }, select: { password_hash: true, version: true } })
   return {
-    find: () =>
-      query(
-        async () =>
-          (
-            await db
-              .select(columns)
-              .from(adminCredentials)
-              .where(eq(adminCredentials.id, 'primary'))
-          )[0] ?? null,
-      ),
+    find: () => query(find),
     initialize: (credential) =>
       query(async () => {
         await db
-          .insert(adminCredentials)
+          .createQueryBuilder()
+          .insert()
+          .into(adminCredentials)
           .values({ id: 'primary', ...credential })
-          .onConflictDoNothing({ target: adminCredentials.id })
-        const [current] = await db
-          .select(columns)
-          .from(adminCredentials)
-          .where(eq(adminCredentials.id, 'primary'))
-        return current!
+          .orIgnore()
+          .execute()
+        return (await find())!
       }),
     replace: (credential, expectedVersion) =>
       query(async () => {
-        const [row] = await db
+        const result = await db
+          .createQueryBuilder()
           .update(adminCredentials)
           .set(credential)
-          .where(
-            and(eq(adminCredentials.id, 'primary'), eq(adminCredentials.version, expectedVersion)),
-          )
-          .returning(columns)
-        return row ?? null
+          .where('id = :id AND version = :version', { id: 'primary', version: expectedVersion })
+          .returning(['password_hash', 'version'])
+          .execute()
+        return (result.raw as Credential[])[0] ?? null
       }),
     reset: (credential) =>
       query(async () => {
-        await db
-          .insert(adminCredentials)
-          .values({ id: 'primary', ...credential })
-          .onConflictDoUpdate({ target: adminCredentials.id, set: credential })
+        await db.getRepository(adminCredentials).upsert({ id: 'primary', ...credential }, ['id'])
       }),
   }
 }

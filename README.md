@@ -8,19 +8,18 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 .
 ├── .env.example
 ├── backend/
-│   ├── migrations/{001_websites,002_admin_credentials,003_tags}.surql
 │   ├── src/
 │   │   ├── main.ts, app.module.ts, app.factory.ts
 │   │   ├── config/{app-config,config.module,config.tokens}.ts
-│   │   ├── database/{database.module,database.tokens,schema,client}.ts
+│   │   ├── database/{database.module,database.tokens,schema,client,migrate,initial-migration}.ts
 │   │   ├── common/errors/{api-error,result}.ts
 │   │   ├── common/filters/api-exception.filter.ts
 │   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
 │   │   ├── auth/guards/session.guard.ts
 │   │   ├── auth/dto/{login,change-password}.dto.ts
-│   │   ├── websites/{websites.module,websites.controller,websites.service,website.interface,website-normalization,list-query,search}.ts
+│   │   ├── websites/{websites.module,websites.controller,websites.service,website.interface,website-normalization,list-query,search,repository}.ts
 │   │   ├── websites/dto/{create-website,update-website}.dto.ts
-│   │   ├── tags/{tags.module,tags.controller,tags.service,tag-normalization,tag.interface}.ts
+│   │   ├── tags/{tags.module,tags.controller,tags.service,tag-normalization,tag.interface,repository}.ts
 │   │   ├── health/{health.module,health.controller}.ts
 │   │   └── cli/{migrate,reset-password,hash-password}.ts
 │   ├── test/api.test.ts
@@ -39,7 +38,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 
 ## Backend architecture
 
-`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` provides a Drizzle database using the postgres driver and closes its owned connection during NestJS shutdown. Feature controllers retain the NestJS API from commit `cfe41cc`; services use PostgreSQL repositories for credentials, websites, and tags. Website/tag associations use foreign keys and cascade deletion of associations. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
+`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` provides a TypeORM DataSource using the pg driver and closes its owned connection during NestJS shutdown. Feature controllers retain the NestJS API from commit `cfe41cc`; services use PostgreSQL repositories for credentials, websites, and tags. Website/tag associations use foreign keys and cascade deletion of associations. TypeORM entities map to the existing PostgreSQL tables; `synchronize` is disabled. The initial TypeORM migration adopts existing tables and records its history in `typeorm_migrations`, leaving previous migration history intact. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
 
 The root module accepts an existing database connection for isolated integration tests. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
 

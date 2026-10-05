@@ -1,7 +1,8 @@
-import postgres from 'postgres'
-import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-import { sql } from 'drizzle-orm'
-import * as schema from './schema'
+import 'reflect-metadata'
+import { DataSource } from 'typeorm'
+import pg from 'pg'
+import { websites, tags, websiteTags, adminCredentials } from './schema'
+import { InitialSchema1791158400000 } from './initial-migration'
 import {
   attempt,
   operation,
@@ -10,37 +11,40 @@ import {
   type ServiceResult,
 } from '../common/errors/result'
 
-export type Database = PostgresJsDatabase<typeof schema>
-export type Executor = Pick<Database, 'select' | 'insert' | 'update' | 'delete'>
+export type Database = DataSource
 export interface Connection {
   db: Database
   close(): Promise<ServiceResult<void>>
 }
-
 export async function connectDb(config: {
   databaseUrl: string
 }): Promise<ServiceResult<Connection>> {
-  const opened = await attempt(() =>
-    postgres(config.databaseUrl, {
-      max: 10,
-      connect_timeout: 10,
-      onnotice: () => {},
-    }),
+  const opened = await attempt(
+    () =>
+      new DataSource({
+        type: 'postgres',
+        url: config.databaseUrl,
+        driver: pg,
+        entities: [websites, tags, websiteTags, adminCredentials],
+        migrations: [InitialSchema1791158400000],
+        migrationsTableName: 'typeorm_migrations',
+        synchronize: false,
+        migrationsRun: false,
+        extra: { max: 10, connectionTimeoutMillis: 10000 },
+      }),
   )
   if (opened.code !== 0) return unexpectedFailure(opened.error)
-  const client = opened.data
-  const db = drizzle(client, { schema })
-  const connected = await attempt(() => db.execute(sql`SELECT 1`))
-  if (connected.code !== 0) {
-    const closed = await attempt(() => client.end({ timeout: 5 }))
-    if (closed.code !== 0) console.error(closed.error)
-    return unexpectedFailure(connected.error)
+  const db = opened.data
+  const initialized = await attempt(() => db.initialize())
+  if (initialized.code !== 0) {
+    if (db.isInitialized) await attempt(() => db.destroy())
+    return unexpectedFailure(initialized.error)
   }
   return success({
     db,
     close: () =>
       operation(async () => {
-        await client.end({ timeout: 5 })
+        if (db.isInitialized) await db.destroy()
         return success(undefined)
       }),
   })

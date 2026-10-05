@@ -1,51 +1,96 @@
-import { integer, pgTable, primaryKey, text, uniqueIndex, index } from 'drizzle-orm/pg-core'
+import { EntitySchema } from 'typeorm'
+import type { Tag } from '../tags/tag.interface'
+import type { Credential } from '../auth/credentials.service'
 
-export const websites = pgTable(
-  'websites',
-  {
-    id: text('website_id').primaryKey(),
-    name: text('name').notNull(),
-    url: text('url').notNull(),
-    searchText: text('search_text').notNull(),
-    created_at: text('created_at').notNull(),
-    updated_at: text('updated_at').notNull(),
+export interface WebsiteRecord {
+  id: string
+  name: string
+  url: string
+  searchText: string
+  created_at: string
+  updated_at: string
+}
+export interface TagRecord extends Tag {
+  nameKey: string
+}
+export interface WebsiteTagRecord {
+  websiteId: string
+  tagId: string
+  position: number
+  tag: TagRecord
+  website: WebsiteRecord
+}
+export interface CredentialRecord extends Credential {
+  id: string
+}
+
+export const websites = new EntitySchema<WebsiteRecord>({
+  name: 'Website',
+  tableName: 'websites',
+  columns: {
+    id: { type: 'text', name: 'website_id', primary: true },
+    name: { type: 'text' },
+    url: { type: 'text' },
+    searchText: { type: 'text', name: 'search_text' },
+    created_at: { type: 'text' },
+    updated_at: { type: 'text' },
   },
-  (table) => [index('websites_created_id_idx').on(table.created_at, table.id)],
-)
-
-export const tags = pgTable(
-  'tags',
-  {
-    id: text('tag_id').primaryKey(),
-    name: text('name').notNull(),
-    nameKey: text('name_key').notNull(),
-    description: text('description').notNull(),
-    color: text('color').notNull(),
-    created_at: text('created_at').notNull(),
-    updated_at: text('updated_at').notNull(),
-  },
-  (table) => [uniqueIndex('tags_name_key_unique').on(table.nameKey)],
-)
-
-export const websiteTags = pgTable(
-  'website_tags',
-  {
-    websiteId: text('website_id')
-      .notNull()
-      .references(() => websites.id, { onDelete: 'cascade' }),
-    tagId: text('tag_id')
-      .notNull()
-      .references(() => tags.id, { onDelete: 'cascade' }),
-    position: integer('position').notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.websiteId, table.tagId] }),
-    index('website_tags_tag_idx').on(table.tagId),
-  ],
-)
-
-export const adminCredentials = pgTable('admin_credentials', {
-  id: text('id').primaryKey(),
-  password_hash: text('password_hash').notNull(),
-  version: text('version').notNull(),
+  indices: [{ name: 'websites_created_id_idx', columns: ['created_at', 'id'] }],
 })
+export const tags = new EntitySchema<TagRecord>({
+  name: 'Tag',
+  tableName: 'tags',
+  columns: {
+    id: { type: 'text', name: 'tag_id', primary: true },
+    name: { type: 'text' },
+    nameKey: { type: 'text', name: 'name_key' },
+    description: { type: 'text' },
+    color: { type: 'text' },
+    created_at: { type: 'text' },
+    updated_at: { type: 'text' },
+  },
+  indices: [{ name: 'tags_name_key_unique', columns: ['nameKey'], unique: true }],
+})
+export const websiteTags = new EntitySchema<WebsiteTagRecord>({
+  name: 'WebsiteTag',
+  tableName: 'website_tags',
+  columns: {
+    websiteId: { type: 'text', name: 'website_id', primary: true },
+    tagId: { type: 'text', name: 'tag_id', primary: true },
+    position: { type: 'integer' },
+  },
+  relations: {
+    website: {
+      type: 'many-to-one',
+      target: 'Website',
+      joinColumn: { name: 'website_id', referencedColumnName: 'id' },
+      onDelete: 'CASCADE',
+    },
+    tag: {
+      type: 'many-to-one',
+      target: 'Tag',
+      joinColumn: { name: 'tag_id', referencedColumnName: 'id' },
+      onDelete: 'CASCADE',
+    },
+  },
+  indices: [{ name: 'website_tags_tag_idx', columns: ['tagId'] }],
+})
+export const adminCredentials = new EntitySchema<CredentialRecord>({
+  name: 'AdminCredential',
+  tableName: 'admin_credentials',
+  columns: {
+    id: { type: 'text', primary: true },
+    password_hash: { type: 'text' },
+    version: { type: 'text' },
+  },
+})
+export function toTag(row: TagRecord): Tag {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    color: row.color,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}

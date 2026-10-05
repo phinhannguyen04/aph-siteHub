@@ -1,12 +1,11 @@
-import { and, count, desc, eq, exists, inArray, sql } from 'drizzle-orm'
-import type { Database, Executor } from '../database/client'
-import { websites, tags, websiteTags } from '../database/schema'
+import { In, type EntityManager } from 'typeorm'
+import type { Database } from '../database/client'
+import { websites, websiteTags, toTag, type WebsiteRecord } from '../database/schema'
 import { query } from '../database/error'
-import { serviceFailure, type ServiceResult } from '../common/errors/result'
+import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
 import type { Website } from './website.interface'
 import type { ListQuery } from './list-query'
 import { fold } from './search'
-
 export interface WebsitePage {
   websites: Website[]
   total: number
@@ -31,32 +30,17 @@ export interface Repository {
     input: { name?: string; url?: string; tag_ids?: string[] },
   ): Promise<ServiceResult<Website>>
 }
-
-async function hydrate(db: Executor, rows: (typeof websites.$inferSelect)[]): Promise<Website[]> {
+async function hydrate(tx: EntityManager, rows: WebsiteRecord[]): Promise<Website[]> {
   if (!rows.length) return []
-  const links = await db
-    .select({
-      websiteId: websiteTags.websiteId,
-      tag: {
-        id: tags.id,
-        name: tags.name,
-        description: tags.description,
-        color: tags.color,
-        created_at: tags.created_at,
-        updated_at: tags.updated_at,
-      },
-    })
-    .from(websiteTags)
-    .innerJoin(tags, eq(websiteTags.tagId, tags.id))
-    .where(
-      inArray(
-        websiteTags.websiteId,
-        rows.map((row) => row.id),
-      ),
-    )
-    .orderBy(websiteTags.position)
+  const links = await tx.getRepository(websiteTags).find({
+    where: { websiteId: In(rows.map((row) => row.id)) },
+    relations: { tag: true },
+    order: { position: 'ASC' },
+  })
   return rows.map((row) => {
-    const assigned = links.filter((link) => link.websiteId === row.id).map((link) => link.tag)
+    const assigned = links
+      .filter((link) => link.websiteId === row.id)
+      .map((link) => toTag(link.tag))
     return {
       id: row.id,
       name: row.name,
@@ -68,102 +52,82 @@ async function hydrate(db: Executor, rows: (typeof websites.$inferSelect)[]): Pr
     }
   })
 }
-
 export function newRepository(db: Database): Repository {
   return {
     list: (input) =>
       query(() =>
-        db.transaction(
-          async (tx) => {
-            const filter = and(
-              input.search
-                ? sql`strpos(${websites.searchText}, ${fold(input.search)}) > 0`
-                : undefined,
-              input.tagIds.length
-                ? exists(
-                    tx
-                      .select({ id: websiteTags.websiteId })
-                      .from(websiteTags)
-                      .where(
-                        and(
-                          eq(websiteTags.websiteId, websites.id),
-                          inArray(websiteTags.tagId, input.tagIds),
-                        ),
-                      ),
-                  )
-                : undefined,
+        db.transaction('REPEATABLE READ', async (tx) => {
+          await tx.query('SET TRANSACTION READ ONLY')
+          const sites = tx.getRepository(websites).createQueryBuilder('site')
+          if (input.search)
+            sites.andWhere('strpos(site.search_text, :search) > 0', { search: fold(input.search) })
+          if (input.tagIds.length)
+            sites.andWhere(
+              'EXISTS (SELECT 1 FROM website_tags link WHERE link.website_id = site.website_id AND link.tag_id IN (:...tagIds))',
+              { tagIds: input.tagIds },
             )
-            const [total] = await tx.select({ count: count() }).from(websites).where(filter)
-            const rows = await tx
-              .select()
-              .from(websites)
-              .where(filter)
-              .orderBy(desc(websites.created_at), desc(websites.id))
-              .limit(input.pageSize)
-              .offset((input.page - 1) * input.pageSize)
-            return {
-              websites: await hydrate(tx, rows),
-              total: total?.count ?? 0,
-              page: input.page,
-              pageSize: input.pageSize,
-            }
-          },
-          { isolationLevel: 'repeatable read', accessMode: 'read only' },
-        ),
+          const total = await sites.getCount()
+          const rows = await sites
+            .orderBy('site.created_at', 'DESC')
+            .addOrderBy('site.id', 'DESC')
+            .take(input.pageSize)
+            .skip((input.page - 1) * input.pageSize)
+            .getMany()
+          return {
+            websites: await hydrate(tx, rows),
+            total,
+            page: input.page,
+            pageSize: input.pageSize,
+          }
+        }),
       ),
-    count: () =>
-      query(async () => {
-        const [row] = await db.select({ count: count() }).from(websites)
-        return row?.count ?? 0
-      }),
+    count: () => query(() => db.getRepository(websites).count()),
     create: (input) =>
       query(() =>
         db.transaction(async (tx) => {
           const { tag_ids, ...row } = input
-          await tx.insert(websites).values(row)
+          await tx.getRepository(websites).insert(row)
           if (tag_ids.length)
             await tx
-              .insert(websiteTags)
-              .values(tag_ids.map((tagId, position) => ({ websiteId: row.id, tagId, position })))
+              .getRepository(websiteTags)
+              .insert(tag_ids.map((tagId, position) => ({ websiteId: row.id, tagId, position })))
           return (await hydrate(tx, [row]))[0]!
         }),
       ),
     update: async (id, input) => {
       const result = await query(() =>
         db.transaction(async (tx) => {
-          const [existing] = await tx
-            .select()
-            .from(websites)
-            .where(eq(websites.id, id))
-            .for('update')
+          const repo = tx.getRepository(websites)
+          const existing = await repo.findOne({
+            where: { id },
+            lock: { mode: 'pessimistic_write' },
+          })
           if (!existing) return null
           const name = input.name ?? existing.name
           const url = input.url ?? existing.url
-          const [row] = await tx
-            .update(websites)
-            .set({
-              name,
-              url,
-              searchText: fold(name + ' ' + url),
-              updated_at: new Date().toISOString(),
-            })
-            .where(eq(websites.id, id))
-            .returning()
+          const row = {
+            ...existing,
+            name,
+            url,
+            searchText: fold(name + ' ' + url),
+            updated_at: new Date().toISOString(),
+          }
+          await repo.update(id, row)
           if (input.tag_ids !== undefined) {
-            await tx.delete(websiteTags).where(eq(websiteTags.websiteId, id))
+            await tx.getRepository(websiteTags).delete({ websiteId: id })
             if (input.tag_ids.length)
               await tx
-                .insert(websiteTags)
-                .values(
+                .getRepository(websiteTags)
+                .insert(
                   input.tag_ids.map((tagId, position) => ({ websiteId: id, tagId, position })),
                 )
           }
-          return (await hydrate(tx, [row!]))[0]!
+          return (await hydrate(tx, [row]))[0]!
         }),
       )
       if (result.code !== 0) return result
       if (!result.data) return serviceFailure('NOT_FOUND', 'Website not found', 404)
-      return { code: 0, data: result.data }
+      return success(result.data)
     },
   }
 }
