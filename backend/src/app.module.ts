@@ -7,8 +7,11 @@ import { DatabaseModule } from './database/database.module'
 import { HealthModule } from './health/health.module'
 import { TagsModule } from './modules/tags/tags.module'
 import { WebsitesModule } from './modules/websites/websites.module'
+import { AccountsModule } from './modules/accounts/accounts.module.js';
 
-@Module({})
+@Module({
+  imports: [AccountsModule]
+})
 export class AppModule {
   static forRoot(config: AppConfig, connection: Connection, owned: boolean): DynamicModule {
     return {
