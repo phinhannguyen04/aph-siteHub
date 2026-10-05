@@ -1,3 +1,4 @@
+import { getDataSourceToken } from '@nestjs/typeorm'
 import {
   DynamicModule,
   Global,
@@ -7,7 +8,7 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common'
 import type { Connection } from './client'
-import { DATABASE, DATABASE_OWNED } from './database.tokens'
+import { DATABASE_OWNED } from './database.tokens'
 
 const CONNECTION = Symbol('CONNECTION')
 @Injectable()
@@ -35,14 +36,14 @@ export class DatabaseModule {
           useValue: connection,
         },
         {
-          provide: DATABASE,
+          provide: getDataSourceToken(),
           useFactory: (connection: Connection) => connection.db,
           inject: [CONNECTION],
         },
         { provide: DATABASE_OWNED, useValue: owned },
         DatabaseShutdown,
       ],
-      exports: [DATABASE],
+      exports: [getDataSourceToken()],
     }
   }
 }

@@ -1,4 +1,8 @@
-import { newRepository as credentialsRepository } from '../src/auth/repository'
+import { CredentialsService } from '../src/auth/credentials.service'
+import type { AppConfig } from '../src/config/app-config'
+import { WebsiteEntity } from '../src/entities/website.entity'
+import { TagEntity } from '../src/entities/tag.entity'
+import { AdminCredentialEntity } from '../src/entities/admin-credential.entity'
 import { backfillWebsiteSearch } from '../src/websites/search-backfill'
 import { httpData as unwrap } from '../src/common/errors/result'
 import { expect, test } from 'bun:test'
@@ -16,8 +20,8 @@ integration(
     const fixture = await testDatabase(testUrl!)
     try {
       const database = fixture.connection.db
-      const tags = new TagsService(database)
-      const sites = new WebsitesService(database)
+      const tags = new TagsService(database.getRepository(TagEntity))
+      const sites = new WebsitesService(database.getRepository(WebsiteEntity))
       const first = unwrap(await tags.create({ name: 'First', description: '', color: '#166534' }))
       const second = unwrap(
         await tags.create({ name: 'Second', description: '', color: '#166534' }),
@@ -30,7 +34,7 @@ integration(
         }),
       )
       await database
-        .getRepository((await import('../src/database/schema')).websites)
+        .getRepository(WebsiteEntity)
         .createQueryBuilder()
         .update()
         .set({ searchText: '' })
@@ -62,8 +66,8 @@ integration(
       await db.query(
         `CREATE SCHEMA drizzle; CREATE TABLE drizzle.__drizzle_migrations (id serial PRIMARY KEY, hash text NOT NULL, created_at bigint); INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('legacy-hash', 1)`,
       )
-      const tags = new TagsService(db)
-      const sites = new WebsitesService(db)
+      const tags = new TagsService(db.getRepository(TagEntity))
+      const sites = new WebsitesService(db.getRepository(WebsiteEntity))
       const tag = unwrap(
         await tags.create({ name: 'Existing', description: 'Keep me', color: '#166534' }),
       )
@@ -74,9 +78,12 @@ integration(
           tag_ids: [tag.id],
         }),
       )
-      const credentials = credentialsRepository(db)
+      const credentials = new CredentialsService(
+        db.getRepository(AdminCredentialEntity),
+        {} as AppConfig,
+      )
       const credential = { password_hash: 'existing-hash', version: 'existing-version' }
-      unwrap(await credentials.reset(credential))
+      await db.getRepository(AdminCredentialEntity).upsert({ id: 'primary', ...credential }, ['id'])
       unwrap(await migrateDatabase(db))
       unwrap(await migrateDatabase(db))
       const invalid = await sites.update(website.id, {
@@ -88,7 +95,7 @@ integration(
       const page = unwrap(await sites.list({ page: 1, pageSize: 12, search: '', tagIds: [] }))
       expect(page.websites).toEqual([website])
       expect(unwrap(await tags.list())).toEqual([tag])
-      expect(unwrap(await credentials.find())).toEqual(credential)
+      expect(unwrap(await credentials.current())).toEqual(credential)
       expect(
         await db.query<{ hash: string }[]>('SELECT hash FROM drizzle.__drizzle_migrations'),
       ).toEqual([{ hash: 'legacy-hash' }])

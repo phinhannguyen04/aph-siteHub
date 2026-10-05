@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { AdminCredentialEntity } from '../entities/admin-credential.entity'
 import type { AppConfig } from '../config/app-config'
 import { APP_CONFIG } from '../config/config.tokens'
-import { DATABASE } from '../database/database.tokens'
-import type { Database } from '../database/client'
-import { newRepository, type Repository } from './repository'
+import { query } from '../database/error'
 import {
   attempt,
   operation,
@@ -25,37 +26,56 @@ export interface Credential {
 }
 @Injectable()
 export class CredentialsService {
-  private readonly repository: Repository
   constructor(
-    @Inject(DATABASE) db: Database,
+    @InjectRepository(AdminCredentialEntity)
+    private readonly credentials: Repository<AdminCredentialEntity>,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
-  ) {
-    this.repository = newRepository(db)
-  }
+  ) {}
   current(): Promise<ServiceResult<Credential>> {
     return operation(async () => {
-      const found = await this.repository.find()
+      const find = () =>
+        this.credentials.findOne({
+          where: { id: 'primary' },
+          select: { password_hash: true, version: true },
+        })
+      const found = await query(find)
       if (found.code !== 0) return found
-      if (found.data) return { code: 0, data: found.data }
+      if (found.data) return success(found.data)
       if (!this.config.adminPasswordHash)
         return unexpectedFailure(
           new Error('Initial administrator hash is missing; run the password reset command'),
         )
-      return this.repository.initialize({
-        password_hash: this.config.adminPasswordHash,
-        version: crypto.randomUUID(),
+      return query(async () => {
+        await this.credentials
+          .createQueryBuilder()
+          .insert()
+          .values({
+            id: 'primary',
+            password_hash: this.config.adminPasswordHash!,
+            version: crypto.randomUUID(),
+          })
+          .orIgnore()
+          .execute()
+        return (await find())!
       })
     })
   }
   replace(password: string, expectedVersion: string): Promise<ServiceResult<Credential | null>> {
-    return operation(async () =>
-      this.repository.replace(
-        {
-          password_hash: await Bun.password.hash(password, { algorithm: 'argon2id' }),
-          version: crypto.randomUUID(),
-        },
-        expectedVersion,
-      ),
-    )
+    return operation(async () => {
+      const credential = {
+        password_hash: await Bun.password.hash(password, { algorithm: 'argon2id' }),
+        version: crypto.randomUUID(),
+      }
+      return query(async () => {
+        const result = await this.credentials
+          .createQueryBuilder()
+          .update()
+          .set(credential)
+          .where('id = :id AND version = :version', { id: 'primary', version: expectedVersion })
+          .returning(['password_hash', 'version'])
+          .execute()
+        return (result.raw as Credential[])[0] ?? null
+      })
+    })
   }
 }

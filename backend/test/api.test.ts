@@ -4,7 +4,7 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify'
 import type { Database } from '../src/database/client'
 import { testDatabase } from './helpers'
 import { In } from 'typeorm'
-import { websites } from '../src/database/schema'
+import { WebsiteEntity } from '../src/entities/website.entity'
 import { createApp } from '../src/app.factory'
 import { readConfig, type AppConfig } from '../src/config/app-config'
 import { normalizeUrl } from '../src/websites/website-normalization'
@@ -229,7 +229,7 @@ integration('NestJS Fastify API with PostgreSQL', () => {
       ids.push(created.json().website.id)
     }
     await db
-      .getRepository(websites)
+      .getRepository(WebsiteEntity)
       .update({ id: In(ids) }, { created_at: '2026-01-01T00:00:00.000Z' })
     const pages = []
     for (let page = 1; page <= 3; page++) {

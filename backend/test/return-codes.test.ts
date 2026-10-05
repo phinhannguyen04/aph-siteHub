@@ -1,6 +1,8 @@
 import { describe, expect, mock, test } from 'bun:test'
 import { createHmac } from 'node:crypto'
 import { createApp } from '../src/app.factory'
+import type { Repository } from 'typeorm'
+import type { WebsiteEntity } from '../src/entities/website.entity'
 import type { Database } from '../src/database/client'
 import { query } from '../src/database/error'
 import { httpData } from '../src/common/errors/result'
@@ -43,7 +45,9 @@ describe('PostgreSQL return codes', () => {
     const transaction = mock(() => {
       throw new Error('must not query')
     })
-    const service = new WebsitesService({ transaction } as unknown as Database)
+    const service = new WebsitesService({
+      manager: { transaction },
+    } as unknown as Repository<WebsiteEntity>)
     const id = crypto.randomUUID()
     for (const tag_ids of [['invalid'], [id, id]]) {
       const result = await service.create({ name: 'Site', url: 'https://example.com', tag_ids })
@@ -76,6 +80,9 @@ test('NestJS HTTP boundary preserves health and authentication errors', async ()
     port: 3000,
   }
   const db = {
+    entityMetadatas: [],
+    options: { type: 'postgres' },
+    getRepository: () => ({}),
     query: async () => {
       throw new Error('Database disconnected')
     },

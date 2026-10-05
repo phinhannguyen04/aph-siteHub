@@ -1,11 +1,11 @@
-import { Controller, Get, Inject } from '@nestjs/common'
+import { Controller, Get } from '@nestjs/common'
 import type { Database } from '../database/client'
-import { DATABASE } from '../database/database.tokens'
+import { InjectDataSource } from '@nestjs/typeorm'
 import { attempt, httpData, serviceFailure } from '../common/errors/result'
 
 @Controller()
 export class HealthController {
-  constructor(@Inject(DATABASE) private readonly db: Database) {}
+  constructor(@InjectDataSource() private readonly db: Database) {}
   @Get('health')
   async check() {
     const result = await attempt(() => this.db.query('SELECT 1'))

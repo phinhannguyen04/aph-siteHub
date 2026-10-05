@@ -1,7 +1,10 @@
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
 import pg from 'pg'
-import { websites, tags, websiteTags, adminCredentials } from './schema'
+import { WebsiteEntity } from '../entities/website.entity'
+import { TagEntity } from '../entities/tag.entity'
+import { WebsiteTagEntity } from '../entities/website-tag.entity'
+import { AdminCredentialEntity } from '../entities/admin-credential.entity'
 import { InitialSchema1791158400000 } from './initial-migration'
 import {
   attempt,
@@ -25,7 +28,7 @@ export async function connectDb(config: {
         type: 'postgres',
         url: config.databaseUrl,
         driver: pg,
-        entities: [websites, tags, websiteTags, adminCredentials],
+        entities: [WebsiteEntity, TagEntity, WebsiteTagEntity, AdminCredentialEntity],
         migrations: [InitialSchema1791158400000],
         migrationsTableName: 'typeorm_migrations',
         synchronize: false,

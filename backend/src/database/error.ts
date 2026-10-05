@@ -27,7 +27,7 @@ function postgresError(error: unknown): { code?: string; constraint_name?: strin
   return null
 }
 
-/** Convert driver errors at the repository boundary; callers inspect return codes. */
+/** Convert driver errors at the database boundary; callers inspect return codes. */
 export async function query<T>(operation: () => PromiseLike<T>): Promise<ServiceResult<T>> {
   const result = await attempt(operation)
   if (result.code === 0) return success(result.data)
