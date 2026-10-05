@@ -1,11 +1,11 @@
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
 import pg from 'pg'
-import { WebsiteEntity } from '../websites/entities/website.entity'
-import { TagEntity } from '../tags/entities/tag.entity'
-import { WebsiteTagEntity } from '../websites/entities/website-tag.entity'
-import { AdminCredentialEntity } from '../auth/entities/admin-credential.entity'
-import { InitialSchema1791158400000 } from './initial-migration'
+import { WebsiteEntity } from '../modules/websites/entities/website.entity'
+import { TagEntity } from '../modules/tags/entities/tag.entity'
+import { WebsiteTagEntity } from '../modules/websites/entities/website-tag.entity'
+import { AdminCredentialEntity } from '../modules/auth/entities/admin-credential.entity'
+import { InitialSchema1791158400000 } from './migrations/initial-migration'
 import {
   attempt,
   operation,

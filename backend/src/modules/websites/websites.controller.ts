@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { SessionGuard } from '../auth/guards/session.guard'
-import { httpData } from '../common/errors/result'
+import { httpData } from '../../common/errors/result'
 import { CreateWebsiteDto } from './dto/create-website.dto'
 import { UpdateWebsiteDto } from './dto/update-website.dto'
 import { parseListQuery } from './list-query'

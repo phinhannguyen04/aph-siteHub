@@ -1,4 +1,4 @@
-import { httpData } from '../../common/errors/result'
+import { httpData } from '../../../common/errors/result'
 import { Transform } from 'class-transformer'
 import { IsDefined, IsString } from 'class-validator'
 import { normalizeTagColor, normalizeTagDescription, normalizeTagName } from '../tag-normalization'

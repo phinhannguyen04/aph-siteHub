@@ -3,10 +3,10 @@ import {
   success,
   unexpectedFailure,
   type ServiceResult,
-} from '../common/errors/result'
+} from '../../common/errors/result'
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { FastifyRequest } from 'fastify'
-import type { AppConfig } from '../config/app-config'
+import type { AppConfig } from '../../config/app.config'
 
 const cookieName = 'admin_session'
 const lifetimeSeconds = 8 * 60 * 60

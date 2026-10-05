@@ -1,4 +1,4 @@
-import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
+import { serviceFailure, success, type ServiceResult } from '../../common/errors/result'
 export function normalizeTagName(value: unknown): ServiceResult<string> {
   if (typeof value !== 'string')
     return serviceFailure('VALIDATION_ERROR', 'Tag name is required', 400)

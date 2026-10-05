@@ -1,5 +1,5 @@
 import type { Database } from '../database/client'
-import { readConfig } from '../config/app-config'
+import { readConfig } from '../config/app.config'
 import { connectDb } from '../database/client'
 import { operation as capture, type ServiceResult } from '../common/errors/result'
 

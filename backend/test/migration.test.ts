@@ -1,14 +1,14 @@
-import { CredentialsService } from '../src/auth/credentials.service'
-import type { AppConfig } from '../src/config/app-config'
-import { WebsiteEntity } from '../src/websites/entities/website.entity'
-import { TagEntity } from '../src/tags/entities/tag.entity'
-import { AdminCredentialEntity } from '../src/auth/entities/admin-credential.entity'
+import { CredentialsService } from '../src/modules/auth/credentials.service'
+import type { AppConfig } from '../src/config/app.config'
+import { WebsiteEntity } from '../src/modules/websites/entities/website.entity'
+import { TagEntity } from '../src/modules/tags/entities/tag.entity'
+import { AdminCredentialEntity } from '../src/modules/auth/entities/admin-credential.entity'
 import { httpData as unwrap } from '../src/common/errors/result'
 import { expect, test } from 'bun:test'
 import { testDatabase } from './helpers'
 import { migrateDatabase } from '../src/database/migrate'
-import { WebsitesService } from '../src/websites/websites.service'
-import { TagsService } from '../src/tags/tags.service'
+import { WebsitesService } from '../src/modules/websites/websites.service'
+import { TagsService } from '../src/modules/tags/tags.service'
 
 const testUrl = Bun.env.POSTGRES_TEST_URL
 const integration = testUrl ? test : test.skip

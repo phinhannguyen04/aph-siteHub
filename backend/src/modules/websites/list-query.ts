@@ -1,4 +1,4 @@
-import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
+import { serviceFailure, success, type ServiceResult } from '../../common/errors/result'
 export interface ListQuery {
   page: number
   pageSize: number

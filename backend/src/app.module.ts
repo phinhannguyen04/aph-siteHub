@@ -1,12 +1,12 @@
 import { DynamicModule, Module } from '@nestjs/common'
 import type { Connection } from './database/client'
-import { AuthModule } from './auth/auth.module'
-import type { AppConfig } from './config/app-config'
+import { AuthModule } from './modules/auth/auth.module'
+import type { AppConfig } from './config/app.config'
 import { ConfigModule } from './config/config.module'
 import { DatabaseModule } from './database/database.module'
 import { HealthModule } from './health/health.module'
-import { TagsModule } from './tags/tags.module'
-import { WebsitesModule } from './websites/websites.module'
+import { TagsModule } from './modules/tags/tags.module'
+import { WebsitesModule } from './modules/websites/websites.module'
 
 @Module({})
 export class AppModule {

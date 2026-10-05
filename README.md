@@ -10,19 +10,20 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 ├── backend/
 │   ├── src/
 │   │   ├── main.ts, app.module.ts, app.factory.ts
-│   │   ├── config/{app-config,config.module,config.tokens}.ts
-│   │   ├── database/{database.module,client,migrate,initial-migration}.ts
+│   │   ├── config/{app.config,env.validation,config.module,config.tokens}.ts
+│   │   ├── database/{database.module,client,migrate,error}.ts
+│   │   ├── database/migrations/initial-migration.ts
 │   │   ├── common/errors/{api-error,result}.ts
 │   │   ├── common/filters/api-exception.filter.ts
-│   │   ├── auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
-│   │   ├── auth/entities/admin-credential.entity.ts
-│   │   ├── auth/guards/session.guard.ts
-│   │   ├── auth/dto/{login,change-password}.dto.ts
-│   │   ├── websites/{websites.module,websites.controller,websites.service,website.interface,website-normalization,list-query,search}.ts
-│   │   ├── websites/entities/{website,website-tag}.entity.ts
-│   │   ├── websites/dto/{create-website,update-website}.dto.ts
-│   │   ├── tags/{tags.module,tags.controller,tags.service,tag-normalization,tag.interface}.ts
-│   │   ├── tags/entities/tag.entity.ts
+│   │   ├── modules/auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
+│   │   ├── modules/auth/entities/admin-credential.entity.ts
+│   │   ├── modules/auth/guards/session.guard.ts
+│   │   ├── modules/auth/dto/{login,change-password}.dto.ts
+│   │   ├── modules/websites/{websites.module,websites.controller,websites.service,website.interface,website-normalization,list-query,search}.ts
+│   │   ├── modules/websites/entities/{website,website-tag}.entity.ts
+│   │   ├── modules/websites/dto/{create-website,update-website}.dto.ts
+│   │   ├── modules/tags/{tags.module,tags.controller,tags.service,tag-normalization,tag.interface}.ts
+│   │   ├── modules/tags/entities/tag.entity.ts
 │   │   ├── health/{health.module,health.controller}.ts
 │   │   └── cli/{migrate,reset-password,hash-password}.ts
 │   ├── test/api.test.ts
@@ -41,7 +42,7 @@ An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vu
 
 ## Backend architecture
 
-`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings. `DatabaseModule` provides a TypeORM DataSource using the pg driver and closes its owned connection during NestJS shutdown. Feature controllers retain the NestJS API from commit `cfe41cc`; services use TypeORM repositories injected directly with `@InjectRepository` and registered with `TypeOrmModule.forFeature`. Entity classes live in each feature module’s `entities/` directory (`auth`, `tags`, and `websites`); services contain their database operations without custom repository wrappers. Website/tag associations use foreign keys and cascade deletion of associations. TypeORM entities map to the existing PostgreSQL tables; `synchronize` is disabled. The initial TypeORM migration adopts existing tables and records its history in `typeorm_migrations`, leaving previous migration history intact. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
+`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings; `config/app.config.ts` exposes configuration and delegates validation to `config/env.validation.ts`. `DatabaseModule` provides a TypeORM DataSource using the pg driver and closes its owned connection during NestJS shutdown. Feature controllers retain the NestJS API from commit `cfe41cc`; services use TypeORM repositories injected directly with `@InjectRepository` and registered with `TypeOrmModule.forFeature`. Feature modules live in `src/modules/`. Entity classes live in each feature module’s `entities/` directory (`auth`, `tags`, and `websites`); services contain their database operations without custom repository wrappers. Website/tag associations use foreign keys and cascade deletion of associations. TypeORM entities map to the existing PostgreSQL tables; `synchronize` is disabled. The initial TypeORM migration adopts existing tables and records its history in `typeorm_migrations`, leaving previous migration history intact. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
 
 The root module accepts an existing database connection for isolated integration tests. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
 
@@ -113,7 +114,7 @@ Vite proxies `/api` and `/health` to backend port 3000. Set `SITEHUB_DEV_PORT` a
 
 ## API and manual checks
 
-NestJS DTOs live in `backend/src/{auth,websites}/dto/`. `ValidationPipe` rejects unknown fields and normalizes website names and URLs before storage. The API provides health and authentication routes, paged website listing and count, website create/update, and tag CRUD as described below. Errors use `{ error: { code, message } }`.
+NestJS DTOs live in `backend/src/modules/{auth,tags,websites}/dto/`. `ValidationPipe` rejects unknown fields and normalizes website names and URLs before storage. The API provides health and authentication routes, paged website listing and count, website create/update, and tag CRUD as described below. Errors use `{ error: { code, message } }`.
 
 1. Signed out: the sign-in form appears and `GET /api/websites` returns 401.
 2. Signed in: the website count and cards reflect PostgreSQL data.

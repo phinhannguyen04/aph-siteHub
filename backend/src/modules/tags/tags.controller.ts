@@ -9,7 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common'
-import { httpData } from '../common/errors/result'
+import { httpData } from '../../common/errors/result'
 import { SessionGuard } from '../auth/guards/session.guard'
 import { TagDto } from './dto/tag.dto'
 import { TagsService } from './tags.service'

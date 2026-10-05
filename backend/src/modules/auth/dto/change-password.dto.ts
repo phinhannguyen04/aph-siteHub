@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator'
-import { serviceFailure, success, type ServiceResult } from '../../common/errors/result'
+import { serviceFailure, success, type ServiceResult } from '../../../common/errors/result'
 
 export class ChangePasswordDto {
   @IsString({ message: 'Current password is required' })

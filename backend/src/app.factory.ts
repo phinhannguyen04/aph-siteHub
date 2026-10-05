@@ -7,7 +7,7 @@ import { connectDb, type Database } from './database/client'
 import { AppModule } from './app.module'
 import { ApiExceptionFilter } from './common/filters/api-exception.filter'
 import { apiError } from './common/errors/api-error'
-import type { AppConfig } from './config/app-config'
+import type { AppConfig } from './config/app.config'
 
 interface AppOptions {
   database?: Database

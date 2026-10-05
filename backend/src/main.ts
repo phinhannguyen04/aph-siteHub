@@ -1,5 +1,5 @@
 import { createApp } from './app.factory'
-import { readConfig } from './config/app-config'
+import { readConfig } from './config/app.config'
 import { attempt, success, unexpectedFailure, type ServiceResult } from './common/errors/result'
 
 async function bootstrap(): Promise<ServiceResult<void>> {

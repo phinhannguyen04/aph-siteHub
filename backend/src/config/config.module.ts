@@ -1,5 +1,5 @@
 import { DynamicModule, Global, Module } from '@nestjs/common'
-import type { AppConfig } from './app-config'
+import type { AppConfig } from './app.config'
 import { APP_CONFIG } from './config.tokens'
 
 @Global()

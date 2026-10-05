@@ -1,4 +1,4 @@
-import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
+import { serviceFailure, success, type ServiceResult } from '../../common/errors/result'
 
 export function normalizeName(value: unknown): ServiceResult<string> {
   if (typeof value !== 'string' || !value.trim())

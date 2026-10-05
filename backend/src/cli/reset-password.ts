@@ -1,4 +1,4 @@
-import { resetAdminPassword } from '../auth/password-reset'
+import { resetAdminPassword } from '../modules/auth/password-reset'
 import { runWithDatabase } from './run-with-database'
 
 const result = await runWithDatabase(resetAdminPassword)

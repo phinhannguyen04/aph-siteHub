@@ -1,16 +1,16 @@
 import { describe, expect, mock, spyOn, test } from 'bun:test'
-import * as configModule from '../src/config/app-config'
+import * as configModule from '../src/config/app.config'
 import * as databaseModule from '../src/database/client'
-import { normalizeName, normalizeUrl } from '../src/websites/website-normalization'
+import { normalizeName, normalizeUrl } from '../src/modules/websites/website-normalization'
 import {
   normalizeTagName,
   normalizeTagDescription,
   normalizeTagColor,
-} from '../src/tags/tag-normalization'
-import { parseListQuery } from '../src/websites/list-query'
-import { UpdateWebsiteDto } from '../src/websites/dto/update-website.dto'
-import { ChangePasswordDto } from '../src/auth/dto/change-password.dto'
-import { verifyAdminPassword } from '../src/auth/credentials.service'
+} from '../src/modules/tags/tag-normalization'
+import { parseListQuery } from '../src/modules/websites/list-query'
+import { UpdateWebsiteDto } from '../src/modules/websites/dto/update-website.dto'
+import { ChangePasswordDto } from '../src/modules/auth/dto/change-password.dto'
+import { verifyAdminPassword } from '../src/modules/auth/credentials.service'
 import { runWithDatabase } from '../src/cli/run-with-database'
 import { createApp } from '../src/app.factory'
 import {

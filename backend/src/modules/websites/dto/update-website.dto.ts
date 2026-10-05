@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/mapped-types'
-import { serviceFailure, success, type ServiceResult } from '../../common/errors/result'
+import { serviceFailure, success, type ServiceResult } from '../../../common/errors/result'
 import { CreateWebsiteDto } from './create-website.dto'
 
 export class UpdateWebsiteDto extends PartialType(CreateWebsiteDto) {

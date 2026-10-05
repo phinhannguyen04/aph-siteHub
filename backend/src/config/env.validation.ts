@@ -1,14 +1,7 @@
 import { serviceFailure, success, type ServiceResult } from '../common/errors/result'
-export interface AppConfig {
-  databaseUrl: string
-  adminPasswordHash?: string
-  sessionSecret: string
-  appOrigin: string
-  appOrigins?: string[]
-  cookieSecure: boolean
-  port: number
-}
-export function readConfig(env = Bun.env): ServiceResult<AppConfig> {
+import type { AppConfig } from './app.config'
+
+export function validateEnv(env: Record<string, string | undefined>): ServiceResult<AppConfig> {
   for (const key of ['DATABASE_URL', 'SESSION_SECRET', 'APP_ORIGIN']) {
     if (!env[key])
       return serviceFailure('CONFIGURATION_ERROR', `Missing environment variable ${key}`, 500)

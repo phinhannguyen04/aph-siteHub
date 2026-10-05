@@ -1,8 +1,8 @@
-import { httpData, serviceFailure } from '../../common/errors/result'
+import { httpData, serviceFailure } from '../../../common/errors/result'
 import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common'
 import type { FastifyRequest } from 'fastify'
-import type { AppConfig } from '../../config/app-config'
-import { APP_CONFIG } from '../../config/config.tokens'
+import type { AppConfig } from '../../../config/app.config'
+import { APP_CONFIG } from '../../../config/config.tokens'
 import { CredentialsService } from '../credentials.service'
 import { getSession, sameOrigin, validCsrf } from '../session'
 
