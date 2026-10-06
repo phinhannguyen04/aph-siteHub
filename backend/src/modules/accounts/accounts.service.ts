@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { operation, serviceFailure, success, type ServiceResult } from '../../common/errors/result'
-import type { Account, AccountStats } from './account.interface'
+import type { AccountStats } from './account.interface'
+import type { AccountResponse } from './account-response.interface'
 import { toAccount } from './account.mapper'
 import { AccountsRepository } from './accounts.repository'
 import { AccountSecretService } from './account-secret.service'
@@ -15,13 +16,13 @@ export class AccountsService {
     private readonly secrets: AccountSecretService,
   ) {}
 
-  async list(): Promise<ServiceResult<Account[]>> {
+  async list(): Promise<ServiceResult<AccountResponse[]>> {
     const result = await this.accounts.list()
     if (result.code !== 0) return result
     return success(result.data.map(toAccount))
   }
 
-  async findById(id: string): Promise<ServiceResult<Account>> {
+  async findById(id: string): Promise<ServiceResult<AccountResponse>> {
     const result = await this.accounts.findById(id)
     if (result.code !== 0) return result
     if (!result.data) return serviceFailure('NOT_FOUND', 'Account not found', 404)
@@ -32,7 +33,7 @@ export class AccountsService {
     return this.accounts.getStats()
   }
 
-  create(input: AccountDto): Promise<ServiceResult<Account>> {
+  create(input: AccountDto): Promise<ServiceResult<AccountResponse>> {
     return operation(async () => {
       const exists = await this.accounts.findByProviderAndExternalId(
         input.provider,
@@ -67,7 +68,7 @@ export class AccountsService {
   update(
     id: string,
     input: Pick<UpdateAccountDto, 'password' | 'secret_key' | 'is_limit'>,
-  ): Promise<ServiceResult<Account>> {
+  ): Promise<ServiceResult<AccountResponse>> {
     return operation(async () => {
       if (
         input.password === undefined &&

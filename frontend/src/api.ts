@@ -17,6 +17,27 @@ export interface Website {
   created_at: string
   updated_at: string
 }
+export interface Account {
+  id: string
+  provider: string
+  login_name: string
+  external_account_id: string
+  email: string
+  is_limit: boolean
+  created_at: string
+}
+export interface CreateAccountInput {
+  provider: string
+  login_name: string
+  external_account_id: string
+  email: string
+  password: string
+  secret_key: string
+  is_limit: boolean
+}
+export type UpdateAccountInput = Partial<
+  Pick<CreateAccountInput, 'password' | 'secret_key' | 'is_limit'>
+>
 export interface ListOptions {
   page: number
   pageSize: number
@@ -102,6 +123,18 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
+  accounts: () => request<{ accounts: Account[] }>('/api/accounts'),
+  createAccount: (input: CreateAccountInput) =>
+    request<{ account: Account }>('/api/accounts', { method: 'POST', body: JSON.stringify(input) }),
+  updateAccount: (id: string, input: UpdateAccountInput) =>
+    request<{ account: Account }>(`/api/accounts/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  deleteAccount: (id: string) =>
+    request<{ ok: boolean }>(`/api/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  accountSecret: (id: string) =>
+    request<{ secret_key: string }>(`/api/accounts/${encodeURIComponent(id)}/secret-key`),
   tags: () => request<{ tags: Tag[] }>('/api/tags'),
   createTag: (input: { name: string; description: string; color: string }) =>
     request<{ tag: Tag }>('/api/tags', { method: 'POST', body: JSON.stringify(input) }),

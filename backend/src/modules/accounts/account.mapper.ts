@@ -1,7 +1,7 @@
-import type { Account } from './account.interface'
+import type { AccountResponse } from './account-response.interface'
 import type { AccountEntity } from './entities/account.entity'
 
-export function toAccount(row: AccountEntity): Account {
+export function toAccount(row: AccountEntity): AccountResponse {
   return {
     id: row.id,
     provider: row.provider,
@@ -9,6 +9,6 @@ export function toAccount(row: AccountEntity): Account {
     external_account_id: row.external_account_id,
     email: row.email,
     is_limit: row.is_limit,
-    created_at: row.created_at.toISOString(),
+    created_at: row.created_at,
   }
 }

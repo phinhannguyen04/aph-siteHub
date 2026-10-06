@@ -193,4 +193,10 @@ All `/api/accounts` routes require an administrator session. Write requests also
 
 Creation requires `provider`, `login_name`, `external_account_id`, `email`, `password`, and `secret_key`. Optional `is_limit` defaults to false; optional `created_at` defaults to the server time. Updates accept one or more of `password`, `secret_key`, and `is_limit`. Duplicate provider/external-ID pairs return 409; missing accounts return 404. Account responses exclude passwords and encrypted secrets. Secret keys use AES-256-GCM with a fresh nonce and the account ID as authenticated data. Account login passwords retain the existing storage format.
 
-Run `bun --cwd backend migrate` before using these routes to create the accounts table and unique index. The frontend does not yet include an account management screen.
+Run `bun --cwd backend migrate` before using these routes to create the accounts table and unique index. The Accounts page provides account CRUD and secret-key viewing through these routes.
+
+## Frontend navigation
+
+TanStack Vue Router renders Websites at `/` and Accounts at `/accounts` inside the authenticated workspace layout. The sidebar reuses the existing UI components and Phosphor icons, highlights the active page, and remembers its desktop collapsed state locally. On mobile, the navigation opens in a dialog drawer with keyboard focus handling and Escape dismissal. Password changes and sign-out remain available in the sidebar.
+
+Website filters and pagination are managed through router search parameters, including existing comma-separated `tagIds` URLs. Back/Forward and direct page loads preserve routing behavior. Unknown URLs show a page-not-found screen. The existing nginx SPA fallback handles refreshes on `/accounts`.

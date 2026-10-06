@@ -67,7 +67,8 @@ describe('account secrets', () => {
 test('account mapper excludes password and encrypted secret even on creation', () => {
   const mapped = toAccount(row)
   expect(mapped.login_name).toBe('login')
-  expect(mapped.created_at).toBe('2026-10-06T00:00:00.000Z')
+  expect(mapped.created_at).toEqual(row.created_at)
+  expect(JSON.parse(JSON.stringify(mapped)).created_at).toBe('2026-10-06T00:00:00.000Z')
   expect(mapped).not.toHaveProperty('password')
   expect(mapped).not.toHaveProperty('secret_key_encrypted')
 })
