@@ -18,6 +18,7 @@ import {
   PhEyeSlash,
 } from '@phosphor-icons/vue'
 import { api, type Account, type CreateAccountInput, type UpdateAccountInput } from '@/api'
+import AccountDetails from '@/components/AccountDetails.vue'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -106,6 +107,7 @@ const sortedMatches = computed(() =>
   }),
 )
 const limited = computed(() => accounts.value.filter((account) => account.is_limit).length)
+const detailsId = ref<string | null>(null)
 const formOpen = ref(false)
 const editing = ref<Account | null>(null)
 const saving = ref(false)
@@ -141,6 +143,14 @@ async function refresh() {
   accounts.value = result.data.accounts
 }
 onMounted(refresh)
+function editDetails(account: Account) {
+  detailsId.value = null
+  begin(account)
+}
+function revealDetails(account: Account) {
+  detailsId.value = null
+  void reveal(account)
+}
 function begin(account: Account | null) {
   editing.value = account
   Object.assign(input, {
@@ -333,15 +343,15 @@ function closeSecret() {
       tabindex="0"
       class="max-h-[70dvh] overflow-auto rounded-lg border bg-card outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <table class="w-full min-w-[1000px] table-fixed text-left text-sm">
+      <table class="w-full min-w-[1100px] table-fixed text-left text-sm">
         <colgroup>
-          <col class="w-[22%]" />
+          <col class="w-[24%]" />
           <col class="w-[12%]" />
-          <col class="w-[17%]" />
+          <col class="w-[21%]" />
           <col class="w-[13%]" />
           <col class="w-[10%]" />
           <col class="w-[12%]" />
-          <col class="w-[14%]" />
+          <col class="w-[8%]" />
         </colgroup>
         <caption class="sr-only">
           Accounts, provider details, status and creation date. Use the column buttons to sort.
@@ -401,8 +411,8 @@ function closeSecret() {
                   type="button"
                   class="max-w-48 truncate rounded-sm text-left underline decoration-border underline-offset-4 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
                   :title="account.login_name"
-                  :aria-label="`Edit account ${account.login_name}`"
-                  @click="begin(account)"
+                  :aria-label="`View account ${account.login_name}`"
+                  @click="detailsId = account.id"
                 >
                   {{ account.login_name }}
                 </button>
@@ -436,22 +446,8 @@ function closeSecret() {
               }}</time>
             </td>
             <td class="px-4 py-3">
-              <div class="flex justify-end gap-1">
+              <div class="flex justify-end">
                 <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  :aria-label="`View secret key for ${account.login_name}`"
-                  title="Secret key"
-                  @click="reveal(account)"
-                  ><PhKey /></Button
-                ><Button
-                  variant="ghost"
-                  size="icon-sm"
-                  :aria-label="`Edit ${account.login_name}`"
-                  title="Edit account"
-                  @click="begin(account)"
-                  ><PhPencilSimple /></Button
-                ><Button
                   variant="ghost"
                   size="icon-sm"
                   class="text-destructive"
@@ -470,7 +466,15 @@ function closeSecret() {
       <Card v-for="account in matches" :key="account.id" class="min-w-0 shadow-sm">
         <CardHeader
           ><div class="flex items-start justify-between gap-2">
-            <CardTitle class="break-all text-lg">{{ account.login_name }}</CardTitle
+            <CardTitle class="min-w-0 text-lg"
+              ><button
+                type="button"
+                class="break-all rounded-sm text-left outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                :aria-label="`View account ${account.login_name}`"
+                @click="detailsId = account.id"
+              >
+                {{ account.login_name }}
+              </button></CardTitle
             ><Badge :variant="account.is_limit ? 'outline' : 'secondary'">{{
               account.is_limit ? 'Limited' : 'Available'
             }}</Badge>
@@ -484,6 +488,13 @@ function closeSecret() {
           </p></CardContent
         >
         <CardFooter class="flex gap-1 border-t pt-4"
+          ><Button
+            variant="ghost"
+            size="icon-sm"
+            :aria-label="`View details for ${account.login_name}`"
+            title="Account details"
+            @click="detailsId = account.id"
+            ><PhEye /></Button
           ><Button variant="outline" size="sm" @click="reveal(account)"><PhKey /> Secret key</Button
           ><Button
             variant="ghost"
@@ -502,6 +513,12 @@ function closeSecret() {
       </Card>
     </div>
   </div>
+  <AccountDetails
+    :account-id="detailsId"
+    @close="detailsId = null"
+    @edit="editDetails"
+    @secret="revealDetails"
+  />
   <Dialog
     :open="formOpen"
     @update:open="

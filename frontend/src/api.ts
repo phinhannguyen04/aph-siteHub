@@ -124,6 +124,7 @@ export const api = {
       body: JSON.stringify(input),
     }),
   accounts: () => request<{ accounts: Account[] }>('/api/accounts'),
+  account: (id: string) => request<{ account: Account }>(`/api/accounts/${encodeURIComponent(id)}`),
   createAccount: (input: CreateAccountInput) =>
     request<{ account: Account }>('/api/accounts', { method: 'POST', body: JSON.stringify(input) }),
   updateAccount: (id: string, input: UpdateAccountInput) =>
