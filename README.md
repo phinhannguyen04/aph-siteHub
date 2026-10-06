@@ -61,6 +61,7 @@ Copy `.env.example` to `.env` if `.env` does not already exist. Git ignores `.en
 - `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` configure the PostgreSQL container. `DATABASE_URL` configures the backend (for example `postgresql://sitehub:password@postgres:5432/sitehub`). URL-encode password characters. The existing `.env` and `postgres_data` volume are reused; changing environment settings does not change credentials in an existing database.
 - `ADMIN_PASSWORD_HASH_BASE64` is the Argon2id hash used to initialize the administrator account if `admin_credentials` has no record. After initialization, the current password is stored in PostgreSQL. Changing the hash in `.env` does not change the current password.
 - `SESSION_SECRET` must contain at least 32 characters. Generate one with `openssl rand -hex 32`.
+- `ACCOUNT_ENCRYPTION_KEY` is required to create accounts or store/reveal secret keys. Generate a separate 32-byte key using `openssl rand -hex 32` (64 hexadecimal characters). Keep this key stable and backed up; replacing it prevents decrypting previously stored account secrets. Other modules work when this setting is absent.
 - For local HTTP, use `APP_ORIGIN=http://localhost:8111` and `COOKIE_SECURE=false`. If the dashboard is accessed through a LAN IP or another hostname, add the complete origins, including scheme and port, to comma-separated `APP_ORIGINS`. For HTTPS, set the actual origin and `COOKIE_SECURE=true`. Login and write requests require an allowed origin.
 
 Generate the initial administrator password hash from a password of at least 12 characters:
@@ -175,3 +176,21 @@ Tag names are trimmed, leading `#` characters are removed, and names must contai
 The authenticated tag API uses `GET /api/tags`, `POST /api/tags`, `PATCH /api/tags/:id`, and `DELETE /api/tags/:id`. Create and update accept `{ name, description, color }`. Website create and update accept optional `tag_ids: string[]`; responses include `tag_ids` and expanded `tags`. All writes use the existing origin and CSRF checks. Errors retain `{ error: { code, message } }`.
 
 `GET /api/websites` now returns `{ websites, total, page, pageSize }`. Query parameters are `page` (default 1), `pageSize` (default 12, maximum 48), `search`, and comma-separated `tagIds`. Tag filtering uses OR across selected tags, then AND with accent-insensitive name/URL search. Results are ordered by newest `created_at`, then `website_id` descending, before pagination. `total` counts filtered results; `GET /api/websites/count` continues to count all saved websites. The frontend keeps the search, tags, page, and page size in the URL query.
+
+## Account API
+
+All `/api/accounts` routes require an administrator session. Write requests also require an allowed origin and the session CSRF token.
+
+| Method | Route                          | Result                                            |
+| ------ | ------------------------------ | ------------------------------------------------- |
+| GET    | `/api/accounts`                | `{ accounts }`                                    |
+| GET    | `/api/accounts/stats`          | `{ stats }`, totals and per-provider limit counts |
+| GET    | `/api/accounts/:id`            | `{ account }`                                     |
+| POST   | `/api/accounts`                | `{ account }`, HTTP 201                           |
+| PATCH  | `/api/accounts/:id`            | `{ account }`                                     |
+| GET    | `/api/accounts/:id/secret-key` | `{ secret_key }`, with `Cache-Control: no-store`  |
+| DELETE | `/api/accounts/:id`            | `{ ok: true }`                                    |
+
+Creation requires `provider`, `login_name`, `external_account_id`, `email`, `password`, and `secret_key`. Optional `is_limit` defaults to false; optional `created_at` defaults to the server time. Updates accept one or more of `password`, `secret_key`, and `is_limit`. Duplicate provider/external-ID pairs return 409; missing accounts return 404. Account responses exclude passwords and encrypted secrets. Secret keys use AES-256-GCM with a fresh nonce and the account ID as authenticated data. Account login passwords retain the existing storage format.
+
+Run `bun --cwd backend migrate` before using these routes to create the accounts table and unique index. The frontend does not yet include an account management screen.

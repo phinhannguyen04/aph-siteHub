@@ -4,6 +4,7 @@ import { validateEnv } from './env.validation'
 export interface AppConfig {
   databaseUrl: string
   adminPasswordHash?: string
+  accountEncryptionKey?: string
   sessionSecret: string
   appOrigin: string
   appOrigins?: string[]

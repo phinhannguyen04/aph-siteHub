@@ -30,17 +30,25 @@ function postgresError(error: unknown): { code?: string; constraint_name?: strin
 /** Convert driver errors at the database boundary; callers inspect return codes. */
 export async function query<T>(operation: () => PromiseLike<T>): Promise<ServiceResult<T>> {
   const result = await attempt(operation)
-  
+
   if (result.code === 0) {
     return success(result.data)
   }
-  
+
   const error = postgresError(result.error)
-  
-  if (error?.code === '23505' && error.constraint_name === 'tags_name_key_unique') { 
+
+  if (error?.code === '23505' && error.constraint_name === 'tags_name_key_unique') {
     return serviceFailure('CONFLICT', 'A tag with this name already exists', 409)
-  }  
-  
+  }
+
+  if (error?.code === '23505' && error.constraint_name === 'accounts_provider_external_id_unique') {
+    return serviceFailure(
+      'CONFLICT',
+      'An account with this provider and external ID already exists',
+      409,
+    )
+  }
+
   if (error?.code === '23503') {
     return serviceFailure('VALIDATION_ERROR', 'One or more tags do not exist', 400)
   }

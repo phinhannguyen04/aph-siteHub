@@ -4,6 +4,7 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify'
 import type { Database } from '../src/database/client'
 import { testDatabase } from './helpers'
 import { In } from 'typeorm'
+import { AccountEntity } from '../src/modules/accounts/entities/account.entity'
 import { WebsiteEntity } from '../src/modules/websites/entities/website.entity'
 import { createApp } from '../src/app.factory'
 import { readConfig, type AppConfig } from '../src/config/app.config'
@@ -60,6 +61,7 @@ integration('NestJS Fastify API with PostgreSQL', () => {
   beforeAll(async () => {
     const config: AppConfig = {
       databaseUrl: testUrl!,
+      accountEncryptionKey: 'ab'.repeat(32),
       adminPasswordHash: await Bun.password.hash('correct-horse-battery', {
         algorithm: 'argon2id',
       }),
@@ -93,6 +95,75 @@ integration('NestJS Fastify API with PostgreSQL', () => {
       (await call('/api/websites', 'POST', { name: 'A', url: 'https://a.com' }, true, 'wrong'))
         .statusCode,
     ).toBe(403)
+  })
+
+  test('account CRUD, secret encryption, validation, stats and access controls', async () => {
+    expect((await call('/api/accounts', 'GET', undefined, false)).statusCode).toBe(401)
+    expect(
+      (await call('/api/accounts/unknown/secret-key', 'GET', undefined, false)).statusCode,
+    ).toBe(401)
+    const input = {
+      provider: 'test-provider',
+      login_name: 'test-login',
+      external_account_id: 'external-1',
+      email: 'test@example.com',
+      password: 'external-password',
+      secret_key: 'original-secret',
+    }
+    expect((await call('/api/accounts', 'POST', input, true, 'wrong')).statusCode).toBe(403)
+    const created = await call('/api/accounts', 'POST', input)
+    expect(created.statusCode).toBe(201)
+    const account = created.json().account
+    expect(account).not.toHaveProperty('password')
+    expect(account).not.toHaveProperty('secret_key_encrypted')
+    expect(account.is_limit).toBe(false)
+    const path = `/api/accounts/${account.id}`
+    const stored = await db
+      .getRepository(AccountEntity)
+      .createQueryBuilder('account')
+      .addSelect('account.secret_key_encrypted')
+      .where('account.id = :id', { id: account.id })
+      .getOneOrFail()
+    expect(stored.secret_key_encrypted).not.toContain(input.secret_key)
+    expect((await call('/api/accounts', 'POST', input)).statusCode).toBe(409)
+    expect(
+      (
+        await call('/api/accounts', 'POST', {
+          ...input,
+          external_account_id: 'external-2',
+          secret_key: ' ',
+        })
+      ).statusCode,
+    ).toBe(400)
+    expect((await call(path)).json().account).toEqual(account)
+    expect((await call('/api/accounts')).json().accounts).toContainEqual(account)
+    const revealed = await call(`${path}/secret-key`)
+    expect(revealed.json().secret_key).toBe(input.secret_key)
+    expect(revealed.headers['cache-control']).toBe('no-store')
+    for (const update of [{}, { secret_key: null }, { is_limit: null }, { provider: 'other' }]) {
+      expect((await call(path, 'PATCH', update)).statusCode).toBe(400)
+    }
+    expect(
+      (await call(path, 'PATCH', { secret_key: 'rotated-secret', is_limit: true })).statusCode,
+    ).toBe(200)
+    expect((await call(`${path}/secret-key`)).json().secret_key).toBe('rotated-secret')
+    expect((await call(path, 'PATCH', { is_limit: false })).statusCode).toBe(200)
+    expect((await call(`${path}/secret-key`)).json().secret_key).toBe('rotated-secret')
+    expect((await call('/api/accounts/stats')).json().stats.providers).toContainEqual({
+      provider: 'test-provider',
+      total: 1,
+      limited: 0,
+      unlimited: 1,
+    })
+    expect((await call(path, 'DELETE')).statusCode).toBe(200)
+    for (const response of [
+      await call(path),
+      await call(`${path}/secret-key`),
+      await call(path, 'PATCH', { is_limit: true }),
+      await call(path, 'DELETE'),
+    ]) {
+      expect(response.statusCode).toBe(404)
+    }
   })
 
   test('allows the configured LAN origin and rejects an unknown origin', async () => {

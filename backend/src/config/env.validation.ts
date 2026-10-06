@@ -20,6 +20,13 @@ export function validateEnv(env: Record<string, string | undefined>): ServiceRes
       'SESSION_SECRET must be at least 32 characters',
       500,
     )
+  const accountEncryptionKey = env.ACCOUNT_ENCRYPTION_KEY || undefined
+  if (accountEncryptionKey && !/^[0-9a-f]{64}$/i.test(accountEncryptionKey))
+    return serviceFailure(
+      'CONFIGURATION_ERROR',
+      'ACCOUNT_ENCRYPTION_KEY must contain 64 hexadecimal characters',
+      500,
+    )
   const encodedHash = env.ADMIN_PASSWORD_HASH_BASE64
   const adminPasswordHash = encodedHash
     ? Buffer.from(encodedHash, 'base64').toString('utf8')
@@ -62,6 +69,7 @@ export function validateEnv(env: Record<string, string | undefined>): ServiceRes
     databaseUrl,
     adminPasswordHash,
     sessionSecret,
+    accountEncryptionKey,
     appOrigin: appOrigin.origin,
     appOrigins,
     cookieSecure: env.COOKIE_SECURE !== 'false',

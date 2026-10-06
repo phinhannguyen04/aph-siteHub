@@ -1,6 +1,8 @@
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
 import pg from 'pg'
+import { AccountEntity } from '../modules/accounts/entities/account.entity'
+import { Accounts1791244800000 } from './migrations/accounts-migration'
 import { WebsiteEntity } from '../modules/websites/entities/website.entity'
 import { TagEntity } from '../modules/tags/entities/tag.entity'
 import { WebsiteTagEntity } from '../modules/websites/entities/website-tag.entity'
@@ -28,8 +30,14 @@ export async function connectDb(config: {
         type: 'postgres',
         url: config.databaseUrl,
         driver: pg,
-        entities: [WebsiteEntity, TagEntity, WebsiteTagEntity, AdminCredentialEntity],
-        migrations: [InitialSchema1791158400000],
+        entities: [
+          WebsiteEntity,
+          TagEntity,
+          WebsiteTagEntity,
+          AdminCredentialEntity,
+          AccountEntity,
+        ],
+        migrations: [InitialSchema1791158400000, Accounts1791244800000],
         migrationsTableName: 'typeorm_migrations',
         synchronize: false,
         migrationsRun: false,

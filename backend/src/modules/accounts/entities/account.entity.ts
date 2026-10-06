@@ -41,6 +41,7 @@ export class AccountEntity {
   @Column({
     type: 'text',
     name: 'password',
+    select: false,
   })
   password!: string
 

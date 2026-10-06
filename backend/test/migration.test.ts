@@ -96,6 +96,7 @@ integration(
       ).toEqual([{ hash: 'legacy-hash' }])
       expect(await db.query<{ name: string }[]>('SELECT name FROM typeorm_migrations')).toEqual([
         { name: 'InitialSchema1791158400000' },
+        { name: 'Accounts1791244800000' },
       ])
     } finally {
       await fixture.close()

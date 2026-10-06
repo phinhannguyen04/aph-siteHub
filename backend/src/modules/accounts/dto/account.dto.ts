@@ -2,7 +2,7 @@ import { Transform } from 'class-transformer'
 import {
   IsBoolean,
   IsDateString,
-  IsDefined,
+  ValidateIf,
   IsEmail,
   IsNotEmpty,
   IsString,
@@ -39,11 +39,11 @@ export class AccountDto {
   @Matches(/\S/, { message: 'Secret key cannot be blank' })
   secret_key!: string
 
-  @IsDefined()
+  @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
-  is_limit!: boolean
+  is_limit?: boolean
 
-  @IsDefined()
+  @ValidateIf((_, value) => value !== undefined)
   @IsDateString({ strict: true })
-  created_at!: string
+  created_at?: string
 }
