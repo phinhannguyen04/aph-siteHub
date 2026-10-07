@@ -8,22 +8,32 @@ import { getSession, sameOrigin, validCsrf } from '../session'
 
 @Injectable()
 export class SessionGuard implements CanActivate {
+  /** Receive session configuration and the credential service used to reject revoked sessions. */
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly credentials: CredentialsService,
   ) {}
 
+  /**
+   * Require a valid session and credential version; also verify origin and CSRF for
+   * non-GET requests.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<FastifyRequest>()
     const session = getSession(request, this.config.sessionSecret)
     const credential = session ? httpData(await this.credentials.current()) : null
-    if (!session || !credential || session.version !== credential.version)
+
+    if (!session || !credential || session.version !== credential.version) {
       return httpData(serviceFailure('UNAUTHORIZED', 'Please sign in', 401))
+    }
+
     if (
       request.method !== 'GET' &&
       (!sameOrigin(request, this.config) || !validCsrf(request, session.csrf))
-    )
+    ) {
       return httpData(serviceFailure('FORBIDDEN', 'Invalid session or request origin', 403))
+    }
+
     return true
   }
 }

@@ -2,6 +2,7 @@ import { httpData } from '../../../common/errors/result'
 import { Transform } from 'class-transformer'
 import { IsDefined, IsString } from 'class-validator'
 import { normalizeTagColor, normalizeTagDescription, normalizeTagName } from '../tag-normalization'
+
 export class TagDto {
   @Transform(({ value }) => httpData(normalizeTagName(value)))
   @IsDefined()

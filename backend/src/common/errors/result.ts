@@ -3,14 +3,17 @@ import { attempt, failure, type Result } from '../../../../shared/result'
 import { apiError } from './api-error'
 
 export { attempt, attemptSync, success } from '../../../../shared/result'
+
 export interface ServiceFailure {
   code: string
   message: string
   status: number
   cause?: unknown
 }
+
 export type ServiceResult<T> = Result<T, ServiceFailure>
 
+/** Create an expected service failure with a public error code, message, and HTTP status. */
 export function serviceFailure(
   code: string,
   message: string,
@@ -19,6 +22,7 @@ export function serviceFailure(
   return failure({ code, message, status })
 }
 
+/** Wrap an unexpected failure as a generic internal error while retaining its cause for logging. */
 export function unexpectedFailure(cause: unknown): ServiceResult<never> {
   return failure({ code: 'INTERNAL_ERROR', message: 'Internal server error', status: 500, cause })
 }
@@ -28,15 +32,23 @@ export async function operation<T>(
   callback: () => ServiceResult<T> | PromiseLike<ServiceResult<T>>,
 ): Promise<ServiceResult<T>> {
   const result = await attempt(callback)
-  if (result.code !== 0) return unexpectedFailure(result.error)
+
+  if (result.code !== 0) {
+    return unexpectedFailure(result.error)
+  }
+
   return result.data
 }
 
 /** NestJS translates exceptions at the HTTP boundary; services return codes. */
 export function httpData<T>(result: ServiceResult<T>): T {
   if (result.code !== 0) {
-    if (result.error.cause !== undefined) console.error(result.error.cause)
+    if (result.error.cause !== undefined) {
+      console.error(result.error.cause)
+    }
+
     throw new HttpException(apiError(result.error.code, result.error.message), result.error.status)
   }
+
   return result.data
 }

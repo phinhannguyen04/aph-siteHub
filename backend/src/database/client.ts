@@ -17,10 +17,17 @@ import {
 } from '../common/errors/result'
 
 export type Database = DataSource
+
 export interface Connection {
   db: Database
+  /** Close the database connection and return any cleanup failure as a service result. */
   close(): Promise<ServiceResult<void>>
 }
+
+/**
+ * Initialize a PostgreSQL DataSource with registered entities and migrations, and
+ * return an explicit cleanup function.
+ */
 export async function connectDb(config: {
   databaseUrl: string
 }): Promise<ServiceResult<Connection>> {
@@ -44,18 +51,30 @@ export async function connectDb(config: {
         extra: { max: 10, connectionTimeoutMillis: 10000 },
       }),
   )
-  if (opened.code !== 0) return unexpectedFailure(opened.error)
+
+  if (opened.code !== 0) {
+    return unexpectedFailure(opened.error)
+  }
+
   const db = opened.data
   const initialized = await attempt(() => db.initialize())
+
   if (initialized.code !== 0) {
-    if (db.isInitialized) await attempt(() => db.destroy())
+    if (db.isInitialized) {
+      await attempt(() => db.destroy())
+    }
+
     return unexpectedFailure(initialized.error)
   }
+
   return success({
     db,
     close: () =>
       operation(async () => {
-        if (db.isInitialized) await db.destroy()
+        if (db.isInitialized) {
+          await db.destroy()
+        }
+
         return success(undefined)
       }),
   })

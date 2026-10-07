@@ -2,6 +2,7 @@ import type { MigrationInterface, QueryRunner } from 'typeorm'
 
 /** Adopt the existing PostgreSQL schema without altering existing records. */
 export class InitialSchema1791158400000 implements MigrationInterface {
+  /** Create missing core tables and indexes while preserving existing tables and records. */
   async up(runner: QueryRunner): Promise<void> {
     await runner.query(`
       CREATE TABLE IF NOT EXISTS admin_credentials (
@@ -26,6 +27,8 @@ export class InitialSchema1791158400000 implements MigrationInterface {
       CREATE INDEX IF NOT EXISTS websites_created_id_idx ON websites (created_at, website_id);
     `)
   }
+
+  /** Remove the core tables created by this migration, including their stored records. */
   async down(runner: QueryRunner): Promise<void> {
     await runner.query('DROP TABLE website_tags, websites, tags, admin_credentials')
   }

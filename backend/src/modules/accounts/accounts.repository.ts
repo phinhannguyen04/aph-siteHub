@@ -8,21 +8,32 @@ import type { AccountStats } from './account.interface'
 
 @Injectable()
 export class AccountsRepository {
+  /** Receive the TypeORM repository used to persist account records. */
   constructor(
     @InjectRepository(AccountEntity) private readonly accounts: Repository<AccountEntity>,
   ) {}
 
+  /**
+   * Read accounts in creation order using the default selection that excludes stored
+   * credentials.
+   */
   list(): Promise<ServiceResult<AccountEntity[]>> {
     return query(() => this.accounts.find({ order: { created_at: 'ASC' } }))
   }
 
+  /** Insert the supplied account record and return it after a successful write. */
   create(row: AccountEntity): Promise<ServiceResult<AccountEntity>> {
     return query(async () => {
       await this.accounts.insert(row)
+
       return row
     })
   }
 
+  /**
+   * Update mutable account fields and read the result in one transaction, returning
+   * null for a missing account.
+   */
   update(
     id: string,
     changes: Partial<Pick<AccountEntity, 'password' | 'secret_key_encrypted' | 'is_limit'>>,
@@ -35,19 +46,23 @@ export class AccountsRepository {
         if (!write.affected) {
           return null
         }
+
         return repo.findOneBy({ id })
       }),
     )
   }
 
+  /** Delete an account by ID and report whether the operation affected a record. */
   delete(id: string): Promise<ServiceResult<boolean>> {
     return query(async () => Boolean((await this.accounts.delete(id)).affected))
   }
 
+  /** Find an account by ID using the default selection that excludes stored credentials. */
   findById(id: string): Promise<ServiceResult<AccountEntity | null>> {
     return query(() => this.accounts.findOneBy({ id }))
   }
 
+  /** Explicitly include the encrypted secret when finding an account for a secret-key operation. */
   findWithSecretById(id: string): Promise<ServiceResult<AccountEntity | null>> {
     return query(() =>
       this.accounts
@@ -85,6 +100,7 @@ export class AccountsRepository {
       const providers = rows.map((row) => {
         const total = Number(row.total)
         const limited = Number(row.limited)
+
         return { provider: row.provider, total, limited, unlimited: total - limited }
       })
 

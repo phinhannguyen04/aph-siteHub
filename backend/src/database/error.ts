@@ -6,12 +6,17 @@ import {
   type ServiceResult,
 } from '../common/errors/result'
 
+/**
+ * Find PostgreSQL error codes and constraint names through nested driver errors without
+ * following cycles.
+ */
 function postgresError(error: unknown): { code?: string; constraint_name?: string } | null {
   let current = error
   const seen = new Set<unknown>()
   while (typeof current === 'object' && current !== null && !seen.has(current)) {
     seen.add(current)
-    if ('code' in current && typeof current.code === 'string')
+
+    if ('code' in current && typeof current.code === 'string') {
       return {
         code: current.code,
         constraint_name:
@@ -21,9 +26,12 @@ function postgresError(error: unknown): { code?: string; constraint_name?: strin
               ? current.constraint
               : undefined,
       }
+    }
+
     current =
       'driverError' in current ? current.driverError : 'cause' in current ? current.cause : null
   }
+
   return null
 }
 
@@ -52,5 +60,6 @@ export async function query<T>(operation: () => PromiseLike<T>): Promise<Service
   if (error?.code === '23503') {
     return serviceFailure('VALIDATION_ERROR', 'One or more tags do not exist', 400)
   }
+
   return unexpectedFailure(result.error)
 }

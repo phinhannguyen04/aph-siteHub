@@ -1,6 +1,10 @@
 import type { AccountResponse } from './account-response.interface'
 import type { AccountEntity } from './entities/account.entity'
 
+/**
+ * Select public account fields for API responses, excluding the password and encrypted
+ * secret key.
+ */
 export function toAccount(row: AccountEntity): AccountResponse {
   return {
     id: row.id,

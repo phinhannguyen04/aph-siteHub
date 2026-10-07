@@ -13,17 +13,24 @@ import { CredentialsService, verifyAdminPassword } from './credentials.service'
 @Controller('api/auth')
 export class AuthController {
   private readonly limiter = createLoginLimiter()
+
+  /** Receive authentication configuration and the service managing administrator credentials. */
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly credentials: CredentialsService,
   ) {}
 
+  /** Return the CSRF token from the administrator session already validated by SessionGuard. */
   @Get('session')
   @UseGuards(SessionGuard)
   session(@Req() request: FastifyRequest) {
     return { csrfToken: getSession(request, this.config.sessionSecret)!.csrf }
   }
 
+  /**
+   * Validate origin and login limits, verify the password, and issue a signed session
+   * cookie and CSRF token.
+   */
   @Post('login')
   @HttpCode(200)
   async login(
@@ -44,27 +51,34 @@ export class AuthController {
 
     const password = body.password
     const credential = httpData(await this.credentials.current())
+
     if (!httpData(await verifyAdminPassword(password, credential.password_hash))) {
       this.limiter.recordFailure(key)
+
       return httpData(serviceFailure('UNAUTHORIZED', 'Incorrect password', 401))
     }
+
     this.limiter.reset(key)
-    const session = httpData(createSession(
-      this.config.sessionSecret, 
-      credential.version
-    ))
+    const session = httpData(createSession(this.config.sessionSecret, credential.version))
     reply.header('set-cookie', sessionCookie(session.token, this.config))
+
     return { csrfToken: session.csrf }
   }
 
+  /** Expire the administrator session cookie after SessionGuard validates the request. */
   @Post('logout')
   @HttpCode(200)
   @UseGuards(SessionGuard)
   logout(@Res({ passthrough: true }) reply: FastifyReply) {
     reply.header('set-cookie', clearSessionCookie(this.config))
+
     return { ok: true }
   }
 
+  /**
+   * Verify the current password, replace credentials using their version, and issue a
+   * session for the new version.
+   */
   @Post('change-password')
   @HttpCode(200)
   @UseGuards(SessionGuard)
@@ -74,13 +88,20 @@ export class AuthController {
   ) {
     httpData(input.assertDifferent())
     const credential = httpData(await this.credentials.current())
-    if (!httpData(await verifyAdminPassword(input.currentPassword, credential.password_hash)))
+
+    if (!httpData(await verifyAdminPassword(input.currentPassword, credential.password_hash))) {
       return httpData(serviceFailure('UNAUTHORIZED', 'Incorrect current password', 401))
+    }
+
     const updated = httpData(await this.credentials.replace(input.newPassword, credential.version))
-    if (!updated)
+
+    if (!updated) {
       return httpData(serviceFailure('CONFLICT', 'The password was changed. Please try again', 409))
+    }
+
     const session = httpData(createSession(this.config.sessionSecret, updated.version))
     reply.header('set-cookie', sessionCookie(session.token, this.config))
+
     return { csrfToken: session.csrf }
   }
 }

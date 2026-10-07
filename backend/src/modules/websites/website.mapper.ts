@@ -3,8 +3,13 @@ import type { Website } from './website.interface'
 import type { Tag } from '../tags/tag.interface'
 import { toTag } from '../tags/tag.mapper'
 
+/**
+ * Build a public website response with ordered tags and tag IDs, excluding internal
+ * search fields.
+ */
 export function toWebsite(row: WebsiteEntity, assigned: Tag[]): Website {
   const tags = assigned.map(toTag)
+
   return {
     id: row.id,
     name: row.name,

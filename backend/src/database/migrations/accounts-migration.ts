@@ -1,6 +1,10 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm'
 
 export class Accounts1791244800000 implements MigrationInterface {
+  /**
+   * Create the accounts table and enforce uniqueness of each provider and external
+   * account ID pair.
+   */
   async up(runner: QueryRunner): Promise<void> {
     await runner.query(`
       CREATE TABLE IF NOT EXISTS accounts (
@@ -19,6 +23,7 @@ export class Accounts1791244800000 implements MigrationInterface {
     `)
   }
 
+  /** Remove the accounts table and all account records when reverting this migration. */
   async down(runner: QueryRunner): Promise<void> {
     await runner.query('DROP TABLE accounts')
   }

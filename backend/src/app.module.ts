@@ -13,6 +13,7 @@ import { AccountsModule } from './modules/accounts/accounts.module'
   imports: [AccountsModule],
 })
 export class AppModule {
+  /** Compose feature modules with the supplied configuration and database connection ownership. */
   static forRoot(config: AppConfig, connection: Connection, owned: boolean): DynamicModule {
     return {
       module: AppModule,

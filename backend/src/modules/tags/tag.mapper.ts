@@ -1,5 +1,6 @@
 import type { Tag } from './tag.interface'
 
+/** Select the public tag fields without exposing internal persistence fields such as nameKey. */
 export function toTag(row: Tag): Tag {
   return {
     id: row.id,

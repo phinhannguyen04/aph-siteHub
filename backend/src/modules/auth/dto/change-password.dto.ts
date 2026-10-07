@@ -13,13 +13,16 @@ export class ChangePasswordDto {
   @Matches(/\S/, { message: 'New password cannot be blank' })
   newPassword!: string
 
+  /** Reject password changes that reuse the current password. */
   assertDifferent(): ServiceResult<void> {
-    if (this.currentPassword === this.newPassword)
+    if (this.currentPassword === this.newPassword) {
       return serviceFailure(
         'VALIDATION_ERROR',
         'New password must differ from the current password',
         400,
       )
+    }
+
     return success(undefined)
   }
 }

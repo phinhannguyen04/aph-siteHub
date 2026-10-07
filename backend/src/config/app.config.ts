@@ -12,6 +12,10 @@ export interface AppConfig {
   port: number
 }
 
+/**
+ * Read environment settings and return either validated application configuration or a
+ * configuration error.
+ */
 export function readConfig(env = Bun.env): ServiceResult<AppConfig> {
   return validateEnv(env)
 }

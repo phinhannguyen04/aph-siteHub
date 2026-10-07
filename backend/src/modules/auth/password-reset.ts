@@ -3,6 +3,11 @@ import type { Database } from '../../database/client'
 import { AdminCredentialEntity } from './entities/admin-credential.entity'
 import { query } from '../../database/error'
 import { operation, success, type ServiceResult } from '../../common/errors/result'
+
+/**
+ * Generate and store a new administrator password and credential version, invalidating
+ * existing sessions.
+ */
 export async function resetAdminPassword(db: Database): Promise<ServiceResult<string>> {
   return operation(async () => {
     const password = randomBytes(24).toString('base64url')
@@ -12,7 +17,11 @@ export async function resetAdminPassword(db: Database): Promise<ServiceResult<st
         .getRepository(AdminCredentialEntity)
         .upsert({ id: 'primary', password_hash, version: crypto.randomUUID() }, ['id']),
     )
-    if (result.code !== 0) return result
+
+    if (result.code !== 0) {
+      return result
+    }
+
     return success(password)
   })
 }

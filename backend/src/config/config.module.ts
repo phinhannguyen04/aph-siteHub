@@ -5,6 +5,10 @@ import { APP_CONFIG } from './config.tokens'
 @Global()
 @Module({})
 export class ConfigModule {
+  /**
+   * Expose the supplied application configuration through the global APP_CONFIG
+   * injection token.
+   */
   static forRoot(config: AppConfig): DynamicModule {
     return {
       module: ConfigModule,

@@ -6,6 +6,7 @@ export class UpdateAccountDto extends PartialType(
   PickType(AccountDto, ['password', 'secret_key', 'is_limit'] as const),
   { skipNullProperties: false },
 ) {
+  /** Reject account patches that provide no password, secret key, or limit-status changes. */
   assertHasChanges(): ServiceResult<void> {
     if (
       this.password === undefined &&
@@ -14,6 +15,7 @@ export class UpdateAccountDto extends PartialType(
     ) {
       return serviceFailure('VALIDATION_ERROR', 'Provide at least one account field to update', 400)
     }
+
     return success(undefined)
   }
 }

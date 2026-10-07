@@ -14,6 +14,10 @@ interface AppOptions {
   logger?: boolean
 }
 
+/**
+ * Create the Fastify application with validation, CORS, and error handling; release
+ * owned resources if initialization fails.
+ */
 export async function createApp(
   config: AppConfig,
   options: AppOptions = {},
@@ -21,7 +25,11 @@ export async function createApp(
   const connected = options.database
     ? success({ db: options.database, close: async () => success(undefined) })
     : await connectDb(config)
-  if (connected.code !== 0) return connected
+
+  if (connected.code !== 0) {
+    return connected
+  }
+
   const connection = connected.data
   const owned = !options.database
   const created = await attempt(() =>
@@ -31,13 +39,19 @@ export async function createApp(
       { logger: options.logger === false ? false : ['error', 'warn', 'log'], abortOnError: false },
     ),
   )
+
   if (created.code !== 0) {
     if (owned) {
       const closed = await connection.close()
-      if (closed.code !== 0) console.error(closed.error)
+
+      if (closed.code !== 0) {
+        console.error(closed.error)
+      }
     }
+
     return unexpectedFailure(created.error)
   }
+
   const app = created.data
   const initialized = await attempt(async () => {
     app.enableCors({ origin: [config.appOrigin, ...(config.appOrigins || [])], credentials: true })
@@ -50,16 +64,23 @@ export async function createApp(
         stopAtFirstError: true,
         exceptionFactory: (errors) => {
           const message = Object.values(errors[0]?.constraints ?? {})[0] ?? 'Invalid input'
+
           return new HttpException(apiError('VALIDATION_ERROR', message), 400)
         },
       }),
     )
     await app.init()
   })
+
   if (initialized.code !== 0) {
     const closed = await attempt(() => app.close())
-    if (closed.code !== 0) console.error(closed.error)
+
+    if (closed.code !== 0) {
+      console.error(closed.error)
+    }
+
     return unexpectedFailure(initialized.error)
   }
+
   return success(app)
 }
