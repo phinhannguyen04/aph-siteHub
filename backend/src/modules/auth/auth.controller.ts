@@ -49,7 +49,10 @@ export class AuthController {
       return httpData(serviceFailure('UNAUTHORIZED', 'Incorrect password', 401))
     }
     this.limiter.reset(key)
-    const session = httpData(createSession(this.config.sessionSecret, credential.version))
+    const session = httpData(createSession(
+      this.config.sessionSecret, 
+      credential.version
+    ))
     reply.header('set-cookie', sessionCookie(session.token, this.config))
     return { csrfToken: session.csrf }
   }
