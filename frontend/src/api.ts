@@ -56,13 +56,15 @@ export interface ApiFailure {
   status: number
 }
 export type ApiResult<T> = Result<T, ApiFailure>
+// Same-origin /api is served by ASP.NET Core Minimal API through Nginx/Vite.
+const apiPrefix = '/api'
 let csrfToken = ''
 export function setCsrfToken(token: string) {
   csrfToken = token
 }
 async function request<T>(path: string, options: RequestInit = {}): Promise<ApiResult<T>> {
   const fetched = await attempt(() =>
-    fetch(path, {
+    fetch(`${apiPrefix}${path}`, {
       ...options,
       credentials: 'same-origin',
       headers: {
@@ -94,15 +96,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<ApiR
   return success(data as T)
 }
 export const api = {
-  session: () => request<{ csrfToken: string }>('/api/auth/session'),
+  session: () => request<{ csrfToken: string }>('/auth/session'),
   login: (password: string) =>
-    request<{ csrfToken: string }>('/api/auth/login', {
+    request<{ csrfToken: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ password }),
     }),
-  logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+  logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
   changePassword: (input: { currentPassword: string; newPassword: string }) =>
-    request<{ csrfToken: string }>('/api/auth/change-password', {
+    request<{ csrfToken: string }>('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
@@ -113,37 +115,37 @@ export const api = {
     })
     if (options.search) params.set('search', options.search)
     if (options.tagIds.length) params.set('tagIds', options.tagIds.join(','))
-    return request<WebsitePage>(`/api/websites?${params}`)
+    return request<WebsitePage>(`/websites?${params}`)
   },
-  count: () => request<{ count: number }>('/api/websites/count'),
+  count: () => request<{ count: number }>('/websites/count'),
   create: (input: { name: string; url: string; tag_ids: string[] }) =>
-    request<{ website: Website }>('/api/websites', { method: 'POST', body: JSON.stringify(input) }),
+    request<{ website: Website }>('/websites', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: { name: string; url: string; tag_ids: string[] }) =>
-    request<{ website: Website }>(`/api/websites/${encodeURIComponent(id)}`, {
+    request<{ website: Website }>(`/websites/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
-  accounts: () => request<{ accounts: Account[] }>('/api/accounts'),
-  account: (id: string) => request<{ account: Account }>(`/api/accounts/${encodeURIComponent(id)}`),
+  accounts: () => request<{ accounts: Account[] }>('/accounts'),
+  account: (id: string) => request<{ account: Account }>(`/accounts/${encodeURIComponent(id)}`),
   createAccount: (input: CreateAccountInput) =>
-    request<{ account: Account }>('/api/accounts', { method: 'POST', body: JSON.stringify(input) }),
+    request<{ account: Account }>('/accounts', { method: 'POST', body: JSON.stringify(input) }),
   updateAccount: (id: string, input: UpdateAccountInput) =>
-    request<{ account: Account }>(`/api/accounts/${encodeURIComponent(id)}`, {
+    request<{ account: Account }>(`/accounts/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
   deleteAccount: (id: string) =>
-    request<{ ok: boolean }>(`/api/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    request<{ ok: boolean }>(`/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   accountSecret: (id: string) =>
-    request<{ secret_key: string }>(`/api/accounts/${encodeURIComponent(id)}/secret-key`),
-  tags: () => request<{ tags: Tag[] }>('/api/tags'),
+    request<{ secret_key: string }>(`/accounts/${encodeURIComponent(id)}/secret-key`),
+  tags: () => request<{ tags: Tag[] }>('/tags'),
   createTag: (input: { name: string; description: string; color: string }) =>
-    request<{ tag: Tag }>('/api/tags', { method: 'POST', body: JSON.stringify(input) }),
+    request<{ tag: Tag }>('/tags', { method: 'POST', body: JSON.stringify(input) }),
   updateTag: (id: string, input: { name: string; description: string; color: string }) =>
-    request<{ tag: Tag }>(`/api/tags/${encodeURIComponent(id)}`, {
+    request<{ tag: Tag }>(`/tags/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
   deleteTag: (id: string) =>
-    request<{ ok: boolean }>(`/api/tags/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    request<{ ok: boolean }>(`/tags/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 }

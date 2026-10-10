@@ -17,21 +17,17 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: src/APH.SiteHub.Api/Dockerfile
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      API_PORT: 3000
+      ASPNETCORE_ENVIRONMENT: Production
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          'CMD',
-          'bun',
-          '-e',
-          "const response = await fetch('http://127.0.0.1:3000/health'); if (!response.ok) process.exit(1)",
-        ]
+      test: ['CMD', 'curl', '--fail', '--silent', 'http://127.0.0.1:3000/health']
       interval: 10s
       timeout: 5s
       retries: 5

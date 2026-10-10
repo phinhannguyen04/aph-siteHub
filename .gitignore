@@ -8,3 +8,8 @@ coverage/
 .migration-backups/
 
 .env.pg-*
+
+# .NET build and test output
+**/bin/
+**/obj/
+TestResults/

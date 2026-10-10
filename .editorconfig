@@ -10,3 +10,9 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+[*.cs]
+indent_size = 4
+csharp_preserve_single_line_blocks = false
+csharp_preserve_single_line_statements = false
+dotnet_diagnostic.IDE0005.severity = warning

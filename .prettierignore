@@ -10,3 +10,8 @@ coverage
 .migration-backups/
 
 .env.pg-*
+
+**/bin
+**/obj
+TestResults
+APH.SiteHub.sln
