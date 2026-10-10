@@ -1,202 +1,155 @@
 # APH SiteHub
 
-An internal website dashboard built with Vue 3, Vite, TypeScript, Bun, shadcn-vue, and Phosphor Icons. The backend uses NestJS with Fastify, Bun, TypeScript, and PostgreSQL. Website data comes from the API; the application contains no sample records.
+An internal website and account dashboard with Vue 3, TypeScript and an ASP.NET Core 10 Minimal API. PostgreSQL stores the existing SiteHub data. Bun runs frontend tooling; the backend runs on .NET.
 
-## Project structure
+## Structure and architecture
 
 ```text
-.
-├── .env.example
-├── backend/
-│   ├── src/
-│   │   ├── main.ts, app.module.ts, app.factory.ts
-│   │   ├── config/{app.config,env.validation,config.module,config.tokens}.ts
-│   │   ├── database/{database.module,client,migrate,error}.ts
-│   │   ├── database/migrations/initial-migration.ts
-│   │   ├── common/errors/{api-error,result}.ts
-│   │   ├── common/filters/api-exception.filter.ts
-│   │   ├── modules/auth/{auth.module,auth.controller,credentials.service,session,login-limiter,password-reset}.ts
-│   │   ├── modules/auth/entities/admin-credential.entity.ts
-│   │   ├── modules/auth/guards/session.guard.ts
-│   │   ├── modules/auth/dto/{login,change-password}.dto.ts
-│   │   ├── modules/websites/{websites.module,websites.controller,websites.service,websites.repository,website.mapper,website.interface,website-normalization,list-query,search}.ts
-│   │   ├── modules/websites/entities/{website,website-tag}.entity.ts
-│   │   ├── modules/websites/dto/{create-website,update-website}.dto.ts
-│   │   ├── modules/tags/{tags.module,tags.controller,tags.service,tags.repository,tag.mapper,tag-normalization,tag.interface}.ts
-│   │   ├── modules/tags/entities/tag.entity.ts
-│   │   ├── health/{health.module,health.controller}.ts
-│   │   └── cli/{migrate,reset-password,hash-password}.ts
-│   ├── test/api.test.ts
-│   └── Dockerfile
-├── frontend/
-│   ├── src/components/{WebsiteCard,WebsiteForm,PasswordDialog,TagPicker,ManageTags}.vue
-│   ├── src/components/ui/         # shadcn-vue component source
-│   ├── src/{App,api,main,websites-state,style}.*
-│   ├── test/websites-state.test.ts
-│   ├── nginx.conf
-│   └── Dockerfile
-├── shared/result.ts
-├── docker-compose.yml
-└── docker-compose.dev.yml
+src/
+  APH.SiteHub.Domain/          Entities/; one entity per file, no framework dependencies
+  APH.SiteHub.Application/     Feature/use-case folders, Contracts/, Abstractions/ and Common/
+  APH.SiteHub.Infrastructure/  Repositories, entity Configurations/, migrations and Security/
+  APH.SiteHub.Api/             Endpoints/, Contracts/, Security/, Middleware/, ErrorHandling/ Commands/ and Http/
+frontend/                     Vue application and same-origin API client
+shared/                       Frontend Result helpers
+tests/APH.SiteHub.Tests/       xUnit, legacy interoperability fixtures and PostgreSQL API tests
+scripts/backend.ts            Pass workspace .env to .NET development/maintenance commands
+APH.SiteHub.sln
 ```
 
-## Backend architecture
+Each entity, interface, DTO, command/query, handler and security component has its own file named after its type. A use case such as `Application/Websites/CreateWebsite/` contains separate `CreateWebsiteCommand.cs` and `CreateWebsiteHandler.cs`; shared feature responses live in `Contracts/`. Shared account validation lives independently in `Accounts/Validation/`, rather than inside a handler. Each persistence entity has a separate `IEntityTypeConfiguration<T>` in `Persistence/Configurations/`, discovered by `SiteHubDbContext`. `Program.cs` only composes startup; service registration, middleware, health routes and individual maintenance commands live in separate files. Existing namespaces remain compatible with EF snapshots and API consumers.
 
-`main.ts` starts the NestJS Fastify application. `AppModule` composes the feature modules, while `app.factory.ts` configures CORS, validation, and the API exception filter. The global `ConfigModule` provides validated environment settings; `config/app.config.ts` exposes configuration and delegates validation to `config/env.validation.ts`. `DatabaseModule` provides a TypeORM DataSource using the pg driver and closes its owned connection during NestJS shutdown. Feature controllers delegate to services, which receive feature repositories through NestJS dependency injection. `WebsitesRepository` and `TagsRepository` encapsulate persistence operations and inject TypeORM repositories registered with `TypeOrmModule.forFeature`. Feature modules live in `src/modules/`. Entity classes live in each feature module’s `entities/` directory (`auth`, `tags`, and `websites`); services validate business inputs, generate IDs and timestamps, and translate missing records into service errors. Dedicated `website.mapper.ts` and `tag.mapper.ts` functions produce API models without exposing persistence fields such as `searchText` and `nameKey`. Website/tag associations use foreign keys and cascade deletion of associations. TypeORM entities map to the existing PostgreSQL tables; `synchronize` is disabled. The initial TypeORM migration adopts existing tables and records its history in `typeorm_migrations`, leaving previous migration history intact. The `cli/` entrypoints run migrations and administrator maintenance without starting the HTTP server.
+Dependencies point inward: Domain has no dependencies; Application references Domain; Infrastructure implements Application ports; Api is the composition root. Constructor injection registers scoped repositories and DbContext. Feature commands and queries have explicit `HandleAsync` handlers, without a mediator dependency. EF Core supplies change tracking and the unit of work; repository transactions cover website/tag writes, account updates, and optimistic credential replacement. Website PATCH locks the row. Website pagination, count and ordered tag hydration use one read-only repeatable-read snapshot.
 
-Website creation and updates persist the website and ordered tag links in a single repository transaction. Updates retain pessimistic row locking; list queries retain a read-only repeatable-read snapshot for consistent rows and totals. Every transactional query uses the transaction-scoped EntityManager. Repositories return `ServiceResult` values, services propagate failures, and controllers translate them at the HTTP boundary with `httpData()`. No generic base repository or additional transaction framework is required.
+Minimal API route groups require the ASP.NET authentication policy. The session authentication handler checks HMAC, expiry and the current credential version. An endpoint filter validates exact Origin and CSRF headers before mutations. Application handlers, repositories and password/secret services return `Result<T>`; validation and maintenance commands also use `Result`. `Error` carries a stable code, safe message and an `ErrorType`, without HTTP dependencies. `Map`/`Bind`/`BindAsync` preserve failures and skip downstream work. `ResultHttpExtensions` and `ErrorHttpMapper` translate results to the existing status codes and `{ error: { code, message } }` envelope; success payloads are unchanged. `DatabaseOperation` catches driver exceptions around the entire repository operation, after transaction rollback/disposal, translates unique/FK violations and hides unexpected details. Security adapters translate crypto/hash library failures into results. Cancellation propagates as `OperationCanceledException`; the exception handler remains a fallback for unexpected programming/framework errors. Startup configuration and invalid Result access still fail fast. Result-based JSON/query input parsing rejects unknown fields, duplicate keys, invalid types and null PATCH fields while preserving omitted fields.
 
-The root module accepts an existing database connection for isolated integration tests. Production bootstrapping creates and owns its connection. Existing authentication routes and website records remain compatible. The website list response now includes pagination metadata; clients must consume the updated shape.
+The backend maps the existing tables and column types. It never calls `EnsureCreated` or automatically changes schema on normal startup. The adoption migration creates missing tables/indexes with `IF NOT EXISTS`, keeps existing rows and `typeorm_migrations`, and records EF history separately in `__EFMigrationsHistory`. Its Down operation refuses to drop adopted data. Subsequent schema changes should be new EF Core migrations, reviewed before applying.
 
-## Error handling
+## Development
 
-Frontend API calls, backend services, configuration/validation helpers, database migrations and cleanup, password maintenance, `connectDb`, and `createApp` return a shared `Result<T, E>`: `{ code: 0, data }` on success or `{ code: 1, error }` on failure. Callers check `if (result.code !== 0)` before accessing `result.data`. Error details include a stable string `error.code`, `message`, and HTTP `status`; unexpected backend errors also retain their original `cause` for logging.
-
-`attempt` adapts exception-based asynchronous libraries to return codes, including synchronous throws while starting an operation. `attemptSync` isolates the catch required by synchronous APIs such as `JSON.parse`. URL parsing uses `URL.parse` and checks for `null`. Business and infrastructure functions return errors as values. Only the NestJS HTTP adapter `httpData` throws `HttpException`; controllers, DTO transforms, and guards use it to translate returned failures into the existing API responses. Startup checks the database connection result before constructing the NestJS modules. HTTP response bodies remain unchanged. CLI commands return a nonzero exit code on failure and close their database connections before reporting the result.
-
-## Configuration
-
-Copy `.env.example` to `.env` if `.env` does not already exist. Git ignores `.env`. When upgrading an existing installation, keep the current `.env` so the PostgreSQL connection settings remain intact.
-
-- `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` configure the PostgreSQL container. `DATABASE_URL` configures the backend (for example `postgresql://sitehub:password@postgres:5432/sitehub`). URL-encode password characters. The existing `.env` and `postgres_data` volume are reused; changing environment settings does not change credentials in an existing database.
-- `ADMIN_PASSWORD_HASH_BASE64` is the Argon2id hash used to initialize the administrator account if `admin_credentials` has no record. After initialization, the current password is stored in PostgreSQL. Changing the hash in `.env` does not change the current password.
-- `SESSION_SECRET` must contain at least 32 characters. Generate one with `openssl rand -hex 32`.
-- `ACCOUNT_ENCRYPTION_KEY` is required to create accounts or store/reveal secret keys. Generate a separate 32-byte key using `openssl rand -hex 32` (64 hexadecimal characters). Keep this key stable and backed up; replacing it prevents decrypting previously stored account secrets. Other modules work when this setting is absent.
-- For local HTTP, use `APP_ORIGIN=http://localhost:8111` and `COOKIE_SECURE=false`. If the dashboard is accessed through a LAN IP or another hostname, add the complete origins, including scheme and port, to comma-separated `APP_ORIGINS`. For HTTPS, set the actual origin and `COOKIE_SECURE=true`. Login and write requests require an allowed origin.
-
-Generate the initial administrator password hash from a password of at least 12 characters:
+Requirements: .NET 10 SDK, Bun, Docker Compose and PostgreSQL 17.
 
 ```bash
-read -r -s -p 'Administrator password: ' admin_password; printf '\n'
-ADMIN_INITIAL_PASSWORD="$admin_password" bun backend/src/cli/hash-password.ts
-unset admin_password
+cp .env.example .env
+bun install --frozen-lockfile
+# Fill in database, session and encryption settings in .env.
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
 ```
 
-Copy the output into `ADMIN_PASSWORD_HASH_BASE64`. Never commit actual passwords or tokens or put them in `VITE_*` variables.
-
-## Docker Compose
+For a host-run backend, use a `DATABASE_URL` with `127.0.0.1:5433` rather than the Compose hostname `postgres`:
 
 ```bash
-bun install
-# Create .env from the example only if it does not already exist, then configure it.
-cp -n .env.example .env
-docker compose build
-docker compose up -d --wait postgres
-docker compose run --rm backend bun backend/dist/cli/migrate.js
-docker compose up -d --wait
-curl http://localhost:8111/health
-```
-
-Open `http://localhost:8111`. Only the frontend is published on port 8111; the backend and PostgreSQL stay on the Compose network. `docker compose down` preserves data. Avoid `docker compose down -v` if you want to keep the database. Use HTTPS in front of the application for public deployments.
-
-### Change or reset the administrator password
-
-While signed in, choose **Change password** and enter the current and new passwords. **Generate strong password** creates a random 24-character password in the form. After a change, the current session gets a new cookie and older sessions are invalidated.
-
-If the administrator password is lost, run this command on the server:
-
-```bash
-docker compose run --rm backend bun backend/dist/cli/reset-password.js
-```
-
-The command creates a password and displays it once in the terminal. Save it securely. All previous sessions are invalidated. It uses the backend `.env` settings and requires the migrations to have run. There is no public password-reset endpoint.
-
-## Local development with Bun
-
-Stop the Compose frontend and backend if ports 8111 or 3000 are occupied. Expose PostgreSQL only on localhost with the development override:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
-DATABASE_URL='postgresql://sitehub:password@127.0.0.1:5432/sitehub' bun --env-file=.env backend/src/cli/migrate.ts
-DATABASE_URL='postgresql://sitehub:password@127.0.0.1:5432/sitehub' bun --env-file=.env backend/src/main.ts
+DATABASE_URL='postgresql://sitehub:password@127.0.0.1:5433/sitehub' bun run migrate
+DATABASE_URL='postgresql://sitehub:password@127.0.0.1:5433/sitehub' bun run dev
 # In another terminal:
-bun --cwd frontend dev
+bun run dev:frontend
 ```
 
-Vite proxies `/api` and `/health` to backend port 3000. Set `SITEHUB_DEV_PORT` and `SITEHUB_DEV_API_TARGET` to use an isolated development environment.
+The API listens on `API_PORT` (default 3000). Vite proxies `/api` and `/health` to this backend. `SITEHUB_DEV_API_TARGET` overrides that target; `SITEHUB_DEV_PORT` overrides the frontend port. Set `APP_ORIGIN` to the exact frontend origin (default example `http://localhost:8111`) and add other trusted origins via `APP_ORIGINS`.
 
-## API and manual checks
-
-NestJS DTOs live in `backend/src/modules/{auth,tags,websites}/dto/`. `ValidationPipe` rejects unknown fields and normalizes website names and URLs before storage. The API provides health and authentication routes, paged website listing and count, website create/update, and tag CRUD as described below. Errors use `{ error: { code, message } }`.
-
-1. Signed out: the sign-in form appears and `GET /api/websites` returns 401.
-2. Signed in: the website count and cards reflect PostgreSQL data.
-3. Add a website: empty names and invalid URLs show field errors; a successful save closes the form and updates the cards and count.
-4. Search by name or URL, including accent-insensitive searches. Select the main card area to open a new tab; **Edit** opens only the edit form.
-5. Edit a name or URL and save. Select **Refresh** to reload the list and count from the API.
-6. On API failure, the old list disappears and **Try again** appears. An empty list offers **Add website**.
-7. Change the password, confirm the old password no longer works and older sessions return 401, then sign out.
-
-Session cookies use `HttpOnly`, `SameSite=Strict`, and `Secure` when `COOKIE_SECURE=true`. Write requests require an allowed origin and a CSRF token.
-
-## Quality checks
+With exported environment settings, .NET can also run directly:
 
 ```bash
-bun run format:check
-bun run lint
-bun run typecheck
+dotnet run --project src/APH.SiteHub.Api -- --migrate
+dotnet run --project src/APH.SiteHub.Api
+```
+
+Development exposes `/openapi/v1.json`. Production does not expose OpenAPI.
+
+## Administrator credentials and secrets
+
+Keep the existing `SESSION_SECRET` and `ACCOUNT_ENCRYPTION_KEY` during migration. The key is 64 hexadecimal characters and must be provisioned outside source control (`openssl rand -hex 32`). Existing Bun Argon2id hashes and signed eight-hour cookies remain readable. Password replacement changes the credential version and revokes prior sessions. AES-256-GCM retains the Node-compatible `v1.nonce.tag.ciphertext` envelope and account-ID associated data.
+
+Generate an initial hash without putting a password in shell history:
+
+```bash
+read -r -s -p 'Initial administrator password: ' sitehub_password
+printf '\n'
+printf '%s\n' "$sitehub_password" | bun run hash-password
+unset sitehub_password
+```
+
+Put the output base64 hash into `ADMIN_PASSWORD_HASH_BASE64`. It initializes a missing administrator only; it never replaces existing credentials. Minimum new password length is 12, maximum 256. To reset an existing administrator, pass the password on stdin to `bun run reset-password` (host database URL required), or:
+
+```bash
+read -r -s -p 'Replacement administrator password: ' sitehub_password
+printf '\n'
+printf '%s\n' "$sitehub_password" | docker compose run --rm -T backend --reset-password
+unset sitehub_password
+```
+
+Normal account responses exclude stored passwords and encrypted secrets. Only authenticated `GET /api/accounts/{id}/secret-key` reveals a secret, with `Cache-Control: no-store`. All API responses disable caching. Cookie flags are HttpOnly, SameSite=Strict and configurable Secure, with path `/api`. Enable `COOKIE_SECURE=true` behind HTTPS. Login blocks after five failed attempts for fifteen minutes. The limiter uses the actual connection IP and is in memory; behind Nginx the limit is shared by connections from that proxy. Forwarded IP headers are not trusted by default.
+
+## API contract
+
+All existing paths and response field names are preserved. Mutations require the session cookie, exact `Origin` and `x-csrf-token`; login requires Origin. `csrfToken` and `pageSize` retain camelCase; entity fields retain snake_case.
+
+| Method       | Path                                  | Response                              |
+| ------------ | ------------------------------------- | ------------------------------------- |
+| GET          | `/health`                             | `{ status: 'ok' }`, or 503            |
+| POST         | `/api/auth/login`                     | `{ csrfToken }` and cookie            |
+| GET          | `/api/auth/session`                   | `{ csrfToken }`                       |
+| POST         | `/api/auth/logout`                    | `{ ok: true }`                        |
+| POST         | `/api/auth/change-password`           | `{ csrfToken }` and renewed cookie    |
+| GET          | `/api/websites`                       | `{ websites, total, page, pageSize }` |
+| GET          | `/api/websites/count`                 | `{ count }`                           |
+| POST / PATCH | `/api/websites`, `/api/websites/{id}` | `{ website }`                         |
+| GET          | `/api/tags`                           | `{ tags }`                            |
+| POST / PATCH | `/api/tags`, `/api/tags/{id}`         | `{ tag }`                             |
+| DELETE       | `/api/tags/{id}`                      | `{ ok: true }`                        |
+| GET          | `/api/accounts`                       | `{ accounts }`                        |
+| GET          | `/api/accounts/stats`                 | `{ stats }`                           |
+| GET          | `/api/accounts/{id}`                  | `{ account }`                         |
+| POST / PATCH | `/api/accounts`, `/api/accounts/{id}` | `{ account }`                         |
+| GET          | `/api/accounts/{id}/secret-key`       | `{ secret_key }`, no-store            |
+| DELETE       | `/api/accounts/{id}`                  | `{ ok: true }`                        |
+
+Website filters support `page` (1–1,000,000), `pageSize` (1–48, default 12), `search` (up to 160 characters) and comma-separated `tagIds` (up to 50 distinct UUIDv4 IDs, any selected tag). Search folds Vietnamese accents. Associations preserve submitted tag order. Website/tag POST returns 201; account POST returns 201. Account PATCH supports only `password`, `secret_key` and `is_limit`.
+
+## Docker migration and deployment
+
+Compose keeps the existing `postgres_data` volume and port `8111`. Nginx forwards `/api` and `/health` to the .NET backend on port 3000. The API uses a multi-stage .NET build, a non-root runtime user and a database-backed health probe. Frontend builds contain no NestJS workspace dependency.
+
+Before applying the migration to a populated database, save a database backup in a protected location:
+
+```bash
+mkdir -p .migration-backups
+chmod 700 .migration-backups
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > .migration-backups/pre-dotnet.dump
+chmod 600 .migration-backups/pre-dotnet.dump
+docker compose build backend frontend
+docker compose run --rm backend --migrate
+docker compose up -d backend frontend
+docker compose ps
+curl --fail http://localhost:8111/health
+```
+
+Do not remove PostgreSQL volumes. Source migration and image builds do not replace existing running containers until `up -d` is executed. Existing administrator hashes and account encryption keys must stay unchanged. Ordinary deployments apply explicitly reviewed migrations before starting the new API.
+
+To add a future migration, restore the pinned local `dotnet-ef` tool and run:
+
+```bash
+dotnet tool restore
+dotnet ef migrations add YourMigration --project src/APH.SiteHub.Infrastructure --output-dir Persistence/Migrations
+```
+
+Apply through the API `--migrate` command with the desired environment. The design-time factory uses an offline placeholder connection for scaffolding; it is not a deployment configuration.
+
+## Verification
+
+```bash
 bun run build
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
-POSTGRES_TEST_URL='postgresql://sitehub:password@127.0.0.1:5432/sitehub' bun test
+bun run lint
+bun run test
+bun run format:check
 ```
 
-API tests create uniquely named disposable PostgreSQL databases and drop them after use. The test role needs CREATEDB; use a dedicated test server. If `POSTGRES_TEST_URL` is unset, the integration tests are skipped.
+Backend unit tests cover Result invariants, failure propagation, write prevention, driver-error mapping, cancellation, HTTP error categories, Node/Bun interoperability, encryption integrity, session signatures, URL normalization, search folding and login limit expiry. PostgreSQL API integration tests create and drop randomly named databases on the supplied test server, test fresh schema and legacy schema adoption, run migration twice, exercise CRUD/filtering/rollback, prevent secret leakage, reject Origin/CSRF violations and verify password-change session revocation.
 
-## Shared UI components
-
-The interface uses shadcn-vue components stored in `frontend/src/components/ui/`:
-
-- `Card` for the sign-in panel and website cards.
-- `Alert` for API errors and save notifications.
-- `Empty` for empty lists and searches with no results.
-- `Skeleton` for loading states and `Badge` for search counts.
-- `Field`, `FieldLabel`, and `FieldError` for forms and validation.
-- `InputGroup` for search and password visibility controls.
-- `Button`, `Input`, and `Dialog` for actions, input, and modal forms.
-
-Components are added from the official registry with `bunx --bun shadcn-vue@latest add <component>` inside `frontend/`. Their source is committed locally; Reka UI supplies the underlying interaction primitives. Keep Phosphor icons and the shared theme in `frontend/src/style.css` when adding components. The stylesheet contains theme tokens, base styles, and the browser password-reveal override; layout uses Tailwind utilities.
-
-Previous browser checks (before tag and pagination changes) covered sign-in, empty lists, add/edit validation, list/count updates, search, opening links, password controls, loading, API failure, and retry at 1440, 768, and 375 px. Screenshots: [desktop](artifacts/shadcn-desktop.png), [tablet](artifacts/shadcn-tablet.png), [mobile](artifacts/shadcn-mobile.png).
-
-## Tags, filtering, and pagination
-
-Run the migrations before starting the updated backend when upgrading an existing installation:
+Use **only a disposable test PostgreSQL server** with database creation permission:
 
 ```bash
-docker compose build backend
-docker compose up -d --wait postgres
-docker compose run --rm backend bun backend/dist/cli/migrate.js
-docker compose up -d --wait
+POSTGRES_TEST_URL='postgresql://test_user:test_password@127.0.0.1:55432/sitehub_test' bun run test
 ```
 
-The initial TypeORM migration creates or adopts `websites`, `tags`, `website_tags`, and `admin_credentials`. Tags have stable UUIDs and unique normalized names; `website_tags` preserves their assignment order. Website create/update operations maintain `search_text`, including Vietnamese accent and đ/Đ folding. Migration only applies schema changes; re-running it preserves existing website, tag, and credential data.
-
-Tag names are trimmed, leading `#` characters are removed, and names must contain 1–64 characters. Names are unique without regard to case. Descriptions allow up to 240 characters and colors must be six-digit hex values. The unique database index resolves concurrent duplicate creates. Tag deletion removes its ID from all websites in one transaction while preserving the websites.
-
-The authenticated tag API uses `GET /api/tags`, `POST /api/tags`, `PATCH /api/tags/:id`, and `DELETE /api/tags/:id`. Create and update accept `{ name, description, color }`. Website create and update accept optional `tag_ids: string[]`; responses include `tag_ids` and expanded `tags`. All writes use the existing origin and CSRF checks. Errors retain `{ error: { code, message } }`.
-
-`GET /api/websites` now returns `{ websites, total, page, pageSize }`. Query parameters are `page` (default 1), `pageSize` (default 12, maximum 48), `search`, and comma-separated `tagIds`. Tag filtering uses OR across selected tags, then AND with accent-insensitive name/URL search. Results are ordered by newest `created_at`, then `website_id` descending, before pagination. `total` counts filtered results; `GET /api/websites/count` continues to count all saved websites. The frontend keeps the search, tags, page, and page size in the URL query.
-
-## Account API
-
-All `/api/accounts` routes require an administrator session. Write requests also require an allowed origin and the session CSRF token.
-
-| Method | Route                          | Result                                            |
-| ------ | ------------------------------ | ------------------------------------------------- |
-| GET    | `/api/accounts`                | `{ accounts }`                                    |
-| GET    | `/api/accounts/stats`          | `{ stats }`, totals and per-provider limit counts |
-| GET    | `/api/accounts/:id`            | `{ account }`                                     |
-| POST   | `/api/accounts`                | `{ account }`, HTTP 201                           |
-| PATCH  | `/api/accounts/:id`            | `{ account }`                                     |
-| GET    | `/api/accounts/:id/secret-key` | `{ secret_key }`, with `Cache-Control: no-store`  |
-| DELETE | `/api/accounts/:id`            | `{ ok: true }`                                    |
-
-Creation requires `provider`, `login_name`, `external_account_id`, `email`, `password`, and `secret_key`. Optional `is_limit` defaults to false; optional `created_at` defaults to the server time. Updates accept one or more of `password`, `secret_key`, and `is_limit`. Duplicate provider/external-ID pairs return 409; missing accounts return 404. Account responses exclude passwords and encrypted secrets. Secret keys use AES-256-GCM with a fresh nonce and the account ID as authenticated data. Account login passwords retain the existing storage format.
-
-Run `bun --cwd backend migrate` before using these routes to create the accounts table and unique index. The Accounts page provides account CRUD and secret-key viewing through these routes.
-
-## Frontend navigation
-
-TanStack Vue Router renders Websites at `/` and Accounts at `/accounts` inside the authenticated workspace layout. The sidebar reuses the existing UI components and Phosphor icons, highlights the active page, and remembers its desktop collapsed state locally. On mobile, the navigation opens in a dialog drawer with keyboard focus handling and Escape dismissal. Password changes and sign-out remain available in the sidebar.
-
-Website filters and pagination are managed through router search parameters, including existing comma-separated `tagIds` URLs. Back/Forward and direct page loads preserve routing behavior. Unknown URLs show a page-not-found screen. The existing nginx SPA fallback handles refreshes on `/accounts`.
+Without `POSTGRES_TEST_URL`, the PostgreSQL integration tests are explicitly skipped. The unit and frontend tests still run. Tests never use `DATABASE_URL` to choose their test server.

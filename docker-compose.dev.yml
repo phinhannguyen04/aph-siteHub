@@ -1,5 +1,5 @@
-# Host-run Bun development and isolated integration tests.
+# Host-run .NET/Vue development. Use a separate database for integration tests.
 services:
   postgres:
     ports:
-      - '127.0.0.1:5432:5432'
+      - '127.0.0.1:5433:5432'

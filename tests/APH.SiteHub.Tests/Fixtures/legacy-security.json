@@ -1,0 +1,9 @@
+{
+  "password": "legacy-password-123",
+  "hash": "$argon2id$v=19$m=65536,t=2,p=1$qj8ZWEa5gndA4ofL3Kz/D71H+hlpcWqCrjS19IJ2AiY$RscKo0/DW0FPYAWTgaBkdaPesmDjqr9T0ZU8Hyp5JPA",
+  "id": "c195992c-1d80-43d2-ab90-1cb9c2803874",
+  "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "secret": "legacy-secret",
+  "envelope": "v1.BwcHBwcHBwcHBwcH.m6J829iCmES4lwYu5tjFfw.OjQyuya-gy70T-NVew",
+  "token": "eyJleHAiOjQxMDI0NDQ4MDAwMDAsImNzcmYiOiJsZWdhY3ktY3NyZiIsInZlcnNpb24iOiJsZWdhY3ktdmVyc2lvbiJ9.nc0a9LfwDciqb3HAaEqqtUrE_ftbz3dnMiGenMz9Iyk"
+}

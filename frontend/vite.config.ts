@@ -10,8 +10,10 @@ export default defineConfig({
     port: Number(process.env.SITEHUB_DEV_PORT || 8111),
     strictPort: true,
     proxy: {
-      '/api': process.env.SITEHUB_DEV_API_TARGET || 'http://localhost:3000',
-      '/health': process.env.SITEHUB_DEV_API_TARGET || 'http://localhost:3000',
+      '/api':
+        process.env.SITEHUB_DEV_API_TARGET || `http://localhost:${process.env.API_PORT || 3000}`,
+      '/health':
+        process.env.SITEHUB_DEV_API_TARGET || `http://localhost:${process.env.API_PORT || 3000}`,
     },
   },
 })
