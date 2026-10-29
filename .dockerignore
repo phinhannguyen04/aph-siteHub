@@ -15,3 +15,10 @@ artifacts
 **/obj
 TestResults
 tests
+
+# Frontend build output and caches
+**/.next
+**/.bun-cache
+**/.bun-tmp
+**/test-results
+**/playwright-report

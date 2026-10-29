@@ -1,27 +1,23 @@
 {
   "name": "website-admin",
   "private": true,
-  "workspaces": [
-    "frontend"
-  ],
   "scripts": {
     "dev": "bun scripts/backend.ts dev",
-    "dev:frontend": "bun --cwd frontend dev",
-    "typecheck": "dotnet build APH.SiteHub.sln && bun --cwd frontend typecheck",
-    "build": "dotnet build APH.SiteHub.sln -c Release && bun --cwd frontend build",
-    "test": "dotnet test APH.SiteHub.sln && bun test frontend/test",
+    "dev:frontend": "bun --cwd src/APH.SiteHub.Ui dev",
+    "typecheck": "dotnet build APH.SiteHub.sln && bun --cwd src/APH.SiteHub.Ui typecheck",
+    "build": "dotnet build APH.SiteHub.sln -c Release && bun --cwd src/APH.SiteHub.Ui build",
+    "test": "dotnet test APH.SiteHub.sln && bun --cwd src/APH.SiteHub.Ui test",
     "test:backend": "dotnet test APH.SiteHub.sln",
     "migrate": "bun scripts/backend.ts migrate",
     "hash-password": "bun scripts/backend.ts hash-password",
     "reset-password": "bun scripts/backend.ts reset-password",
-    "lint": "eslint frontend/src frontend/test shared scripts",
+    "lint": "eslint scripts && bun --cwd src/APH.SiteHub.Ui check",
     "format": "prettier --write . && dotnet format APH.SiteHub.sln",
     "format:check": "prettier --check . && dotnet format APH.SiteHub.sln --verify-no-changes"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.11.0",
-    "eslint-plugin-vue": "^10.11.1",
     "prettier": "^3.9.9",
     "typescript-eslint": "^8.70.1",
     "@types/bun": "^1.3.0"

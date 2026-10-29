@@ -1,0 +1,13 @@
+node_modules/
+.next/
+*.tsbuildinfo
+.env*
+!.env.example
+
+.bun-cache/
+.bun-tmp/
+
+test-results/
+playwright-report/
+
+next-env.d.ts

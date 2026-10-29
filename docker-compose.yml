@@ -36,14 +36,15 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: src/APH.SiteHub.Ui/Dockerfile
     ports:
-      - '8111:80'
+      - '8111:3000'
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/health']
+      # /health is proxied by the Next.js rewrite to the backend's database-backed probe.
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/health']
       interval: 10s
       timeout: 5s
       retries: 5
