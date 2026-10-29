@@ -1,6 +1,6 @@
 # APH SiteHub
 
-An internal website and account dashboard with Vue 3, TypeScript and an ASP.NET Core 10 Minimal API. PostgreSQL stores the existing SiteHub data. Bun runs frontend tooling; the backend runs on .NET.
+An internal website and account dashboard with Next.js, MUI and an ASP.NET Core 10 Minimal API. PostgreSQL stores the existing SiteHub data. Bun runs frontend tooling; the backend runs on .NET.
 
 ## Structure and architecture
 
@@ -10,8 +10,7 @@ src/
   APH.SiteHub.Application/     Feature/use-case folders, Contracts/, Abstractions/ and Common/
   APH.SiteHub.Infrastructure/  Repositories, entity Configurations/, migrations and Security/
   APH.SiteHub.Api/             Endpoints/, Contracts/, Security/, Middleware/, ErrorHandling/ Commands/ and Http/
-frontend/                     Vue application and same-origin API client
-shared/                       Frontend Result helpers
+src/APH.SiteHub.Ui/           Next.js + MUI application (Biome); same-origin /api proxy via Next rewrites
 tests/APH.SiteHub.Tests/       xUnit, legacy interoperability fixtures and PostgreSQL API tests
 scripts/backend.ts            Pass workspace .env to .NET development/maintenance commands
 APH.SiteHub.sln
@@ -45,7 +44,7 @@ DATABASE_URL='postgresql://sitehub:password@127.0.0.1:5433/sitehub' bun run dev
 bun run dev:frontend
 ```
 
-The API listens on `API_PORT` (default 3000). Vite proxies `/api` and `/health` to this backend. `SITEHUB_DEV_API_TARGET` overrides that target; `SITEHUB_DEV_PORT` overrides the frontend port. Set `APP_ORIGIN` to the exact frontend origin (default example `http://localhost:8111`) and add other trusted origins via `APP_ORIGINS`.
+The API listens on `API_PORT` (default 3000). Next.js rewrites proxy `/api` and `/health` to this backend (the target is fixed at build time). `SITEHUB_DEV_API_TARGET` overrides that target; `SITEHUB_DEV_PORT` overrides the frontend port. Set `APP_ORIGIN` to the exact frontend origin (default example `http://localhost:8111`) and add other trusted origins via `APP_ORIGINS`.
 
 With exported environment settings, .NET can also run directly:
 
@@ -78,7 +77,7 @@ printf '%s\n' "$sitehub_password" | docker compose run --rm -T backend --reset-p
 unset sitehub_password
 ```
 
-Normal account responses exclude stored passwords and encrypted secrets. Only authenticated `GET /api/accounts/{id}/secret-key` reveals a secret, with `Cache-Control: no-store`. All API responses disable caching. Cookie flags are HttpOnly, SameSite=Strict and configurable Secure, with path `/api`. Enable `COOKIE_SECURE=true` behind HTTPS. Login blocks after five failed attempts for fifteen minutes. The limiter uses the actual connection IP and is in memory; behind Nginx the limit is shared by connections from that proxy. Forwarded IP headers are not trusted by default.
+Normal account responses exclude stored passwords and encrypted secrets. Only authenticated `GET /api/accounts/{id}/secret-key` reveals a secret, with `Cache-Control: no-store`. All API responses disable caching. Cookie flags are HttpOnly, SameSite=Strict and configurable Secure, with path `/api`. Enable `COOKIE_SECURE=true` behind HTTPS. Login blocks after five failed attempts for fifteen minutes. The limiter uses the actual connection IP and is in memory; behind the Next.js proxy the limit is shared by connections from that proxy. Forwarded IP headers are not trusted by default.
 
 ## API contract
 
@@ -108,7 +107,7 @@ Website filters support `page` (1–1,000,000), `pageSize` (1–48, default 12),
 
 ## Docker migration and deployment
 
-Compose keeps the existing `postgres_data` volume and port `8111`. Nginx forwards `/api` and `/health` to the .NET backend on port 3000. The API uses a multi-stage .NET build, a non-root runtime user and a database-backed health probe. Frontend builds contain no NestJS workspace dependency.
+Compose keeps the existing `postgres_data` volume and port `8111`. The Next.js server (standalone image, container port 3000, published as 8111) forwards `/api` and `/health` to the .NET backend on port 3000. The API uses a multi-stage .NET build, a non-root runtime user and a database-backed health probe. Frontend builds contain no NestJS workspace dependency.
 
 Before applying the migration to a populated database, save a database backup in a protected location:
 
@@ -152,4 +151,4 @@ Use **only a disposable test PostgreSQL server** with database creation permissi
 POSTGRES_TEST_URL='postgresql://test_user:test_password@127.0.0.1:55432/sitehub_test' bun run test
 ```
 
-Without `POSTGRES_TEST_URL`, the PostgreSQL integration tests are explicitly skipped. The unit and frontend tests still run. Tests never use `DATABASE_URL` to choose their test server.
+Without `POSTGRES_TEST_URL`, the PostgreSQL integration tests are explicitly skipped. The unit and UI contract tests still run. Tests never use `DATABASE_URL` to choose their test server.

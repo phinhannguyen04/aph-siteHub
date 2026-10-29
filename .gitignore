@@ -1,5 +1,22 @@
 node_modules/
 dist/
+
+# Node/Bun package caches, logs and build output
+.bun-cache/
+.bun-tmp/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/install-state.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+.next/
+*.tsbuildinfo
+test-results/
+playwright-report/
 .env
 *.sqlite
 *.sqlite-*

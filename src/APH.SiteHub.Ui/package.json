@@ -1,0 +1,37 @@
+{
+  "name": "aph-sitehub-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p ${SITEHUB_DEV_PORT:-8111}",
+    "build": "next build",
+    "start": "next start -p ${SITEHUB_DEV_PORT:-8111}",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests/contracts.test.ts tests/password-field.test.tsx",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "@mui/material": "9.5.0",
+    "@mui/icons-material": "9.5.0",
+    "@mui/material-nextjs": "9.5.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@emotion/cache": "11.14.0",
+    "@tanstack/react-query": "5.105.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@playwright/test": "1.64.1",
+    "@types/bun": "1.4.4",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

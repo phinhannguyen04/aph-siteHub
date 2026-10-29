@@ -15,3 +15,6 @@ coverage
 **/obj
 TestResults
 APH.SiteHub.sln
+
+# Formatted by Biome
+src/APH.SiteHub.Ui
