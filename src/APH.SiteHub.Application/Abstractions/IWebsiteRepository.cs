@@ -9,4 +9,5 @@ public interface IWebsiteRepository
     Task<Result<int>> CountAsync(CancellationToken ct);
     Task<Result<Website>> CreateAsync(Website website, string[] tags, CancellationToken ct);
     Task<Result<Website?>> UpdateAsync(UpdateWebsiteCommand command, CancellationToken ct);
+    Task<Result<bool>> DeleteAsync(string id, CancellationToken ct);
 }

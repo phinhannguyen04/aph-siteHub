@@ -1,5 +1,5 @@
 'use client'
-import { EditOutlined } from '@mui/icons-material'
+import { DeleteOutlined, EditOutlined } from '@mui/icons-material'
 import { Avatar, Card, CardContent, IconButton, Link, Stack, Typography } from '@mui/material'
 import { Copy, localDate, TagChip } from '@/components/common'
 import type { Website } from '@/lib/api/types'
@@ -13,9 +13,11 @@ function avatarColor(name: string) {
 export function WebsiteCard({
   website,
   onEdit,
+  onDelete,
 }: {
   website: Website
   onEdit: (website: Website) => void
+  onDelete: (website: Website) => void
 }) {
   return (
     <Card sx={{ display: 'flex' }}>
@@ -40,6 +42,9 @@ export function WebsiteCard({
           </Typography>
           <IconButton aria-label={`${c.edit} ${website.name}`} onClick={() => onEdit(website)}>
             <EditOutlined fontSize="small" />
+          </IconButton>
+          <IconButton aria-label={`${c.delete} ${website.name}`} onClick={() => onDelete(website)}>
+            <DeleteOutlined fontSize="small" />
           </IconButton>
         </Stack>
         <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>

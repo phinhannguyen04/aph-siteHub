@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { accountPatch } from '../src/lib/api/accounts'
 import { onUnauthorized, request, setToken } from '../src/lib/api/client'
 import type { Account, Website } from '../src/lib/api/types'
-import { websiteFilters, websitePatch, websiteSearch } from '../src/lib/api/websites'
+import { deleteWebsite, websiteFilters, websitePatch, websiteSearch } from '../src/lib/api/websites'
 import { account, changePassword, login, password, tag, website } from '../src/lib/validation'
 
 const originalFetch = globalThis.fetch
@@ -43,6 +43,22 @@ describe('strict contracts', () => {
       new URLSearchParams('page=01&pageSize=99&search=&tagIds=&unknown=x'),
     )
     expect(websiteSearch(filters)).toBe('page=1&pageSize=12')
+  })
+  test('website deletion targets the record endpoint with a CSRF token', async () => {
+    const seen: { url: string; init: RequestInit | undefined }[] = []
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      seen.push({ url: String(url), init })
+      return Response.json({ ok: true })
+    }) as unknown as typeof fetch
+    setToken('delete-token')
+    expect(await deleteWebsite('a/b')).toEqual({ ok: true, data: { ok: true } })
+    expect(seen).toHaveLength(1)
+    expect(seen[0].url).toBe('/api/websites/a%2Fb')
+    expect(seen[0].init).toMatchObject({
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'x-csrf-token': 'delete-token' },
+    })
   })
   test('validation rejects credentials in URLs and invalid password or tags', () => {
     expect(website('Docs', 'https://name:pass@example.com', [])).toHaveProperty('url')

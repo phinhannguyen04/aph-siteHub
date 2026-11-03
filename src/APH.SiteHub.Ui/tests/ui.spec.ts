@@ -58,6 +58,7 @@ async function mock(page: Page, authenticated = true) {
     lock: false,
     conflict: false,
     database: false,
+    countRequests: 0,
   }
   await page.route('https://example.com/**', (route) => route.abort())
   await page.route('**/api/**', async (route) => {
@@ -91,7 +92,10 @@ async function mock(page: Page, authenticated = true) {
       return respond({ csrfToken: state.token })
     }
     if (state.database) return fail(503, 'DATABASE_UNAVAILABLE', 'Unavailable')
-    if (path === '/api/websites/count') return respond({ count: state.sites.length })
+    if (path === '/api/websites/count') {
+      state.countRequests++
+      return respond({ count: state.sites.length })
+    }
     if (path === '/api/websites') {
       if (method === 'POST') {
         state.sites = [{ ...site, ...body }]
@@ -103,14 +107,22 @@ async function mock(page: Page, authenticated = true) {
         (s) =>
           !p.get('search') || s.name.toLowerCase().includes(p.get('search')?.toLowerCase() ?? ''),
       )
+      const page = Number(p.get('page') ?? 1)
+      const pageSize = Number(p.get('pageSize') ?? 12)
+      const start = (page - 1) * pageSize
       return respond({
-        websites: filtered,
+        websites: filtered.slice(start, start + pageSize),
         total: filtered.length,
-        page: Number(p.get('page') ?? 1),
-        pageSize: Number(p.get('pageSize') ?? 12),
+        page,
+        pageSize,
       })
     }
     if (path.startsWith('/api/websites/')) {
+      if (method === 'DELETE') {
+        const deleted = path.slice(path.lastIndexOf('/') + 1)
+        state.sites = state.sites.filter((s) => s.id !== deleted)
+        return respond({ ok: true })
+      }
       state.sites = [{ ...state.sites[0], ...body }]
       return respond({ website: state.sites[0] })
     }
@@ -191,7 +203,7 @@ test('website URL filters, minimal PATCH and tag creation/conflict/deletion', as
   const state = await mock(page)
   await page.goto('/?page=1&pageSize=24')
   await expect(page.getByRole('heading', { name: 'Documentation', exact: true })).toBeVisible()
-  expect(await page.getByRole('button', { name: /Delete Documentation/ }).count()).toBe(0)
+  expect(await page.getByRole('button', { name: /Delete Documentation/ }).count()).toBe(1)
   await page.getByLabel(/^Search websites/).fill('missing')
   await expect(page).toHaveURL(/search=missing/)
   await expect(page.getByText('No matching results')).toBeVisible()
@@ -217,6 +229,42 @@ test('website URL filters, minimal PATCH and tag creation/conflict/deletion', as
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(page.getByText('No tags yet. Create one to organize your websites.')).toBeVisible()
   expect(state.mutations.every((m) => m.csrf === state.token)).toBe(true)
+})
+test('website deletion confirms the name, refreshes the count and leaves an emptied page', async ({
+  page,
+}) => {
+  const state = await mock(page)
+  state.sites = Array.from({ length: 13 }, (_, index) => ({
+    ...site,
+    id: `a26cb4ea-3d1e-4e85-a438-e306b0421c${String(index).padStart(2, '0')}`,
+    name: `Website ${index + 1}`,
+    url: `https://example.com/${index + 1}`,
+  }))
+  await page.goto('/?page=2&pageSize=12')
+  await expect(page.getByRole('heading', { name: 'Website 13', exact: true })).toBeVisible()
+  const badge = page.locator('.MuiBadge-badge').last()
+  await expect(badge).toHaveText('13')
+  const countRequests = state.countRequests
+  await page.getByRole('button', { name: 'Delete Website 13', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Delete website?', exact: true })
+  await expect(dialog.getByText('Website 13', { exact: true })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Website 13', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Delete Website 13', exact: true }).click()
+  await page
+    .getByRole('dialog', { name: 'Delete website?', exact: true })
+    .getByRole('button', { name: 'Delete', exact: true })
+    .click()
+  await expect(page).toHaveURL(/page=1/)
+  await expect(page.getByRole('heading', { name: 'Website 12', exact: true })).toBeVisible()
+  await expect(badge).toHaveText('12')
+  expect(state.sites).toHaveLength(12)
+  expect(state.countRequests).toBeGreaterThan(countRequests)
+  expect(state.mutations.at(-1)).toMatchObject({
+    path: '/api/websites/a26cb4ea-3d1e-4e85-a438-e306b0421c12',
+    method: 'DELETE',
+  })
 })
 test('account list/table, secret timeout, minimal edit and typed delete', async ({ page }) => {
   const state = await mock(page)

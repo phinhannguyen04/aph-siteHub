@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useNotice } from '@/components/layout/providers'
 import { c } from '../copy'
 import { query, request } from './client'
-import type { ApiError, Tag } from './types'
+import type { ApiError, Result, Tag } from './types'
 export const useTags = () =>
   useQuery({ queryKey: ['tags'], queryFn: () => query<{ tags: Tag[] }>('/api/tags') })
 export function useWrite(keys: string[]) {
@@ -13,10 +13,9 @@ export function useWrite(keys: string[]) {
   const guard = useRef(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
-  async function run<T>(
-    path: string,
+  async function apply<T>(
+    action: () => Promise<Result<T>>,
     method: string,
-    body: object | undefined,
     success: (data: T) => void,
   ) {
     if (guard.current) return
@@ -24,7 +23,7 @@ export function useWrite(keys: string[]) {
     setPending(true)
     setError(null)
     try {
-      const result = await request<T>(path, method, body)
+      const result = await action()
       if (result.ok) {
         await Promise.all(keys.map((key) => client.invalidateQueries({ queryKey: [key] })))
         notify(method === 'DELETE' ? c.deleted : method === 'POST' ? c.created : c.saved)
@@ -41,5 +40,16 @@ export function useWrite(keys: string[]) {
       setPending(false)
     }
   }
-  return { run, pending, error, setError }
+  function run<T>(
+    path: string,
+    method: string,
+    body: object | undefined,
+    success: (data: T) => void,
+  ) {
+    return apply(() => request<T>(path, method, body), method, success)
+  }
+  function runDelete<T>(action: () => Promise<Result<T>>, success: (data: T) => void) {
+    return apply(action, 'DELETE', success)
+  }
+  return { run, runDelete, pending, error, setError }
 }

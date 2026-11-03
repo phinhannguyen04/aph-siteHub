@@ -123,6 +123,7 @@ public sealed class ResultTests
             return Task.FromResult(Result<Website>.Failure(Failure));
         }
         public Task<Result<Website?>> UpdateAsync(UpdateWebsiteCommand command, CancellationToken ct) => Task.FromResult(Result<Website?>.Success(null));
+        public Task<Result<bool>> DeleteAsync(string id, CancellationToken ct) => Task.FromResult(Result<bool>.Success(false));
         public Task<Result<int>> CountAsync(CancellationToken ct) => Task.FromResult(Result<int>.Success(0));
         public Task<Result<WebsitePage>> ListAsync(ListWebsitesQuery query, CancellationToken ct) => Task.FromResult(Result<WebsitePage>.Success(new([], 0, query.Page, query.PageSize)));
     }
