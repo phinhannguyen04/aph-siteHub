@@ -8,6 +8,8 @@ namespace APH.SiteHub.Infrastructure.Persistence;
 
 public sealed class WebsiteRepository(SiteHubDbContext db, DatabaseOperation database) : IWebsiteRepository
 {
+    public Task<Result<bool>> DeleteAsync(string id, CancellationToken ct) => database.ExecuteAsync<bool>(async () => Result<bool>.Success(await db.Websites.Where(x => x.Id == id).ExecuteDeleteAsync(ct) > 0), ct);
+
     public Task<Result<WebsitePage>> ListAsync(ListWebsitesQuery query, CancellationToken ct) => database.ExecuteAsync<WebsitePage>(async () =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);

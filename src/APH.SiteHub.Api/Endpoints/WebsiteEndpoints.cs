@@ -17,6 +17,17 @@ public static class WebsiteEndpoints
         group.MapGet("/count", CountWebsitesAsync);
         group.MapPost("", CreateWebsiteAsync);
         group.MapPatch("/{id}", UpdateWebsiteAsync);
+        group.MapDelete("/{id}", DeleteWebsiteAsync);
+    }
+
+    private static async Task<IResult> DeleteWebsiteAsync(string id, DeleteWebsiteHandler handler, CancellationToken ct)
+    {
+        return (
+            await handler.HandleAsync(
+                new(id),
+                ct
+            )
+        ).ToHttpResult(ok => new { ok });
     }
 
     private static async Task<IResult> ListWebsitesAsync(HttpRequest request, ListWebsitesHandler handler, CancellationToken ct)

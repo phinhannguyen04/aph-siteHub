@@ -9,7 +9,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services) => services
         .AddScoped<AuthService>().AddScoped<ListWebsitesHandler>().AddScoped<CreateWebsiteHandler>()
-        .AddScoped<UpdateWebsiteHandler>().AddScoped<SaveTagHandler>()
+        .AddScoped<UpdateWebsiteHandler>().AddScoped<DeleteWebsiteHandler>().AddScoped<SaveTagHandler>()
         .AddScoped<CreateAccountHandler>().AddScoped<UpdateAccountHandler>()
         .AddScoped<CountWebsitesHandler>().AddScoped<ListTagsHandler>().AddScoped<DeleteTagHandler>()
         .AddScoped<ListAccountsHandler>().AddScoped<GetAccountHandler>().AddScoped<AccountStatsHandler>()

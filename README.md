@@ -93,6 +93,7 @@ All existing paths and response field names are preserved. Mutations require the
 | GET          | `/api/websites`                       | `{ websites, total, page, pageSize }` |
 | GET          | `/api/websites/count`                 | `{ count }`                           |
 | POST / PATCH | `/api/websites`, `/api/websites/{id}` | `{ website }`                         |
+| DELETE       | `/api/websites/{id}`                  | `{ ok: true }`                        |
 | GET          | `/api/tags`                           | `{ tags }`                            |
 | POST / PATCH | `/api/tags`, `/api/tags/{id}`         | `{ tag }`                             |
 | DELETE       | `/api/tags/{id}`                      | `{ ok: true }`                        |

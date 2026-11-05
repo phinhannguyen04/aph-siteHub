@@ -11,6 +11,7 @@ import type { Website, WebsitePage } from '@/lib/api/types'
 import { websiteFilters, websiteSearch } from '@/lib/api/websites'
 import { c } from '@/lib/copy'
 import { WebsiteCard } from './card'
+import { DeleteWebsiteDialog } from './delete-dialog'
 import { WebsitePagination } from './pagination'
 import { WebsiteToolbar } from './toolbar'
 export function Websites() {
@@ -21,6 +22,7 @@ export function Websites() {
   const searchKey = websiteSearch(filters)
   const [search, setSearch] = useState(filters.search)
   const [form, setForm] = useState<Website | 'new' | null>(null)
+  const [deleting, setDeleting] = useState<Website | null>(null)
   const tags = useTags()
   const data = useQuery({
     queryKey: ['websites', searchKey],
@@ -113,7 +115,12 @@ export function Websites() {
           }}
         >
           {data.data?.websites.map((website) => (
-            <WebsiteCard key={website.id} website={website} onEdit={setForm} />
+            <WebsiteCard
+              key={website.id}
+              website={website}
+              onEdit={setForm}
+              onDelete={setDeleting}
+            />
           ))}
         </Box>
       )}
@@ -122,6 +129,17 @@ export function Websites() {
       )}
       {form && (
         <WebsiteForm website={form === 'new' ? undefined : form} onClose={() => setForm(null)} />
+      )}
+      {deleting && (
+        <DeleteWebsiteDialog
+          website={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            if (data.data && data.data.websites.length <= 1 && filters.page > 1)
+              update({ page: filters.page - 1 })
+            setDeleting(null)
+          }}
+        />
       )}
     </Stack>
   )

@@ -96,6 +96,8 @@ export const c = {
   deleteAccount: 'Delete account?',
   confirmLogin: 'Type the login name to confirm',
   irreversible: 'This permanently deletes the account.',
+  deleteWebsite: 'Delete website?',
+  irreversibleWebsite: 'This permanently removes the website from your directory.',
   noAccounts: 'No accounts yet',
   noAccountsBody: 'Add a provider account to start managing access.',
   currentPassword: 'Current password',

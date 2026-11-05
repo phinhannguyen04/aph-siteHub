@@ -1,5 +1,9 @@
+import { request } from './client'
 import type { Website } from './types'
 export type WebsiteInput = { name: string; url: string; tag_ids: string[] }
+export function deleteWebsite(id: string) {
+  return request<{ ok: boolean }>(`/api/websites/${encodeURIComponent(id)}`, 'DELETE')
+}
 export function websitePatch(original: Website, input: WebsiteInput): Partial<WebsiteInput> {
   return {
     ...(input.name !== original.name ? { name: input.name } : {}),

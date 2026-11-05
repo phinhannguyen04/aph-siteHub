@@ -22,6 +22,74 @@ public sealed class PostgresFactAttribute : FactAttribute
 public sealed class ApiTests
 {
     [PostgresFact]
+    public async Task DeletesWebsiteAndCascadesTagsOnlyWithAuthenticatedCsrfRequest()
+    {
+        await using var fixture = await ApiFixture.CreateAsync(legacy: false);
+        using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost");
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { password = "legacy-password-123" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var csrf = (await Json(login)).GetProperty("csrfToken").GetString()!;
+        client.DefaultRequestHeaders.Add("x-csrf-token", csrf);
+        var tag = await client.PostAsJsonAsync("/api/tags", new { name = "Delete test", color = "#123456" });
+        Assert.Equal(HttpStatusCode.Created, tag.StatusCode);
+        var tagId = (await Json(tag)).GetProperty("tag").GetProperty("id").GetString()!;
+        var website = await client.PostAsJsonAsync("/api/websites", new
+        {
+            name = "Delete test",
+            url = "https://example.com",
+            tag_ids = new[] { tagId }
+        });
+        Assert.Equal(HttpStatusCode.Created, website.StatusCode);
+        var id = (await Json(website)).GetProperty("website").GetProperty("id").GetString()!;
+        var path = "/api/websites/" + id;
+
+        using var anonymous = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        anonymous.DefaultRequestHeaders.Add("Origin", "http://localhost");
+        anonymous.DefaultRequestHeaders.Add("x-csrf-token", csrf);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.DeleteAsync(path)).StatusCode);
+        client.DefaultRequestHeaders.Remove("x-csrf-token");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync(path)).StatusCode);
+        client.DefaultRequestHeaders.Add("x-csrf-token", "invalid");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync(path)).StatusCode);
+        client.DefaultRequestHeaders.Remove("x-csrf-token");
+        client.DefaultRequestHeaders.Add("x-csrf-token", csrf);
+        client.DefaultRequestHeaders.Remove("Origin");
+        client.DefaultRequestHeaders.Add("Origin", "https://untrusted.example");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync(path)).StatusCode);
+        client.DefaultRequestHeaders.Remove("Origin");
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost");
+        await using (var scope = fixture.Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SiteHubDbContext>();
+            Assert.True(await db.Websites.AnyAsync(x => x.Id == id));
+            Assert.Equal(1, await db.WebsiteTags.CountAsync(x => x.WebsiteId == id));
+        }
+
+        var deleted = await client.DeleteAsync(path);
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        Assert.True((await Json(deleted)).GetProperty("ok").GetBoolean());
+        await using (var scope = fixture.Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SiteHubDbContext>();
+            Assert.False(await db.Websites.AnyAsync(x => x.Id == id));
+            Assert.False(await db.WebsiteTags.AnyAsync(x => x.WebsiteId == id));
+            Assert.True(await db.Tags.AnyAsync(x => x.Id == tagId));
+        }
+        var page = await Json(await client.GetAsync("/api/websites"));
+        Assert.Equal(0, page.GetProperty("total").GetInt32());
+        Assert.Empty(page.GetProperty("websites").EnumerateArray());
+        foreach (var missingPath in new[] { path, "/api/websites/" + Guid.NewGuid() })
+        {
+            var missing = await client.DeleteAsync(missingPath);
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+            var error = (await Json(missing)).GetProperty("error");
+            Assert.Equal("NOT_FOUND", error.GetProperty("code").GetString());
+            Assert.Equal("Website not found", error.GetProperty("message").GetString());
+        }
+    }
+
+    [PostgresFact]
     public async Task MigratesExistingDataAndPreservesApiSecurityAndTransactions()
     {
         await using var fixture = await ApiFixture.CreateAsync(legacy: true);
