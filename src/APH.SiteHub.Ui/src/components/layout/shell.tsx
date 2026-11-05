@@ -135,10 +135,9 @@ export function Shell({ children }: { children: ReactNode }) {
         color="inherit"
         elevation={0}
         sx={{
+          display: { xs: 'block', md: 'none'},
           borderBottom: 1,
           borderColor: 'divider',
-          width: { md: 'calc(100% - 248px)' },
-          ml: { md: '248px' },
         }}
       >
         <Toolbar>
@@ -178,7 +177,7 @@ export function Shell({ children }: { children: ReactNode }) {
         component="main"
         sx={{ flex: 1, minWidth: 0, p: { xs: 2, sm: 3, lg: 5 }, maxWidth: 1900, mx: 'auto' }}
       >
-        <Toolbar />
+        <Toolbar sx={{ display: {md: 'none' }}} />
         {children}
       </Box>
       {tags && <TagsManager onClose={() => setTags(false)} />}{' '}
