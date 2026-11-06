@@ -32,8 +32,18 @@ public sealed class SessionAuthenticationHandler(IOptionsMonitor<AuthenticationS
         {
             return AuthenticateResult.Fail("Revoked session");
         }
-        var claims = new[] { new Claim(ClaimTypes.NameIdentifier, "primary"), new Claim("csrf", session.Csrf), new Claim("version", session.Version) };
-        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name)), Scheme.Name));
+        var claims = new[] { 
+            new Claim(ClaimTypes.NameIdentifier, "primary"), 
+            new Claim("csrf", session.Csrf), 
+            new Claim("version", session.Version) 
+        };
+        return AuthenticateResult.Success(new AuthenticationTicket(
+                new ClaimsPrincipal(
+                    new ClaimsIdentity(claims, Scheme.Name)
+                ), 
+                Scheme.Name
+            )
+        );
     }
     protected override Task HandleChallengeAsync(AuthenticationProperties properties) => ErrorHttpMapper.WriteAsync(Response,
         Context.Items[FailureKey] as Error ?? Error.Unauthorized(), Context.RequestAborted);
