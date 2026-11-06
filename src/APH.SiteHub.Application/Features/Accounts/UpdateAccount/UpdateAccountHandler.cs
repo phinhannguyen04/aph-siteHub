@@ -16,7 +16,13 @@ public sealed class UpdateAccountHandler(IAccountRepository repository, ISecretP
         {
             return Result<AccountResponse>.Failure(error);
         }
-        return (await repository.UpdateAsync(command.Id, password.Value, secret.Value, command.IsLimit, ct)).Bind(account => account is null
+        return (await repository.UpdateAsync(
+            command.Id,
+            password.Value,
+            secret.Value,
+            command.IsLimit,
+            ct
+        )).Bind(account => account is null
             ? Result<AccountResponse>.Failure(Error.Missing("Account")) : Result<AccountResponse>.Success(account));
     }
 }

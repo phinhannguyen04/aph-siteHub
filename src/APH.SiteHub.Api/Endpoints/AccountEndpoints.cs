@@ -13,51 +13,50 @@ public static class AccountEndpoints
             .RequireAuthorization()
             .AddEndpointFilter<CsrfFilter>()
             .WithTags("Accounts");
-        group.MapGet("", ListAccountsAsync);
-        group.MapGet("/stats", GetAccountStatsAsync);
-        group.MapGet("/{id}", GetAccountAsync);
-        group.MapPost("", CreateAccountAsync);
-        group.MapPatch("/{id}", UpdateAccountAsync);
-        group.MapGet("/{id}/secret-key", GetAccountSecretAsync);
-        group.MapDelete("/{id}", DeleteAccountAsync);
-    }
 
-    private static async Task<IResult> ListAccountsAsync(ListAccountsHandler handler, CancellationToken ct)
-    {
-        return (
-            await handler.HandleAsync(
-                new(),
-                ct
-            )
-        ).ToHttpResult(accounts => new { accounts });
-    }
+        group.MapGet(
+            "",
+            async (ListAccountsHandler handler, CancellationToken ct) => (
+                await handler.HandleAsync(
+                    new(),
+                    ct
+                )
+            ).ToHttpResult(accounts => new { accounts })
+        );
 
-    private static async Task<IResult> GetAccountStatsAsync(AccountStatsHandler handler, CancellationToken ct)
-    {
-        return (
-            await handler.HandleAsync(
-                new(),
-                ct
-            )
-        ).ToHttpResult(stats => new { stats });
-    }
+        group.MapGet(
+            "/stats",
+            async (AccountStatsHandler handler, CancellationToken ct) => (
+                await handler.HandleAsync(
+                    new(),
+                    ct
+                )
+            ).ToHttpResult(stats => new { stats })
+        );
 
-    private static async Task<IResult> GetAccountAsync(string id, GetAccountHandler handler, CancellationToken ct)
-    {
-        return (
-            await handler.HandleAsync(
-                new(id),
-                ct
-            )
-        ).ToHttpResult(account => new { account });
-    }
+        group.MapGet(
+            "/{id}",
+            async (
+                string id,
+                GetAccountHandler handler,
+                CancellationToken ct
+            ) => (
+                await handler.HandleAsync(
+                    new(id),
+                    ct
+                )
+            ).ToHttpResult(account => new { account })
+        );
 
-    private static async Task<IResult> CreateAccountAsync(HttpRequest request, CreateAccountHandler handler, CancellationToken ct)
-    {
-        return (
-            await (
-                await RequestBody
-                    .ReadAsync(
+        group.MapPost(
+            "",
+            async (
+                HttpRequest request,
+                CreateAccountHandler handler,
+                CancellationToken ct
+            ) => (
+                await (
+                    await RequestBody.ReadAsync(
                         request,
                         ct,
                         [
@@ -71,69 +70,87 @@ public static class AccountEndpoints
                             new("created_at", RequestFieldType.DateTime)
                         ]
                     )
-            ).BindAsync(
-                body => handler.HandleAsync(
-                    new(
-                        body.Text("provider"),
-                        body.Text("login_name"),
-                        body.Text("external_account_id"),
-                        body.Text("email"),
-                        body.Text("password"),
-                        body.Text("secret_key"),
-                        body.Boolean("is_limit") ?? false,
-                        body.Date("created_at")
-                    ),
+                ).BindAsync(
+                    body => handler.HandleAsync(
+                        new(
+                            body.Text("provider"),
+                            body.Text("login_name"),
+                            body.Text("external_account_id"),
+                            body.Text("email"),
+                            body.Text("password"),
+                            body.Text("secret_key"),
+                            body.Boolean("is_limit") ?? false,
+                            body.Date("created_at")
+                        ),
+                        ct
+                    )
+                )
+            ).ToHttpResult(account => new { account }, 201)
+        );
+
+        group.MapPatch(
+            "/{id}",
+            async (
+                string id,
+                HttpRequest request,
+                UpdateAccountHandler handler,
+                CancellationToken ct
+            ) => (
+                await (
+                    await RequestBody.ReadAsync(
+                        request,
+                        ct,
+                        [
+                            new("password"),
+                            new("secret_key"),
+                            new("is_limit", RequestFieldType.Boolean)
+                        ]
+                    )
+                ).BindAsync(
+                    body => handler.HandleAsync(
+                        new(
+                            id,
+                            body.Text("password"),
+                            body.Text("secret_key"),
+                            body.Boolean("is_limit")
+                        ),
+                        ct
+                    )
+                )
+            ).ToHttpResult(account => new { account })
+        );
+
+        group.MapGet(
+            "/{id}/secret-key",
+            async (
+                string id,
+                HttpContext http,
+                GetAccountSecretHandler handler,
+                CancellationToken ct
+            ) =>
+            {
+                http.Response.Headers.CacheControl = "no-store";
+                return (
+                    await handler.HandleAsync(
+                        new(id),
+                        ct
+                    )
+                ).ToHttpResult(secret_key => new { secret_key });
+            }
+        );
+
+        group.MapDelete(
+            "/{id}",
+            async (
+                string id,
+                DeleteAccountHandler handler,
+                CancellationToken ct
+            ) => (
+                await handler.HandleAsync(
+                    new(id),
                     ct
                 )
-            )
-        ).ToHttpResult(account => new { account }, 201);
-    }
-
-    private static async Task<IResult> UpdateAccountAsync(string id, HttpRequest request, UpdateAccountHandler handler, CancellationToken ct)
-    {
-        return (
-            await (
-                await RequestBody.ReadAsync(
-                    request,
-                    ct,
-                    [
-                        new("password"),
-                        new("secret_key"),
-                        new("is_limit", RequestFieldType.Boolean)
-                    ]
-                )
-            ).BindAsync(
-                body => handler.HandleAsync(
-                    new(
-                        id,
-                        body.Text("password"),
-                        body.Text("secret_key"),
-                        body.Boolean("is_limit")
-                    ),
-                    ct
-                )
-            )
-        ).ToHttpResult(account => new { account });
-    }
-
-    private static async Task<IResult> GetAccountSecretAsync(string id, HttpContext http, GetAccountSecretHandler handler, CancellationToken ct)
-    {
-        http.Response.Headers.CacheControl = "no-store";
-        return (
-            await handler.HandleAsync(
-                new(id),
-                ct
-            )
-        ).ToHttpResult(secret_key => new { secret_key });
-    }
-
-    private static async Task<IResult> DeleteAccountAsync(string id, DeleteAccountHandler handler, CancellationToken ct)
-    {
-        return (
-            await handler.HandleAsync(
-                new(id),
-                ct
-            )
-        ).ToHttpResult(ok => new { ok });
+            ).ToHttpResult(ok => new { ok })
+        );
     }
 }

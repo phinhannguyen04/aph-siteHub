@@ -1,15 +1,30 @@
+using System.Net;
 using System.Text.Json;
 using APH.SiteHub.Api.Security;
 using APH.SiteHub.Application;
 using APH.SiteHub.Infrastructure;
 using APH.SiteHub.Infrastructure.Security;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 namespace APH.SiteHub.Tests;
 
 public sealed class SecurityTests
 {
-    internal static SiteHubOptions Options => new("", "test-session-secret-32-characters-long", ["http://localhost"], false, new string('a', 64), null, 8080);
+    internal static SiteHubOptions Options => new(
+        "",
+        "test-session-secret-32-characters-long",
+        ["http://localhost"],
+        false,
+        new string('a', 64),
+        null,
+        8080
+    );
     internal static JsonElement Legacy => JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures/legacy-security.json"))).RootElement;
     [Fact]
     public void ReadsBunArgon2idHash()
@@ -59,24 +74,23 @@ public sealed class SecurityTests
         Assert.Equal(ErrorType.Validation, Normalize.TagIds([id, id]).Error.Type);
     }
     [Fact]
-    public void LoginLimiterExpiresAndResets()
+    public async Task LoginPolicyRejectsSixthRequestWithRateLimitedError()
     {
-        var clock = new TestClock();
-        var limiter = new LoginLimiter(clock);
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddApiRateLimiting();
+        await using var app = builder.Build();
+        app.UseRateLimiter();
+        app.MapPost("/login", () => Results.Unauthorized()).RequireRateLimiting(RateLimiting.LoginPolicy);
+        await app.StartAsync();
+        using var client = app.GetTestClient();
         for (var i = 0; i < 5; i++)
         {
-            limiter.Failed("test");
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync("/login", null)).StatusCode);
         }
-        Assert.True(limiter.Blocked("test"));
-        clock.Now = clock.Now.AddMinutes(16);
-        Assert.False(limiter.Blocked("test"));
-        limiter.Failed("test");
-        limiter.Reset("test");
-        Assert.False(limiter.Blocked("test"));
-    }
-    private sealed class TestClock : TimeProvider
-    {
-        public DateTimeOffset Now { get; set; } = DateTimeOffset.UtcNow;
-        public override DateTimeOffset GetUtcNow() => Now;
+        var blocked = await client.PostAsync("/login", null);
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+        Assert.True(blocked.Headers.Contains("Retry-After"));
+        Assert.Contains("RATE_LIMITED", await blocked.Content.ReadAsStringAsync());
     }
 }

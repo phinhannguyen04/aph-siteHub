@@ -7,7 +7,11 @@ namespace APH.SiteHub.Infrastructure.Persistence;
 public sealed class TagRepository(SiteHubDbContext db, DatabaseOperation database) : ITagRepository
 {
     public Task<Result<List<Tag>>> ListAsync(CancellationToken ct) => database.ExecuteAsync<List<Tag>>(async () => Result<List<Tag>>.Success(await db.Tags.AsNoTracking().OrderBy(x => x.NameKey).ToListAsync(ct)), ct);
-    public Task<Result<Tag>> SaveAsync(Tag tag, bool create, CancellationToken ct) => database.ExecuteAsync<Tag>(async () =>
+    public Task<Result<Tag>> SaveAsync(
+        Tag tag,
+        bool create,
+        CancellationToken ct
+    ) => database.ExecuteAsync<Tag>(async () =>
     {
         if (create)
         {

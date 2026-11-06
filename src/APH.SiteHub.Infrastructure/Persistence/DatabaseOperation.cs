@@ -25,7 +25,11 @@ public sealed class DatabaseOperation(ILogger<DatabaseOperation> logger)
             {
                 return Result<T>.Failure(Error.Invalid("One or more tags do not exist"));
             }
-            logger.LogError("Database operation failed with exception type {Type} and SQL state {SqlState}", exception.GetType().Name, pg?.SqlState);
+            logger.LogError(
+                "Database operation failed with exception type {Type} and SQL state {SqlState}",
+                exception.GetType().Name,
+                pg?.SqlState
+            );
             return Result<T>.Failure(Error.Unexpected());
         }
     }

@@ -13,96 +13,108 @@ public static class WebsiteEndpoints
             .RequireAuthorization()
             .AddEndpointFilter<CsrfFilter>()
             .WithTags("Websites");
-        group.MapGet("", ListWebsitesAsync);
-        group.MapGet("/count", CountWebsitesAsync);
-        group.MapPost("", CreateWebsiteAsync);
-        group.MapPatch("/{id}", UpdateWebsiteAsync);
-        group.MapDelete("/{id}", DeleteWebsiteAsync);
-    }
 
-    private static async Task<IResult> DeleteWebsiteAsync(string id, DeleteWebsiteHandler handler, CancellationToken ct)
-    {
-        return (
-            await handler.HandleAsync(
-                new(id),
-                ct
-            )
-        ).ToHttpResult(ok => new { ok });
-    }
+        group.MapGet(
+            "",
+            async (
+                HttpRequest request,
+                ListWebsitesHandler handler,
+                CancellationToken ct
+            ) => (
+                await WebsiteListQueryParser.Parse(request.Query)
+                    .BindAsync(
+                        query => handler.HandleAsync(
+                            query,
+                            ct
+                        )
+                    )
+            ).ToHttpResult()
+        );
 
-    private static async Task<IResult> ListWebsitesAsync(HttpRequest request, ListWebsitesHandler handler, CancellationToken ct)
-    {
-        return (
-            await WebsiteListQueryParser.Parse(request.Query)
-                .BindAsync(
-                    query => handler.HandleAsync(
-                        query,
+        group.MapGet(
+            "/count",
+            async (CountWebsitesHandler handler, CancellationToken ct) => (
+                await handler.HandleAsync(
+                    new(),
+                    ct
+                )
+            ).ToHttpResult(count => new { count })
+        );
+
+        group.MapPost(
+            "",
+            async (
+                HttpRequest request,
+                CreateWebsiteHandler handler,
+                CancellationToken ct
+            ) => (
+                await (
+                    await RequestBody.ReadAsync(
+                        request,
+                        ct,
+                        [
+                            new("name", Required: true),
+                            new("url", Required: true),
+                            new("tag_ids", RequestFieldType.StringArray)
+                        ]
+                    )
+                ).BindAsync(
+                    body => handler.HandleAsync(
+                        new(
+                            body.Text("name"),
+                            body.Text("url"),
+                            body.Strings("tag_ids")
+                        ),
                         ct
                     )
                 )
-        ).ToHttpResult();
-    }
+            ).ToHttpResult(website => new { website }, 201)
+        );
 
-    private static async Task<IResult> CountWebsitesAsync(CountWebsitesHandler handler, CancellationToken ct)
-    {
-        return (
-            await handler.HandleAsync(
-                new(),
-                ct
-            )
-        ).ToHttpResult(count => new { count });
-    }
-
-    private static async Task<IResult> CreateWebsiteAsync(HttpRequest request, CreateWebsiteHandler handler, CancellationToken ct)
-    {
-        return (
-            await (
-                await RequestBody.ReadAsync(
-                    request,
-                    ct,
-                    [
-                        new("name", Required: true),
-                        new("url", Required: true),
-                        new("tag_ids", RequestFieldType.StringArray)
-                    ]
+        group.MapPatch(
+            "/{id}",
+            async (
+                string id,
+                HttpRequest request,
+                UpdateWebsiteHandler handler,
+                CancellationToken ct
+            ) => (
+                await (
+                    await RequestBody.ReadAsync(
+                        request,
+                        ct,
+                        [
+                            new("name"),
+                            new("url"),
+                            new("tag_ids", RequestFieldType.StringArray)
+                        ]
+                    )
+                ).BindAsync(
+                    body => handler.HandleAsync(
+                        new(
+                            id,
+                            body.Text("name"),
+                            body.Text("url"),
+                            body.Strings("tag_ids")
+                        ),
+                        ct
+                    )
                 )
-            ).BindAsync(
-                body => handler.HandleAsync(
-                    new(
-                        body.Text("name"),
-                        body.Text("url"),
-                        body.Strings("tag_ids")
-                    ),
+            ).ToHttpResult(website => new { website })
+        );
+
+        group.MapDelete(
+            "/{id}",
+            async (
+                string id,
+                DeleteWebsiteHandler handler,
+                CancellationToken ct
+            ) => (
+                await handler.HandleAsync(
+                    new(id),
                     ct
                 )
-            )
-        ).ToHttpResult(website => new { website }, 201);
-    }
-
-    private static async Task<IResult> UpdateWebsiteAsync(string id, HttpRequest request, UpdateWebsiteHandler handler, CancellationToken ct)
-    {
-        return (
-            await (
-                await RequestBody.ReadAsync(
-                    request,
-                    ct,
-                    [
-                        new("name"),
-                        new("url"),
-                        new("tag_ids", RequestFieldType.StringArray)
-                    ]
-                )
-            ).BindAsync(
-                body => handler.HandleAsync(
-                    new(
-                        id,
-                        body.Text("name"),
-                        body.Text("url"),
-                        body.Strings("tag_ids")
-                    ),
-                    ct
-                )
-            )
-        ).ToHttpResult(website => new { website });
+            ).ToHttpResult(ok => new { ok })
+        );
     }
 }

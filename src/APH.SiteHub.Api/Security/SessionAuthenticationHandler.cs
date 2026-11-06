@@ -8,7 +8,11 @@ using Microsoft.Extensions.Options;
 namespace APH.SiteHub.Api.Security;
 
 public sealed class SessionAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
-    UrlEncoder encoder, Sessions sessions, AuthService auth) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    UrlEncoder encoder, Sessions sessions, AuthService auth) : AuthenticationHandler<AuthenticationSchemeOptions>(
+        options,
+        logger,
+        encoder
+    )
 {
     private const string FailureKey = "SiteHub.AuthenticationFailure";
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()

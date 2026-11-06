@@ -9,10 +9,18 @@ public sealed class UpdateWebsiteHandler(IWebsiteRepository repository) : IHandl
         {
             return Result<WebsiteResponse>.Failure(Error.Invalid("Provide a website name, URL or tags"));
         }
-        var name = command.Name is null ? Result<string?>.Success(null) : Normalize.Required(command.Name, "website name", 160).Map(value => (string?)value);
+        var name = command.Name is null ? Result<string?>.Success(null) : Normalize.Required(
+            command.Name,
+            "website name",
+            160
+        ).Map(value => (string?)value);
         var url = command.Url is null ? Result<string?>.Success(null) : Normalize.Url(command.Url).Map(value => (string?)value);
         var tags = command.TagIds is null ? Result<string[]?>.Success(null) : Normalize.TagIds(command.TagIds).Map(value => (string[]?)value);
-        if (ResultValidation.FirstFailure(name, url, tags) is { } error)
+        if (ResultValidation.FirstFailure(
+            name,
+            url,
+            tags
+        ) is { } error)
         {
             return Result<WebsiteResponse>.Failure(error);
         }

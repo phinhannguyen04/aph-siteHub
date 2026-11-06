@@ -77,7 +77,7 @@ printf '%s\n' "$sitehub_password" | docker compose run --rm -T backend --reset-p
 unset sitehub_password
 ```
 
-Normal account responses exclude stored passwords and encrypted secrets. Only authenticated `GET /api/accounts/{id}/secret-key` reveals a secret, with `Cache-Control: no-store`. All API responses disable caching. Cookie flags are HttpOnly, SameSite=Strict and configurable Secure, with path `/api`. Enable `COOKIE_SECURE=true` behind HTTPS. Login blocks after five failed attempts for fifteen minutes. The limiter uses the actual connection IP and is in memory; behind the Next.js proxy the limit is shared by connections from that proxy. Forwarded IP headers are not trusted by default.
+Normal account responses exclude stored passwords and encrypted secrets. Only authenticated `GET /api/accounts/{id}/secret-key` reveals a secret, with `Cache-Control: no-store`. All API responses disable caching. Cookie flags are HttpOnly, SameSite=Strict and configurable Secure, with path `/api`. Enable `COOKIE_SECURE=true` behind HTTPS. Login is rate limited by ASP.NET Core `AddRateLimiter` (fixed window): at most five login requests per fifteen minutes per IP, after which it returns 429 `RATE_LIMITED` with a `Retry-After` header. Every login request counts, successful or not. The limiter uses the actual connection IP and is in memory; behind the Next.js proxy the limit is shared by connections from that proxy. Forwarded IP headers are not trusted by default.
 
 ## API contract
 

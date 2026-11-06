@@ -21,7 +21,13 @@ public sealed class CreateAccountHandler(IAccountRepository repository, ISecretP
         var externalId = Normalize.Required(command.ExternalAccountId, "external account ID");
         var password = AccountValidation.RequireSecret(command.Password, "password");
         var secret = AccountValidation.RequireSecret(command.SecretKey, "secret key");
-        if (ResultValidation.FirstFailure(provider, login, externalId, password, secret) is { } error)
+        if (ResultValidation.FirstFailure(
+            provider,
+            login,
+            externalId,
+            password,
+            secret
+        ) is { } error)
         {
             return Result<AccountResponse>.Failure(error);
         }

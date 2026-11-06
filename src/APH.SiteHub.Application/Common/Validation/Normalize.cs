@@ -5,7 +5,11 @@ namespace APH.SiteHub.Application;
 
 public static partial class Normalize
 {
-    public static Result<string> Required(string? value, string label, int max = 4096) =>
+    public static Result<string> Required(
+        string? value,
+        string label,
+        int max = 4096
+    ) =>
         string.IsNullOrWhiteSpace(value) || value.Trim().Length > max
             ? Result<string>.Failure(Error.Invalid($"Invalid {label}")) : Result<string>.Success(value.Trim());
     public static Result<string> Password(string? value, int min = 1) =>
@@ -13,12 +17,20 @@ public static partial class Normalize
             ? Result<string>.Failure(Error.Invalid($"Password must be between {min} and 256 characters")) : Result<string>.Success(value);
     public static Result<string> Url(string? value)
     {
-        var text = Required(value, "URL", 2048);
+        var text = Required(
+            value,
+            "URL",
+            2048
+        );
         if (text.IsFailure)
         {
             return text;
         }
-        if (!Uri.TryCreate(text.Value, UriKind.Absolute, out var uri) ||
+        if (!Uri.TryCreate(
+            text.Value,
+            UriKind.Absolute,
+            out var uri
+        ) ||
             (uri.Scheme != "http" && uri.Scheme != "https") || string.IsNullOrEmpty(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo))
         {
             return Result<string>.Failure(Error.Invalid("URL must use HTTP or HTTPS and must not contain credentials"));
@@ -30,7 +42,11 @@ public static partial class Normalize
     public static Result<string[]> TagIds(string[]? ids)
     {
         ids ??= [];
-        return ids.Length > 50 || ids.Distinct().Count() != ids.Length || ids.Any(id => !Guid.TryParseExact(id, "D", out var g) || g.Version != 4)
+        return ids.Length > 50 || ids.Distinct().Count() != ids.Length || ids.Any(id => !Guid.TryParseExact(
+            id,
+            "D",
+            out var g
+        ) || g.Version != 4)
             ? Result<string[]>.Failure(Error.Invalid("Invalid tag IDs")) : Result<string[]>.Success(ids);
     }
     public static string Timestamp() => DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);

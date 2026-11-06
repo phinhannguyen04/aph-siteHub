@@ -13,7 +13,8 @@ public static class DependencyInjection
         builder.WebHost.UseUrls($"http://0.0.0.0:{options.Port}");
         builder.WebHost.ConfigureKestrel(server => server.Limits.MaxRequestBodySize = 1024 * 1024);
         builder.Services.AddApplication().AddInfrastructure(options);
-        builder.Services.AddSingleton(TimeProvider.System).AddSingleton<Sessions>().AddSingleton<LoginLimiter>();
+        builder.Services.AddSingleton(TimeProvider.System).AddSingleton<Sessions>();
+        builder.Services.AddApiRateLimiting();
         builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>("Session", _ => { });
         builder.Services.AddAuthorization();
         builder.Services.AddCors(cors => cors.AddDefaultPolicy(policy => policy.WithOrigins(options.Origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));

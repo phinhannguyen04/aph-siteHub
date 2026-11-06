@@ -27,11 +27,18 @@ public sealed class ApiTests
         await using var fixture = await ApiFixture.CreateAsync(legacy: false);
         using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
-        var login = await client.PostAsJsonAsync("/api/auth/login", new { password = "legacy-password-123" });
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            password = "legacy-password-123"
+        });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         var csrf = (await Json(login)).GetProperty("csrfToken").GetString()!;
         client.DefaultRequestHeaders.Add("x-csrf-token", csrf);
-        var tag = await client.PostAsJsonAsync("/api/tags", new { name = "Delete test", color = "#123456" });
+        var tag = await client.PostAsJsonAsync("/api/tags", new
+        {
+            name = "Delete test",
+            color = "#123456"
+        });
         Assert.Equal(HttpStatusCode.Created, tag.StatusCode);
         var tagId = (await Json(tag)).GetProperty("tag").GetProperty("id").GetString()!;
         var website = await client.PostAsJsonAsync("/api/websites", new
@@ -209,7 +216,11 @@ public sealed class ApiTests
         }
         foreach (var body in new[] { "{}", "{\"name\":null}", "{\"unknown\":true}", "{\"name\":\"x\",\"url\":\"javascript:alert(1)\"}", "{", "{\"name\":\"x\",\"name\":\"y\"}" })
         {
-            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/websites", new StringContent(body, System.Text.Encoding.UTF8, "application/json"))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/websites", new StringContent(
+                body,
+                System.Text.Encoding.UTF8,
+                "application/json"
+            ))).StatusCode);
         }
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PatchAsJsonAsync("/api/accounts/" + SecurityTests.Legacy.GetProperty("id").GetString(), new
         {

@@ -2,7 +2,15 @@ using Microsoft.Extensions.Configuration;
 using Npgsql;
 namespace APH.SiteHub.Infrastructure;
 
-public sealed record SiteHubOptions(string ConnectionString, string SessionSecret, string[] Origins, bool CookieSecure, string? EncryptionKey, string? AdminPasswordHash, int Port)
+public sealed record SiteHubOptions(
+    string ConnectionString,
+    string SessionSecret,
+    string[] Origins,
+    bool CookieSecure,
+    string? EncryptionKey,
+    string? AdminPasswordHash,
+    int Port
+)
 {
     public static SiteHubOptions Read(IConfiguration config)
     {
@@ -71,6 +79,14 @@ public sealed record SiteHubOptions(string ConnectionString, string SessionSecre
         {
             throw new InvalidOperationException("Invalid API_PORT");
         }
-        return new(connection.ConnectionString, secret, origins, config["COOKIE_SECURE"] != "false", key, hash, port);
+        return new(
+            connection.ConnectionString,
+            secret,
+            origins,
+            config["COOKIE_SECURE"] != "false",
+            key,
+            hash,
+            port
+        );
     }
 }

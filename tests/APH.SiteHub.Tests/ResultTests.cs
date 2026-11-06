@@ -35,10 +35,18 @@ public sealed class ResultTests
     {
         var repository = new TrackingWebsiteRepository();
         var handler = new CreateWebsiteHandler(repository);
-        var invalid = await handler.HandleAsync(new("Website", "javascript:alert(1)", []), CancellationToken.None);
+        var invalid = await handler.HandleAsync(new(
+            "Website",
+            "javascript:alert(1)",
+            []
+        ), CancellationToken.None);
         Assert.Equal(ErrorType.Validation, invalid.Error.Type);
         Assert.Equal(0, repository.Creates);
-        var conflict = await handler.HandleAsync(new("Website", "https://example.com", []), CancellationToken.None);
+        var conflict = await handler.HandleAsync(new(
+            "Website",
+            "https://example.com",
+            []
+        ), CancellationToken.None);
         Assert.Same(repository.Failure, conflict.Error);
         Assert.Equal(1, repository.Creates);
     }
@@ -47,7 +55,12 @@ public sealed class ResultTests
     public async Task MissingRecordBecomesNotFoundInApplication()
     {
         var result = await new UpdateWebsiteHandler(new TrackingWebsiteRepository())
-            .HandleAsync(new("missing", "Updated", null, null), CancellationToken.None);
+            .HandleAsync(new(
+                "missing",
+                "Updated",
+                null,
+                null
+            ), CancellationToken.None);
         Assert.Equal("NOT_FOUND", result.Error.Code);
     }
 
@@ -57,7 +70,12 @@ public sealed class ResultTests
     public async Task DatabaseBoundaryTranslatesNestedConstraintErrors(string sqlState, ErrorType expected)
     {
         var database = new DatabaseOperation(NullLogger<DatabaseOperation>.Instance);
-        var exception = new DbUpdateException("Sensitive database detail", new PostgresException("Sensitive record", "ERROR", "ERROR", sqlState));
+        var exception = new DbUpdateException("Sensitive database detail", new PostgresException(
+            "Sensitive record",
+            "ERROR",
+            "ERROR",
+            sqlState
+        ));
         var result = await database.ExecuteAsync<int>(() => Task.FromException<Result<int>>(exception), CancellationToken.None);
         Assert.Equal(expected, result.Error.Type);
         Assert.DoesNotContain("Sensitive", result.Error.Message);
@@ -108,7 +126,11 @@ public sealed class ResultTests
     [InlineData(ErrorType.Configuration, 500)]
     [InlineData(ErrorType.Unexpected, 500)]
     public void HttpBoundaryMapsErrorCategories(ErrorType type, int status) =>
-        Assert.Equal(status, ErrorHttpMapper.StatusCode(new("TEST_ERROR", "Message", type)));
+        Assert.Equal(status, ErrorHttpMapper.StatusCode(new(
+            "TEST_ERROR",
+            "Message",
+            type
+        )));
 
     private sealed class TrackingWebsiteRepository : IWebsiteRepository
     {
@@ -117,7 +139,11 @@ public sealed class ResultTests
         {
             get; private set;
         }
-        public Task<Result<Website>> CreateAsync(Website website, string[] tags, CancellationToken ct)
+        public Task<Result<Website>> CreateAsync(
+            Website website,
+            string[] tags,
+            CancellationToken ct
+        )
         {
             Creates++;
             return Task.FromResult(Result<Website>.Failure(Failure));
@@ -125,6 +151,11 @@ public sealed class ResultTests
         public Task<Result<Website?>> UpdateAsync(UpdateWebsiteCommand command, CancellationToken ct) => Task.FromResult(Result<Website?>.Success(null));
         public Task<Result<bool>> DeleteAsync(string id, CancellationToken ct) => Task.FromResult(Result<bool>.Success(false));
         public Task<Result<int>> CountAsync(CancellationToken ct) => Task.FromResult(Result<int>.Success(0));
-        public Task<Result<WebsitePage>> ListAsync(ListWebsitesQuery query, CancellationToken ct) => Task.FromResult(Result<WebsitePage>.Success(new([], 0, query.Page, query.PageSize)));
+        public Task<Result<WebsitePage>> ListAsync(ListWebsitesQuery query, CancellationToken ct) => Task.FromResult(Result<WebsitePage>.Success(new(
+            [],
+            0,
+            query.Page,
+            query.PageSize
+        )));
     }
 }

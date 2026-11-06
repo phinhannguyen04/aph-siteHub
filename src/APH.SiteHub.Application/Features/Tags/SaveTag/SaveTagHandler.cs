@@ -6,7 +6,15 @@ public sealed class SaveTagHandler(ITagRepository repository) : IHandler<SaveTag
 {
     public async Task<Result<TagResponse>> HandleAsync(SaveTagCommand command, CancellationToken ct)
     {
-        var name = Normalize.Required(command.Name, "tag name", 256).Bind(value => Normalize.Required(value.TrimStart('#').Trim(), "tag name", 64));
+        var name = Normalize.Required(
+            command.Name,
+            "tag name",
+            256
+        ).Bind(value => Normalize.Required(
+            value.TrimStart('#').Trim(),
+            "tag name",
+            64
+        ));
         var description = command.Description?.Trim() ?? "";
         var color = Normalize.Color(command.Color);
         if (name.IsFailure)
@@ -32,6 +40,10 @@ public sealed class SaveTagHandler(ITagRepository repository) : IHandler<SaveTag
             CreatedAt = time,
             UpdatedAt = time
         };
-        return (await repository.SaveAsync(tag, command.Id is null, ct)).Map(TagResponse.From);
+        return (await repository.SaveAsync(
+            tag,
+            command.Id is null,
+            ct
+        )).Map(TagResponse.From);
     }
 }

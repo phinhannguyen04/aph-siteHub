@@ -16,7 +16,12 @@ public sealed class AuthService(ICredentialRepository credentials, IPasswordHash
         return current.Bind(credential => passwords.Verify(validated.Value, credential.PasswordHash).Bind(matches => matches
             ? Result<AdminCredential>.Success(credential) : Result<AdminCredential>.Failure(Error.Unauthorized("Incorrect password"))));
     }
-    public async Task<Result<AdminCredential>> ChangePasswordAsync(string? currentPassword, string? newPassword, string expectedVersion, CancellationToken ct)
+    public async Task<Result<AdminCredential>> ChangePasswordAsync(
+        string? currentPassword,
+        string? newPassword,
+        string expectedVersion,
+        CancellationToken ct
+    )
     {
         var old = Normalize.Password(currentPassword);
         var next = Normalize.Password(newPassword, 12);
@@ -51,7 +56,11 @@ public sealed class AuthService(ICredentialRepository credentials, IPasswordHash
         {
             return hash.ToFailure<AdminCredential>();
         }
-        return (await credentials.ReplaceAsync(hash.Value, expectedVersion, ct)).Bind(updated => updated is null
+        return (await credentials.ReplaceAsync(
+            hash.Value,
+            expectedVersion,
+            ct
+        )).Bind(updated => updated is null
             ? Result<AdminCredential>.Failure(Error.Conflict("The password was changed. Please try again")) : Result<AdminCredential>.Success(updated));
     }
 }

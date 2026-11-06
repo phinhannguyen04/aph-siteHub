@@ -16,8 +16,20 @@ public sealed class SecretProtector(SiteHubOptions options) : ISecretProtector
         var encrypted = new byte[plain.Length];
         var tag = new byte[16];
         using var aes = new AesGcm(key, 16);
-        aes.Encrypt(nonce, plain, encrypted, tag, Encoding.UTF8.GetBytes(accountId));
-        return string.Join('.', "v1", Base64Url.Encode(nonce), Base64Url.Encode(tag), Base64Url.Encode(encrypted));
+        aes.Encrypt(
+            nonce,
+            plain,
+            encrypted,
+            tag,
+            Encoding.UTF8.GetBytes(accountId)
+        );
+        return string.Join(
+            '.',
+            "v1",
+            Base64Url.Encode(nonce),
+            Base64Url.Encode(tag),
+            Base64Url.Encode(encrypted)
+        );
     }));
     public Result<string> Decrypt(string accountId, string envelope) => Key().Bind(key =>
     {
@@ -31,7 +43,13 @@ public sealed class SecretProtector(SiteHubOptions options) : ISecretProtector
             var cipher = Base64Url.Decode(parts[3]);
             var plain = new byte[cipher.Length];
             using var aes = new AesGcm(key, 16);
-            aes.Decrypt(Base64Url.Decode(parts[1]), cipher, Base64Url.Decode(parts[2]), plain, Encoding.UTF8.GetBytes(accountId));
+            aes.Decrypt(
+                Base64Url.Decode(parts[1]),
+                cipher,
+                Base64Url.Decode(parts[2]),
+                plain,
+                Encoding.UTF8.GetBytes(accountId)
+            );
             return Encoding.UTF8.GetString(plain);
         });
     });

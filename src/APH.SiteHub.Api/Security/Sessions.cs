@@ -8,13 +8,30 @@ namespace APH.SiteHub.Api.Security;
 public sealed class Sessions(SiteHubOptions options, TimeProvider clock)
 {
     public const string CookieName = "admin_session";
+    private static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private byte[] Sign(string value) => HMACSHA256.HashData(Encoding.UTF8.GetBytes(options.SessionSecret), Encoding.UTF8.GetBytes(value));
     public string Issue(HttpResponse response, string version)
     {
         var csrf = Base64Url.Encode(RandomNumberGenerator.GetBytes(32));
-        var payload = Base64Url.Encode(JsonSerializer.SerializeToUtf8Bytes(new SessionPayload(clock.GetUtcNow().AddHours(8).ToUnixTimeMilliseconds(), csrf, version), JsonOptions));
-        response.Cookies.Append(CookieName, payload + "." + Base64Url.Encode(Sign(payload)), CookieOptions(TimeSpan.FromHours(8)));
+        var payload = Base64Url.Encode(
+            JsonSerializer.SerializeToUtf8Bytes(
+                new SessionPayload(
+                    clock
+                        .GetUtcNow()
+                        .Add(Lifetime)
+                        .ToUnixTimeMilliseconds(),
+                    csrf,
+                    version
+                ),
+                JsonOptions
+                )
+            );
+        response.Cookies.Append(
+            CookieName,
+            payload + "." + Base64Url.Encode(Sign(payload)),
+            CookieOptions(Lifetime)
+        );
         return csrf;
     }
     public SessionPayload? Read(HttpRequest request)
@@ -42,6 +59,10 @@ public sealed class Sessions(SiteHubOptions options, TimeProvider clock)
     public bool SameOrigin(HttpRequest request) => options.Origins.Contains(request.Headers.Origin.ToString(), StringComparer.Ordinal);
     public static bool ValidCsrf(HttpRequest request, string csrf) => CryptographicOperations.FixedTimeEquals(
         Encoding.UTF8.GetBytes(request.Headers["x-csrf-token"].ToString()), Encoding.UTF8.GetBytes(csrf));
-    public void Clear(HttpResponse response) => response.Cookies.Append(CookieName, "", CookieOptions(TimeSpan.Zero));
+    public void Clear(HttpResponse response) => response.Cookies.Append(
+        CookieName,
+        "",
+        CookieOptions(TimeSpan.Zero)
+    );
     private CookieOptions CookieOptions(TimeSpan maxAge) => new() { HttpOnly = true, SameSite = SameSiteMode.Strict, Secure = options.CookieSecure, Path = "/api", MaxAge = maxAge };
 }

@@ -28,11 +28,20 @@ public sealed class WebsiteRepository(SiteHubDbContext db, DatabaseOperation dat
         var websites = await rows.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).Include(x => x.Links).ThenInclude(x => x.Tag).ToListAsync(ct);
         await tx.CommitAsync(ct);
-        return Result<WebsitePage>.Success(new(websites.Select(WebsiteResponse.From).ToArray(), total, query.Page, query.PageSize));
+        return Result<WebsitePage>.Success(new(
+            websites.Select(WebsiteResponse.From).ToArray(),
+            total,
+            query.Page,
+            query.PageSize
+        ));
 
     }, ct);
     public Task<Result<int>> CountAsync(CancellationToken ct) => database.ExecuteAsync<int>(async () => Result<int>.Success(await db.Websites.CountAsync(ct)), ct);
-    public Task<Result<Website>> CreateAsync(Website website, string[] tags, CancellationToken ct) => database.ExecuteAsync<Website>(async () =>
+    public Task<Result<Website>> CreateAsync(
+        Website website,
+        string[] tags,
+        CancellationToken ct
+    ) => database.ExecuteAsync<Website>(async () =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         db.Websites.Add(website);

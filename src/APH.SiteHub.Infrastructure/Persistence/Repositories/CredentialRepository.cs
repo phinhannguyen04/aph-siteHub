@@ -4,7 +4,11 @@ using APH.SiteHub.Domain;
 using Microsoft.EntityFrameworkCore;
 namespace APH.SiteHub.Infrastructure.Persistence;
 
-public sealed class CredentialRepository(SiteHubDbContext db, SiteHubOptions options, DatabaseOperation database) : ICredentialRepository
+public sealed class CredentialRepository(
+    SiteHubDbContext db,
+    SiteHubOptions options,
+    DatabaseOperation database
+) : ICredentialRepository
 {
     public Task<Result<AdminCredential>> CurrentAsync(CancellationToken ct) => database.ExecuteAsync<AdminCredential>(async () =>
     {
@@ -22,7 +26,11 @@ public sealed class CredentialRepository(SiteHubDbContext db, SiteHubOptions opt
         return Result<AdminCredential>.Success(await db.Credentials.AsNoTracking().SingleAsync(x => x.Id == "primary", ct));
 
     }, ct);
-    public Task<Result<AdminCredential?>> ReplaceAsync(string passwordHash, string expectedVersion, CancellationToken ct) => database.ExecuteAsync<AdminCredential?>(async () =>
+    public Task<Result<AdminCredential?>> ReplaceAsync(
+        string passwordHash,
+        string expectedVersion,
+        CancellationToken ct
+    ) => database.ExecuteAsync<AdminCredential?>(async () =>
     {
         var version = Guid.NewGuid().ToString();
         var affected = await db.Credentials.Where(x => x.Id == "primary" && x.Version == expectedVersion)
