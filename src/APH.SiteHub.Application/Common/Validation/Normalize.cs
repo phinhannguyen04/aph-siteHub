@@ -45,8 +45,8 @@ public static partial class Normalize
         return ids.Length > 50 || ids.Distinct().Count() != ids.Length || ids.Any(id => !Guid.TryParseExact(
             id,
             "D",
-            out var g
-        ) || g.Version != 4)
+            out _
+        ))
             ? Result<string[]>.Failure(Error.Invalid("Invalid tag IDs")) : Result<string[]>.Success(ids);
     }
     public static string Timestamp() => DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
