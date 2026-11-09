@@ -5,9 +5,7 @@ using APH.SiteHub.Application.Websites;
 using APH.SiteHub.Domain;
 using APH.SiteHub.Infrastructure.Persistence;
 using APH.SiteHub.Infrastructure.Security;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Npgsql;
 using Xunit;
 
 namespace APH.SiteHub.Tests;
@@ -65,21 +63,21 @@ public sealed class ResultTests
     }
 
     [Theory]
-    [InlineData("23505", ErrorType.Conflict)]
-    [InlineData("23503", ErrorType.Validation)]
-    public async Task DatabaseBoundaryTranslatesNestedConstraintErrors(string sqlState, ErrorType expected)
+    [InlineData(DatabaseOperation.UniqueViolation, ErrorType.Conflict)]
+    [InlineData(DatabaseOperation.ParentKeyNotFound, ErrorType.Validation)]
+    public void DatabaseBoundaryTranslatesConstraintErrors(int oracleError, ErrorType expected)
     {
-        var database = new DatabaseOperation(NullLogger<DatabaseOperation>.Instance);
-        var exception = new DbUpdateException("Sensitive database detail", new PostgresException(
-            "Sensitive record",
-            "ERROR",
-            "ERROR",
-            sqlState
-        ));
-        var result = await database.ExecuteAsync<int>(() => Task.FromException<Result<int>>(exception), CancellationToken.None);
-        Assert.Equal(expected, result.Error.Type);
-        Assert.DoesNotContain("Sensitive", result.Error.Message);
+        var error = DatabaseOperation.Translate(oracleError);
+        Assert.NotNull(error);
+        Assert.Equal(expected, error.Type);
+        Assert.DoesNotContain("ORA-", error.Message);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(942)]
+    [InlineData(12899)]
+    public void UnknownOracleErrorsAreNotTranslated(int? oracleError) => Assert.Null(DatabaseOperation.Translate(oracleError));
 
     [Fact]
     public async Task DatabaseBoundaryHidesUnexpectedDetails()

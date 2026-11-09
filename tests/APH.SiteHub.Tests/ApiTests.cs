@@ -2,29 +2,29 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using APH.SiteHub.Infrastructure.Persistence;
+using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 using Xunit;
 namespace APH.SiteHub.Tests;
 
-public sealed class PostgresFactAttribute : FactAttribute
+public sealed class OracleFactAttribute : FactAttribute
 {
-    public PostgresFactAttribute()
+    public OracleFactAttribute()
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("POSTGRES_TEST_URL")))
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ORACLE_TEST_URL")))
         {
-            Skip = "POSTGRES_TEST_URL is required (isolated disposable PostgreSQL only)";
+            Skip = "ORACLE_TEST_URL is required (a disposable Oracle PDB where the user may create and drop users)";
         }
     }
 }
 public sealed class ApiTests
 {
-    [PostgresFact]
+    [OracleFact]
     public async Task DeletesWebsiteAndCascadesTagsOnlyWithAuthenticatedCsrfRequest()
     {
-        await using var fixture = await ApiFixture.CreateAsync(legacy: false);
+        await using var fixture = await ApiFixture.CreateAsync(seeded: false);
         using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
         var login = await client.PostAsJsonAsync("/api/auth/login", new
@@ -68,9 +68,9 @@ public sealed class ApiTests
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
         await using (var scope = fixture.Factory.Services.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<SiteHubDbContext>();
-            Assert.True(await db.Websites.AnyAsync(x => x.Id == id));
-            Assert.Equal(1, await db.WebsiteTags.CountAsync(x => x.WebsiteId == id));
+            var connection = await scope.ServiceProvider.GetRequiredService<DbSession>().OpenAsync(CancellationToken.None);
+            Assert.Equal(1, await TestSql.ScalarAsync(connection, "SELECT COUNT(*) FROM websites WHERE website_id = :id", ("id", id)));
+            Assert.Equal(1, await TestSql.ScalarAsync(connection, "SELECT COUNT(*) FROM website_tags WHERE website_id = :id", ("id", id)));
         }
 
         var deleted = await client.DeleteAsync(path);
@@ -78,10 +78,10 @@ public sealed class ApiTests
         Assert.True((await Json(deleted)).GetProperty("ok").GetBoolean());
         await using (var scope = fixture.Factory.Services.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<SiteHubDbContext>();
-            Assert.False(await db.Websites.AnyAsync(x => x.Id == id));
-            Assert.False(await db.WebsiteTags.AnyAsync(x => x.WebsiteId == id));
-            Assert.True(await db.Tags.AnyAsync(x => x.Id == tagId));
+            var connection = await scope.ServiceProvider.GetRequiredService<DbSession>().OpenAsync(CancellationToken.None);
+            Assert.Equal(0, await TestSql.ScalarAsync(connection, "SELECT COUNT(*) FROM websites WHERE website_id = :id", ("id", id)));
+            Assert.Equal(0, await TestSql.ScalarAsync(connection, "SELECT COUNT(*) FROM website_tags WHERE website_id = :id", ("id", id)));
+            Assert.Equal(1, await TestSql.ScalarAsync(connection, "SELECT COUNT(*) FROM tags WHERE tag_id = :id", ("id", tagId)));
         }
         var page = await Json(await client.GetAsync("/api/websites"));
         Assert.Equal(0, page.GetProperty("total").GetInt32());
@@ -96,10 +96,10 @@ public sealed class ApiTests
         }
     }
 
-    [PostgresFact]
-    public async Task MigratesExistingDataAndPreservesApiSecurityAndTransactions()
+    [OracleFact]
+    public async Task ServesSeededDataAndPreservesApiSecurityAndTransactions()
     {
-        await using var fixture = await ApiFixture.CreateAsync(legacy: true);
+        await using var fixture = await ApiFixture.CreateAsync(seeded: true);
         using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health")).StatusCode);
@@ -245,10 +245,44 @@ public sealed class ApiTests
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/auth/logout", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/session")).StatusCode);
     }
-    [PostgresFact]
+    [OracleFact]
+    public async Task PagesWebsitesAndTreatsSearchWildcardsAsLiteralText()
+    {
+        await using var fixture = await ApiFixture.CreateAsync(seeded: false);
+        using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost");
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            password = "legacy-password-123"
+        });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        client.DefaultRequestHeaders.Add("x-csrf-token", (await Json(login)).GetProperty("csrfToken").GetString());
+        foreach (var name in new[] { "Alpha", "Beta", "100%_done" })
+        {
+            Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/websites", new
+            {
+                name,
+                url = "https://example.com/" + Uri.EscapeDataString(name),
+                tag_ids = Array.Empty<string>()
+            })).StatusCode);
+            await Task.Delay(5);
+        }
+        var second = await Json(await client.GetAsync("/api/websites?pageSize=1&page=2"));
+        Assert.Equal(3, second.GetProperty("total").GetInt32());
+        Assert.Equal("Beta", second.GetProperty("websites")[0].GetProperty("name").GetString());
+        var beyond = await Json(await client.GetAsync("/api/websites?pageSize=1&page=99"));
+        Assert.Equal(3, beyond.GetProperty("total").GetInt32());
+        Assert.Empty(beyond.GetProperty("websites").EnumerateArray());
+        // "%" and "_" must not act as LIKE wildcards: only the literal "100%_done" matches.
+        var percent = await Json(await client.GetAsync("/api/websites?search=" + Uri.EscapeDataString("%")));
+        Assert.Equal(1, percent.GetProperty("total").GetInt32());
+        var underscore = await Json(await client.GetAsync("/api/websites?search=" + Uri.EscapeDataString("a_p")));
+        Assert.Equal(0, underscore.GetProperty("total").GetInt32());
+    }
+    [OracleFact]
     public async Task CreatesFreshSchemaAndRejectsBruteForceLogin()
     {
-        await using var fixture = await ApiFixture.CreateAsync(legacy: false);
+        await using var fixture = await ApiFixture.CreateAsync(seeded: false);
         using var client = fixture.Factory.CreateClient();
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
         for (var i = 0; i < 5; i++)
@@ -263,10 +297,10 @@ public sealed class ApiTests
             password = "legacy-password-123"
         })).StatusCode);
     }
-    [PostgresFact]
+    [OracleFact]
     public async Task CredentialReadFailureStaysServerErrorInsteadOfUnauthorized()
     {
-        await using var fixture = await ApiFixture.CreateAsync(legacy: false);
+        await using var fixture = await ApiFixture.CreateAsync(seeded: false);
         using var client = fixture.Factory.CreateClient();
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
         var login = await client.PostAsJsonAsync("/api/auth/login", new
@@ -276,7 +310,8 @@ public sealed class ApiTests
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         await using (var scope = fixture.Factory.Services.CreateAsyncScope())
         {
-            await scope.ServiceProvider.GetRequiredService<SiteHubDbContext>().Database.ExecuteSqlRawAsync("DROP TABLE admin_credentials");
+            var connection = await scope.ServiceProvider.GetRequiredService<DbSession>().OpenAsync(CancellationToken.None);
+            await connection.ExecuteAsync("DROP TABLE admin_credentials");
         }
         var response = await client.GetAsync("/api/auth/session");
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
@@ -287,68 +322,94 @@ public sealed class ApiTests
 
     private static async Task<JsonElement> Json(HttpResponseMessage response) => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.Clone();
 }
+internal static class TestSql
+{
+    public static async Task<int> ExecuteAsync(OracleConnection connection, string sql, params (string Name, string Value)[] parameters)
+    {
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            command.Parameters.Add(name, value);
+        }
+        return await command.ExecuteNonQueryAsync();
+    }
+    public static async Task<int> ScalarAsync(OracleConnection connection, string sql, params (string Name, string Value)[] parameters)
+    {
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            command.Parameters.Add(name, value);
+        }
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
+    }
+}
 internal sealed class ApiFixture : IAsyncDisposable
 {
     public WebApplicationFactory<Program> Factory { get; } = new();
-    private readonly string database;
+    private readonly string schemaUser;
     private readonly string adminConnection;
     private readonly Dictionary<string, string?> original = new();
-    private ApiFixture(string database, string adminConnection)
+    private ApiFixture(string schemaUser, string adminConnection)
     {
-        this.database = database;
+        this.schemaUser = schemaUser;
         this.adminConnection = adminConnection;
     }
-    public static async Task<ApiFixture> CreateAsync(bool legacy)
+    // ORACLE_TEST_URL is an admin account (for example system) on a disposable PDB, as oracle://user:password@host:port/service.
+    // Every test gets a private schema user so tests are isolated and run in parallel.
+    public static async Task<ApiFixture> CreateAsync(bool seeded)
     {
-        var database = "sitehub_test_" + Guid.NewGuid().ToString("N");
-        var url = new Uri(Environment.GetEnvironmentVariable("POSTGRES_TEST_URL")!);
+        var schemaUser = "SH_" + Guid.NewGuid().ToString("N")[..20].ToUpperInvariant();
+        var password = "Pw_" + Guid.NewGuid().ToString("N");
+        var url = new Uri(Environment.GetEnvironmentVariable("ORACLE_TEST_URL")!);
         var info = url.UserInfo.Split(':', 2);
-        var admin = new NpgsqlConnectionStringBuilder { Host = url.Host, Port = url.Port, Username = Uri.UnescapeDataString(info[0]), Password = Uri.UnescapeDataString(info[1]), Database = url.AbsolutePath.TrimStart('/') };
-        var fixture = new ApiFixture(database, admin.ConnectionString);
-        await using (var connection = new NpgsqlConnection(admin.ConnectionString))
+        var service = url.AbsolutePath.TrimStart('/');
+        var dataSource = $"{url.Host}:{url.Port}/{service}";
+        var admin = new OracleConnectionStringBuilder { DataSource = dataSource, UserID = Uri.UnescapeDataString(info[0]), Password = Uri.UnescapeDataString(info[1]), Pooling = false }.ConnectionString;
+        var fixture = new ApiFixture(schemaUser, admin);
+        await using (var connection = new OracleConnection(admin))
         {
             await connection.OpenAsync();
-            await new NpgsqlCommand($"CREATE DATABASE {database}", connection).ExecuteNonQueryAsync();
+            // The lite image has no USERS tablespace, so use whatever the PDB's default is.
+            var tablespace = await connection.ExecuteScalarAsync<string>("SELECT property_value FROM database_properties WHERE property_name = 'DEFAULT_PERMANENT_TABLESPACE'");
+            await connection.ExecuteAsync($"CREATE USER {schemaUser} IDENTIFIED BY \"{password}\" QUOTA UNLIMITED ON {tablespace}");
+            await connection.ExecuteAsync($"GRANT CREATE SESSION, CREATE TABLE TO {schemaUser}");
         }
-        fixture.Set("DATABASE_URL", new UriBuilder(url) { Path = database }.Uri.ToString());
+        fixture.Set("DATABASE_URL", $"oracle://{schemaUser}:{Uri.EscapeDataString(password)}@{url.Host}:{url.Port}/{service}");
         fixture.Set("SESSION_SECRET", "test-session-secret-32-characters-long");
         fixture.Set("APP_ORIGIN", "http://localhost");
         fixture.Set("APP_ORIGINS", "");
         fixture.Set("COOKIE_SECURE", "false");
         fixture.Set("ACCOUNT_ENCRYPTION_KEY", new string('a', 64));
         fixture.Set("ADMIN_PASSWORD_HASH_BASE64", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(SecurityTests.Legacy.GetProperty("hash").GetString()!)));
-        if (legacy)
-        {
-            admin.Database = database;
-            await using var connection = new NpgsqlConnection(admin.ConnectionString);
-            await connection.OpenAsync();
-            await new NpgsqlCommand(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures/legacy-schema.sql")), connection).ExecuteNonQueryAsync();
-            await new NpgsqlCommand("CREATE TABLE typeorm_migrations (id serial PRIMARY KEY, timestamp bigint NOT NULL, name varchar NOT NULL); INSERT INTO typeorm_migrations (timestamp,name) VALUES (1791158400000,'InitialSchema1791158400000'),(1791244800000,'Accounts1791244800000');", connection).ExecuteNonQueryAsync();
-            var json = SecurityTests.Legacy;
-            await using var seed = new NpgsqlCommand("""
-                INSERT INTO admin_credentials VALUES ('primary', @hash, 'legacy-version');
-                INSERT INTO tags VALUES ('11111111-1111-4111-8111-111111111111','Legacy tag','legacy tag','','#123456','2026-01-01T00:00:00.000Z','2026-01-01T00:00:00.000Z');
-                INSERT INTO websites VALUES ('22222222-2222-4222-8222-222222222222','Legacy site','https://legacy.example/','legacy site https://legacy.example/','2026-01-01T00:00:00.000Z','2026-01-01T00:00:00.000Z');
-                INSERT INTO website_tags VALUES ('22222222-2222-4222-8222-222222222222','11111111-1111-4111-8111-111111111111',0);
-                INSERT INTO accounts VALUES (@id,'legacy','legacy-login','0001','legacy@example.com','legacy-password',@envelope,false,now());
-                """, connection);
-            seed.Parameters.AddWithValue("hash", json.GetProperty("hash").GetString()!);
-            seed.Parameters.AddWithValue("id", json.GetProperty("id").GetString()!);
-            seed.Parameters.AddWithValue("envelope", json.GetProperty("envelope").GetString()!);
-            await seed.ExecuteNonQueryAsync();
-        }
         await using var scope = fixture.Factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<SiteHubDbContext>();
-        await db.Database.MigrateAsync();
-        await db.Database.MigrateAsync();
-        if (legacy)
+        var migrator = scope.ServiceProvider.GetRequiredService<DatabaseMigrator>();
+        Assert.Equal(1, await migrator.PendingAsync(CancellationToken.None));
+        Assert.Equal(1, await migrator.MigrateAsync(CancellationToken.None));
+        Assert.Equal(0, await migrator.MigrateAsync(CancellationToken.None));
+        Assert.Equal(0, await migrator.PendingAsync(CancellationToken.None));
+        var db = await scope.ServiceProvider.GetRequiredService<DbSession>().OpenAsync(CancellationToken.None);
+        if (seeded)
         {
-            Assert.Equal(2, await db.Database.SqlQueryRaw<int>("SELECT count(*)::int AS \"Value\" FROM typeorm_migrations").SingleAsync());
-            Assert.Equal("legacy-version", (await db.Credentials.AsNoTracking().SingleAsync()).Version);
-            Assert.Equal(1, await db.Accounts.CountAsync());
-            Assert.Equal(1, await db.Websites.CountAsync());
+            // Rows written by the previous implementation: a stored Argon2 hash and an encrypted account secret
+            // must stay readable, so the on-disk formats are unchanged.
+            var json = SecurityTests.Legacy;
+            await TestSql.ExecuteAsync(db, "INSERT INTO admin_credentials VALUES ('primary', :hash, 'legacy-version')", ("hash", json.GetProperty("hash").GetString()!));
+            await db.ExecuteAsync("INSERT INTO tags VALUES ('11111111-1111-4111-8111-111111111111', 'Legacy tag', 'legacy tag', NULL, '#123456', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')");
+            await db.ExecuteAsync("INSERT INTO websites VALUES ('22222222-2222-4222-8222-222222222222', 'Legacy site', 'https://legacy.example/', 'legacy site https://legacy.example/', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')");
+            await db.ExecuteAsync("INSERT INTO website_tags VALUES ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111', 0)");
+            await TestSql.ExecuteAsync(
+                db,
+                "INSERT INTO accounts VALUES (:id, 'legacy', 'legacy-login', '0001', 'legacy@example.com', 'legacy-password', :envelope, 0, SYSTIMESTAMP)",
+                ("id", json.GetProperty("id").GetString()!),
+                ("envelope", json.GetProperty("envelope").GetString()!)
+            );
+            Assert.Equal(1, await TestSql.ScalarAsync(db, "SELECT COUNT(*) FROM accounts"));
+            Assert.Equal(1, await TestSql.ScalarAsync(db, "SELECT COUNT(*) FROM websites"));
         }
-        Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         return fixture;
     }
     private void Set(string key, string value)
@@ -363,9 +424,9 @@ internal sealed class ApiFixture : IAsyncDisposable
         {
             Environment.SetEnvironmentVariable(pair.Key, pair.Value);
         }
-        NpgsqlConnection.ClearAllPools();
-        await using var connection = new NpgsqlConnection(adminConnection);
+        OracleConnection.ClearAllPools();
+        await using var connection = new OracleConnection(adminConnection);
         await connection.OpenAsync();
-        await new NpgsqlCommand($"DROP DATABASE {database} WITH (FORCE)", connection).ExecuteNonQueryAsync();
+        await connection.ExecuteAsync($"DROP USER {schemaUser} CASCADE");
     }
 }

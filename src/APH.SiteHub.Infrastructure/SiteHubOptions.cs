@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Configuration;
-using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 namespace APH.SiteHub.Infrastructure;
 
 public sealed record SiteHubOptions(
@@ -16,39 +16,26 @@ public sealed record SiteHubOptions(
     {
         var database = config["DATABASE_URL"] ?? throw new InvalidOperationException("DATABASE_URL is required");
         var uri = new Uri(database);
-        if (uri.Scheme is not ("postgres" or "postgresql"))
+        if (uri.Scheme != "oracle")
         {
-            throw new InvalidOperationException("DATABASE_URL must use PostgreSQL");
+            throw new InvalidOperationException("DATABASE_URL must use oracle://user:password@host:port/service_name");
         }
         var user = uri.UserInfo.Split(':', 2);
-        var connection = new NpgsqlConnectionStringBuilder
+        var service = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
+        if (string.IsNullOrEmpty(uri.Host) || string.IsNullOrEmpty(service) || user[0].Length == 0)
         {
-            Host = uri.Host,
-            Port = uri.Port > 0 ? uri.Port : 5432,
-            Username = Uri.UnescapeDataString(user[0]),
-            Password = user.Length > 1 ? Uri.UnescapeDataString(user[1]) : "",
-            Database = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/')),
-            IncludeErrorDetail = false
-        };
-        foreach (var parameter in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var pair = parameter.Split('=', 2);
-            if (pair.Length != 2)
-            {
-                throw new InvalidOperationException("Invalid DATABASE_URL parameter");
-            }
-            switch (pair[0])
-            {
-                case "sslmode":
-                    connection.SslMode = Enum.Parse<SslMode>(pair[1], true);
-                    break;
-                case "sslrootcert":
-                    connection.RootCertificate = Uri.UnescapeDataString(pair[1]);
-                    break;
-                default:
-                    throw new InvalidOperationException("Unsupported DATABASE_URL parameter");
-            }
+            throw new InvalidOperationException("DATABASE_URL must include user, host and service name");
         }
+        if (uri.Query.Length > 1)
+        {
+            throw new InvalidOperationException("Unsupported DATABASE_URL parameter");
+        }
+        var connection = new OracleConnectionStringBuilder
+        {
+            DataSource = $"{uri.Host}:{(uri.Port > 0 ? uri.Port : 1521)}/{service}",
+            UserID = Uri.UnescapeDataString(user[0]),
+            Password = user.Length > 1 ? Uri.UnescapeDataString(user[1]) : ""
+        };
         var secret = config["SESSION_SECRET"] ?? "";
         if (secret.Length < 32)
         {

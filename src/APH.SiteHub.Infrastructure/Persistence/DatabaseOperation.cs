@@ -1,10 +1,13 @@
 using APH.SiteHub.Application;
 using Microsoft.Extensions.Logging;
-using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 namespace APH.SiteHub.Infrastructure.Persistence;
 
 public sealed class DatabaseOperation(ILogger<DatabaseOperation> logger)
 {
+    public const int UniqueViolation = 1;
+    public const int ParentKeyNotFound = 2291;
+
     // Catch only at the driver boundary, after transaction scopes have rolled back/disposed.
     public async Task<Result<T>> ExecuteAsync<T>(Func<Task<Result<T>>> operation, CancellationToken ct)
     {
@@ -16,22 +19,27 @@ public sealed class DatabaseOperation(ILogger<DatabaseOperation> logger)
         catch (OperationCanceledException) { throw; }
         catch (Exception exception)
         {
-            var pg = FindPostgres(exception);
-            if (pg?.SqlState == "23505")
+            var number = FindOracle(exception)?.Number;
+            if (Translate(number) is { } known)
             {
-                return Result<T>.Failure(Error.Conflict("A record with this name or provider/external ID already exists"));
-            }
-            if (pg?.SqlState == "23503")
-            {
-                return Result<T>.Failure(Error.Invalid("One or more tags do not exist"));
+                return Result<T>.Failure(known);
             }
             logger.LogError(
-                "Database operation failed with exception type {Type} and SQL state {SqlState}",
+                "Database operation failed with exception type {Type} and Oracle error {OraCode}",
                 exception.GetType().Name,
-                pg?.SqlState
+                number
             );
             return Result<T>.Failure(Error.Unexpected());
         }
     }
-    private static PostgresException? FindPostgres(Exception exception) => exception is PostgresException pg ? pg : exception.InnerException is { } inner ? FindPostgres(inner) : null;
+
+    /// <summary>Maps constraint violations to client-safe errors; null means unexpected.</summary>
+    public static Error? Translate(int? oracleError) => oracleError switch
+    {
+        UniqueViolation => Error.Conflict("A record with this name or provider/external ID already exists"),
+        ParentKeyNotFound => Error.Invalid("One or more tags do not exist"),
+        _ => null
+    };
+
+    private static OracleException? FindOracle(Exception exception) => exception is OracleException oracle ? oracle : exception.InnerException is { } inner ? FindOracle(inner) : null;
 }

@@ -7,7 +7,7 @@ public sealed class CreateAccountHandler(IAccountRepository repository, ISecretP
 {
     public async Task<Result<AccountResponse>> HandleAsync(CreateAccountCommand command, CancellationToken ct)
     {
-        var email = Normalize.Required(command.Email, "email");
+        var email = Normalize.Required(command.Email, "email", AccountValidation.MaxEmail);
         if (email.IsFailure)
         {
             return email.ToFailure<AccountResponse>();
@@ -16,11 +16,11 @@ public sealed class CreateAccountHandler(IAccountRepository repository, ISecretP
         {
             return Result<AccountResponse>.Failure(Error.Invalid("Invalid email"));
         }
-        var provider = Normalize.Required(command.Provider, "provider");
-        var login = Normalize.Required(command.LoginName, "login name");
-        var externalId = Normalize.Required(command.ExternalAccountId, "external account ID");
-        var password = AccountValidation.RequireSecret(command.Password, "password");
-        var secret = AccountValidation.RequireSecret(command.SecretKey, "secret key");
+        var provider = Normalize.Required(command.Provider, "provider", AccountValidation.MaxProvider);
+        var login = Normalize.Required(command.LoginName, "login name", AccountValidation.MaxLoginName);
+        var externalId = Normalize.Required(command.ExternalAccountId, "external account ID", AccountValidation.MaxExternalAccountId);
+        var password = AccountValidation.RequireSecret(command.Password, "password", AccountValidation.MaxPassword);
+        var secret = AccountValidation.RequireSecret(command.SecretKey, "secret key", AccountValidation.MaxSecretKey);
         if (ResultValidation.FirstFailure(
             provider,
             login,

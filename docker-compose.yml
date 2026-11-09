@@ -1,18 +1,20 @@
 services:
-  postgres:
-    image: postgres:17-alpine
+  oracle:
+    # Official Oracle Database Free image (23ai, "lite" variant) from Oracle Container Registry.
+    image: container-registry.oracle.com/database/free:latest-lite
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sitehub}
-      POSTGRES_USER: ${POSTGRES_USER:-sitehub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      ORACLE_PWD: ${ORACLE_PWD:?Set ORACLE_PWD in .env}
+      ORACLE_APP_USER: ${ORACLE_APP_USER:-sitehub}
+      ORACLE_APP_PASSWORD: ${ORACLE_APP_PASSWORD:?Set ORACLE_APP_PASSWORD in .env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - oracle_data:/opt/oracle/oradata
+      - ./docker/oracle/init:/opt/oracle/scripts/startup:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+      test: ['CMD-SHELL', '/opt/oracle/checkDBStatus.sh >/dev/null || exit 1']
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
     restart: unless-stopped
   backend:
     build:
@@ -24,7 +26,7 @@ services:
       API_PORT: 3000
       ASPNETCORE_ENVIRONMENT: Production
     depends_on:
-      postgres:
+      oracle:
         condition: service_healthy
     healthcheck:
       test: ['CMD', 'curl', '--fail', '--silent', 'http://127.0.0.1:3000/health']
@@ -52,4 +54,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  oracle_data:

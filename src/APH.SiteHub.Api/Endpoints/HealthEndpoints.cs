@@ -11,15 +11,13 @@ public static class HealthEndpoints
         app.MapGet(
             "/health",
             async (
-                SiteHubDbContext db,
+                DbSession session,
                 DatabaseOperation database,
                 CancellationToken ct
             ) =>
             {
                 var result = await database.ExecuteAsync<bool>(
-                    async () => Result<bool>.Success(
-                        await db.Database.CanConnectAsync(ct)
-                    ),
+                    async () => Result<bool>.Success(await session.PingAsync(ct)),
                     ct
                 );
                 return result.IsSuccess && result.Value

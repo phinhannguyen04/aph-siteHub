@@ -10,4 +10,6 @@ public interface ICredentialRepository
         string expectedVersion,
         CancellationToken ct
     );
+    /// <summary>Creates or overwrites the administrator credential and rotates its version (revokes sessions).</summary>
+    Task<Result<bool>> ForceSetAsync(string passwordHash, CancellationToken ct);
 }
