@@ -1,33 +1,6 @@
 'use client'
-import {
-  AppsOutlined,
-  KeyOutlined,
-  LabelOutlined,
-  Logout,
-  Menu,
-  PublicOutlined,
-} from '@mui/icons-material'
-import {
-  AppBar,
-  Badge,
-  Box,
-  Divider,
-  Drawer,
-  FormControl,
-  IconButton,
-  InputLabel,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Select,
-  Stack,
-  Toolbar,
-  Typography,
-  useColorScheme,
-} from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
+import { Globe, KeyRound, LayoutGrid, LogOut, Menu, Monitor, Moon, Sun, Tags } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { type ReactNode, useState } from 'react'
@@ -36,152 +9,147 @@ import { useSession } from '@/components/layout/providers'
 import { TagsManager } from '@/components/tags/manager'
 import { query } from '@/lib/api/client'
 import { c } from '@/lib/copy'
+import { cx } from '@/lib/cx'
+import { type ThemeMode, useThemeMode } from '@/lib/theme'
+
+const themeIcons = { light: Sun, dark: Moon, system: Monitor }
+
 export function Shell({ children }: { children: ReactNode }) {
   const [mobile, setMobile] = useState(false)
   const [tags, setTags] = useState(false)
   const [password, setPassword] = useState(false)
   const path = usePathname()
   const session = useSession()
-  const { mode, setMode } = useColorScheme()
+  const { mode, setMode } = useThemeMode()
+  const ThemeIcon = themeIcons[mode]
   const count = useQuery({
     queryKey: ['count'],
     queryFn: () => query<{ count: number }>('/api/websites/count'),
   })
-  const nav = (
-    <Stack sx={{ height: '100%' }}>
-      <Box sx={{ px: 3, py: 3 }}>
-        <Typography sx={{ fontWeight: 750, fontSize: 20 }}>{c.app}</Typography>
-      </Box>
-      <Divider />
-      <List sx={{ p: 1.5 }}>
-        {[
-          { href: '/', label: c.websites, icon: <PublicOutlined /> },
-          { href: '/accounts', label: c.accounts, icon: <AppsOutlined /> },
-        ].map((item) => (
-          <ListItemButton
-            key={item.href}
-            component={Link}
-            href={item.href}
-            selected={path === item.href}
-            onClick={() => setMobile(false)}
-            sx={{ borderRadius: 1, mb: 0.5 }}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-            {item.href === '/' && count.data && (
-              <Badge
-                badgeContent={count.data.count}
-                showZero
-                max={9999}
-                color="primary"
-                sx={{ mr: 1 }}
-              />
-            )}
-          </ListItemButton>
-        ))}
-      </List>
-      <Divider />
-      <List sx={{ p: 1.5 }}>
-        <ListItemButton
-          onClick={() => {
-            setMobile(false)
-            setTags(true)
-          }}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <LabelOutlined />
-          </ListItemIcon>
-          <ListItemText primary={c.tags} />
-        </ListItemButton>
-        <ListItemButton
-          onClick={() => {
-            setMobile(false)
-            setPassword(true)
-          }}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <KeyOutlined />
-          </ListItemIcon>
-          <ListItemText primary={c.changePassword} />
-        </ListItemButton>
-      </List>
-      <Box sx={{ mt: 'auto', p: 2 }}>
-        <FormControl size="small" fullWidth>
-          <InputLabel id="appearance-label">{c.theme}</InputLabel>
-          <Select
-            labelId="appearance-label"
-            label={c.theme}
-            value={mode ?? 'system'}
-            onChange={(e) => setMode(e.target.value as 'light' | 'dark' | 'system')}
-          >
-            <MenuItem value="light">{c.light}</MenuItem>
-            <MenuItem value="dark">{c.dark}</MenuItem>
-            <MenuItem value="system">{c.system}</MenuItem>
-          </Select>
-        </FormControl>
-        <ListItemButton sx={{ mt: 2 }} onClick={() => void session.logout()}>
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <Logout />
-          </ListItemIcon>
-          <ListItemText primary={c.signOut} />
-        </ListItemButton>
-      </Box>
-    </Stack>
-  )
+  const links = [
+    { href: '/', label: c.websites, icon: Globe },
+    { href: '/accounts', label: c.accounts, icon: LayoutGrid },
+  ]
   return (
-    <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
-      <AppBar
-        position="fixed"
-        color="inherit"
-        elevation={0}
-        sx={{
-          display: { xs: 'block', md: 'none'},
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Toolbar>
-          <IconButton
+    <div className="drawer md:drawer-open">
+      <input
+        id="sitehub-nav"
+        type="checkbox"
+        className="drawer-toggle"
+        tabIndex={-1}
+        aria-hidden
+        checked={mobile}
+        onChange={(e) => setMobile(e.target.checked)}
+      />
+      <div className="drawer-content flex min-h-dvh min-w-0 flex-col">
+        <header className="navbar sticky top-0 z-20 gap-2 border-b border-base-300 bg-base-100/90 backdrop-blur md:hidden">
+          <button
+            type="button"
+            className="btn btn-ghost btn-square"
             aria-label={c.menu}
-            edge="start"
             onClick={() => setMobile(true)}
-            sx={{ mr: 2, display: { md: 'none' } }}
           >
-            <Menu />
-          </IconButton>
-          <Typography variant="h6" component="div">
+            <Menu size={20} />
+          </button>
+          <span className="text-lg font-semibold">
             {path === '/accounts' ? c.accounts : c.websites}
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Box component="nav" aria-label={c.menu} sx={{ width: { md: 248 }, flexShrink: { md: 0 } }}>
-        <Drawer
-          variant="temporary"
-          open={mobile}
-          onClose={() => setMobile(false)}
-          sx={{ display: { xs: 'block', md: 'none' }, '& .MuiDrawer-paper': { width: 248 } }}
-        >
-          {nav}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { width: 248, boxSizing: 'border-box' },
-          }}
-        >
-          {nav}
-        </Drawer>
-      </Box>
-      <Box
-        component="main"
-        sx={{ flex: 1, minWidth: 0, p: { xs: 2, sm: 3, lg: 5 }, maxWidth: 1900, mx: 'auto' }}
-      >
-        <Toolbar sx={{ display: {md: 'none' }}} />
-        {children}
-      </Box>
-      {tags && <TagsManager onClose={() => setTags(false)} />}{' '}
+          </span>
+        </header>
+        <main className="mx-auto w-full max-w-[1900px] min-w-0 flex-1 p-4 sm:p-6 lg:p-10">
+          {children}
+        </main>
+      </div>
+      <div className="drawer-side z-40">
+        <label htmlFor="sitehub-nav" aria-label={c.closeMenu} className="drawer-overlay" />
+        <aside className="flex min-h-full w-64 flex-col border-e border-base-300 bg-base-100">
+          <div className="flex items-center gap-3 px-5 py-5">
+            <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-content">
+              <Globe size={18} aria-hidden />
+            </span>
+            <span className="text-lg font-bold tracking-tight">{c.app}</span>
+          </div>
+          <nav aria-label={c.navigation} className="flex flex-1 flex-col">
+            <ul className="menu w-full gap-1 px-3">
+              <li className="menu-title">{c.overview}</li>
+              {links.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cx(path === item.href && 'menu-active')}
+                    aria-current={path === item.href ? 'page' : undefined}
+                    onClick={() => setMobile(false)}
+                  >
+                    <item.icon size={18} aria-hidden />
+                    <span className="flex-1">{item.label}</span>
+                    {item.href === '/' && count.data && (
+                      <span
+                        data-testid="website-count"
+                        className={cx(
+                          'badge badge-sm',
+                          path === item.href ? 'badge-ghost' : 'badge-primary',
+                        )}
+                      >
+                        {count.data.count > 9999 ? '9999+' : count.data.count}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <ul className="menu w-full gap-1 px-3 pt-2">
+              <li className="menu-title">{c.manage}</li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobile(false)
+                    setTags(true)
+                  }}
+                >
+                  <Tags size={18} aria-hidden />
+                  {c.tags}
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobile(false)
+                    setPassword(true)
+                  }}
+                >
+                  <KeyRound size={18} aria-hidden />
+                  {c.changePassword}
+                </button>
+              </li>
+            </ul>
+            <div className="mt-auto flex flex-col gap-3 border-t border-base-300 p-4">
+              <label className="select select-sm w-full">
+                <ThemeIcon size={16} className="opacity-60" aria-hidden />
+                <select
+                  aria-label={c.theme}
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as ThemeMode)}
+                >
+                  <option value="light">{c.light}</option>
+                  <option value="dark">{c.dark}</option>
+                  <option value="system">{c.system}</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm justify-start"
+                onClick={() => void session.logout()}
+              >
+                <LogOut size={16} aria-hidden />
+                {c.signOut}
+              </button>
+            </div>
+          </nav>
+        </aside>
+      </div>
+      {tags && <TagsManager onClose={() => setTags(false)} />}
       {password && <ChangePassword onClose={() => setPassword(false)} />}
-    </Box>
+    </div>
   )
 }

@@ -1,9 +1,9 @@
 'use client'
-import { Box, Button, Skeleton, Stack, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Empty, ErrorBox } from '@/components/common'
+import { Button, Empty, ErrorBox } from '@/components/common'
+import { PageHeader } from '@/components/layout/page-header'
 import { WebsiteForm } from '@/components/websites/form'
 import { query } from '@/lib/api/client'
 import { useTags } from '@/lib/api/hooks'
@@ -60,16 +60,10 @@ export function Websites() {
     setSearch('')
     update({ search: '', tagIds: [], page: 1 })
   }
+  const grid = 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3'
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          {c.websites}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 1 }}>
-          {c.websiteIntro}
-        </Typography>
-      </Box>
+    <div className="flex flex-col gap-6">
+      <PageHeader title={c.websites} intro={c.websiteIntro} />
       <WebsiteToolbar
         search={search}
         setSearch={setSearch}
@@ -81,39 +75,23 @@ export function Websites() {
       <ErrorBox error={tags.error} retry={() => void tags.refetch()} />
       <ErrorBox error={data.error} retry={() => void data.refetch()} />
       {data.isPending ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', xl: 'repeat(3,1fr)' },
-            gap: 2,
-          }}
-        >
+        <div className={grid}>
           {[1, 2, 3, 4, 5, 6].map((n) => (
-            <Skeleton key={n} variant="rounded" height={205} />
+            <div key={n} className="skeleton h-52 rounded-box" />
           ))}
-        </Box>
+        </div>
       ) : data.data?.websites.length === 0 ? (
         <Empty
           title={filtered ? c.noResults : c.noWebsites}
           body={filtered ? c.noResultsBody : c.noWebsitesBody}
           action={
-            <Button onClick={filtered ? clear : () => setForm('new')}>
+            <Button className="btn-primary" onClick={filtered ? clear : () => setForm('new')}>
               {filtered ? c.clear : c.addWebsite}
             </Button>
           }
         />
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2,minmax(0,1fr))',
-              xl: 'repeat(3,minmax(0,1fr))',
-            },
-            gap: 2,
-          }}
-        >
+        <div className={grid}>
           {data.data?.websites.map((website) => (
             <WebsiteCard
               key={website.id}
@@ -122,7 +100,7 @@ export function Websites() {
               onDelete={setDeleting}
             />
           ))}
-        </Box>
+        </div>
       )}
       {data.data && data.data.total > 0 && (
         <WebsitePagination total={data.data.total} filters={filters} update={update} />
@@ -141,6 +119,6 @@ export function Websites() {
           }}
         />
       )}
-    </Stack>
+    </div>
   )
 }

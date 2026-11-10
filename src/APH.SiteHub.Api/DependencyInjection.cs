@@ -17,7 +17,14 @@ public static class DependencyInjection
         builder.Services.AddApiRateLimiting();
         builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>("Session", _ => { });
         builder.Services.AddAuthorization();
-        builder.Services.AddCors(cors => cors.AddDefaultPolicy(policy => policy.WithOrigins(options.Origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+        builder.Services.AddCors(cors => 
+            cors.AddDefaultPolicy(policy => 
+                policy.WithOrigins(options.Origins)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials()
+            )
+        );
         builder.Services.AddExceptionHandler<ApiExceptionHandler>().AddProblemDetails();
         builder.Services.AddOpenApi();
         builder.Services.ConfigureHttpJsonOptions(json =>

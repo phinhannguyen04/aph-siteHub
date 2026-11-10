@@ -1,6 +1,5 @@
 'use client'
-import { DeleteOutlined, EditOutlined } from '@mui/icons-material'
-import { IconButton } from '@mui/material'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { Account } from '@/lib/api/types'
 import { c } from '@/lib/copy'
 
@@ -14,13 +13,23 @@ export function AccountActions({
   onDelete: (a: Account) => void
 }) {
   return (
-    <>
-      <IconButton aria-label={`${c.edit} ${a.login_name}`} onClick={() => onEdit(a)}>
-        <EditOutlined fontSize="small" />
-      </IconButton>
-      <IconButton aria-label={`${c.delete} ${a.login_name}`} onClick={() => onDelete(a)}>
-        <DeleteOutlined fontSize="small" />
-      </IconButton>
-    </>
+    <div className="flex">
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm btn-square"
+        aria-label={`${c.edit} ${a.login_name}`}
+        onClick={() => onEdit(a)}
+      >
+        <Pencil size={16} />
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm btn-square text-error"
+        aria-label={`${c.delete} ${a.login_name}`}
+        onClick={() => onDelete(a)}
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
   )
 }

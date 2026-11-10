@@ -1,19 +1,7 @@
 'use client'
-import { ArrowDownward, ArrowUpward } from '@mui/icons-material'
-import {
-  Autocomplete,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Stack,
-  TextField,
-} from '@mui/material'
+import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { ErrorBox, TagChip } from '@/components/common'
+import { Button, ErrorBox, Field, Modal, TagChip, TagSelect } from '@/components/common'
 import { TagForm } from '@/components/tags/tag-form'
 import { useTags, useWrite } from '@/lib/api/hooks'
 import type { Tag, Website } from '@/lib/api/types'
@@ -39,122 +27,107 @@ export function WebsiteForm({ website, onClose }: { website?: Website; onClose: 
     })
   return (
     <>
-      <Dialog
-        open
+      <Modal
+        title={website ? c.editWebsite : c.addWebsite}
         onClose={write.pending ? undefined : onClose}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="website-title"
-      >
-        <Box
-          component="form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            const error = validate(name, url, input.tag_ids)
-            setValidation(error)
-            if (Object.keys(error).length) return
-            void write.run(
-              website ? `/api/websites/${website.id}` : '/api/websites',
-              website ? 'PATCH' : 'POST',
-              patch,
-              onClose,
-            )
-          }}
-        >
-          <DialogTitle id="website-title">{website ? c.editWebsite : c.addWebsite}</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2.5} sx={{ pt: 1 }}>
-              <ErrorBox error={write.error} />
-              <ErrorBox error={tags.error} retry={() => void tags.refetch()} />
-              <TextField
-                autoFocus
-                required
-                label={c.name}
-                error={!!validation.name}
-                helperText={validation.name}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <TextField
-                required
-                label={c.url}
-                error={!!validation.url}
-                helperText={validation.url}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://"
-              />
-              <Autocomplete
-                multiple
-                options={tags.data?.tags ?? []}
-                value={selected}
-                isOptionEqualToValue={(a, b) => a.id === b.id}
-                getOptionLabel={(t) => t.name}
-                onChange={(_, v) => setSelected(v)}
-                renderInput={(p) => (
-                  <TextField
-                    {...p}
-                    label={c.tagPicker}
-                    error={!!validation.tag_ids}
-                    helperText={validation.tag_ids}
-                  />
-                )}
-                renderValue={(values) => (
-                  <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                    {values.map((t) => (
-                      <TagChip
-                        key={t.id}
-                        tag={t}
-                        onDelete={() => setSelected(selected.filter((v) => v.id !== t.id))}
-                      />
-                    ))}
-                  </Stack>
-                )}
-              />
-              <Stack spacing={0.5}>
-                {selected.map((t, i) => (
-                  <Stack key={t.id} direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <TagChip tag={t} />
-                    </Box>
-                    <IconButton
-                      aria-label={`${c.up}: ${t.name}`}
-                      disabled={i === 0}
-                      onClick={() => move(i, -1)}
-                    >
-                      <ArrowUpward fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      aria-label={`${c.down}: ${t.name}`}
-                      disabled={i === selected.length - 1}
-                      onClick={() => move(i, 1)}
-                    >
-                      <ArrowDownward fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                ))}
-              </Stack>
-              <Button onClick={() => setQuick(true)} sx={{ alignSelf: 'flex-start' }}>
-                {c.quickTag}
-              </Button>
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={onClose} disabled={write.pending}>
+        onSubmit={(e) => {
+          e.preventDefault()
+          const error = validate(name, url, input.tag_ids)
+          setValidation(error)
+          if (Object.keys(error).length) return
+          void write.run(
+            website ? `/api/websites/${website.id}` : '/api/websites',
+            website ? 'PATCH' : 'POST',
+            patch,
+            onClose,
+          )
+        }}
+        actions={
+          <>
+            <Button className="btn-ghost" onClick={onClose} disabled={write.pending}>
               {c.cancel}
             </Button>
             <Button
               type="submit"
-              variant="contained"
+              className="btn-primary"
               loading={write.pending}
               disabled={website && Object.keys(patch).length === 0}
             >
               {website ? c.save : c.create}
             </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+          </>
+        }
+      >
+        <ErrorBox error={write.error} />
+        <ErrorBox error={tags.error} retry={() => void tags.refetch()} />
+        <Field
+          autoFocus
+          required
+          label={c.name}
+          error={!!validation.name}
+          helperText={validation.name}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <Field
+          required
+          label={c.url}
+          type="url"
+          inputMode="url"
+          error={!!validation.url}
+          helperText={validation.url}
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://"
+        />
+        <TagSelect
+          inline
+          label={c.tagPicker}
+          tags={tags.data?.tags ?? []}
+          value={selected}
+          onChange={setSelected}
+          error={!!validation.tag_ids}
+          helperText={validation.tag_ids}
+        />
+        {selected.length > 1 && (
+          <ol className="list rounded-box border border-base-300">
+            {selected.map((t, i) => (
+              <li key={t.id} className="list-row items-center py-1.5">
+                <span className="w-5 text-center text-xs text-base-content/50 tabular-nums">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <TagChip tag={t} />
+                </div>
+                <div className="flex">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs btn-square"
+                    aria-label={`${c.up}: ${t.name}`}
+                    disabled={i === 0}
+                    onClick={() => move(i, -1)}
+                  >
+                    <ArrowUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs btn-square"
+                    aria-label={`${c.down}: ${t.name}`}
+                    disabled={i === selected.length - 1}
+                    onClick={() => move(i, 1)}
+                  >
+                    <ArrowDown size={14} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+        <Button className="btn-ghost btn-sm self-start" onClick={() => setQuick(true)}>
+          <Plus size={16} aria-hidden />
+          {c.quickTag}
+        </Button>
+      </Modal>
       {quick && (
         <TagForm
           onClose={() => setQuick(false)}

@@ -1,5 +1,4 @@
 'use client'
-import { Typography } from '@mui/material'
 import { Confirm, ErrorBox } from '@/components/common'
 import { useWrite } from '@/lib/api/hooks'
 import type { Website } from '@/lib/api/types'
@@ -23,8 +22,8 @@ export function DeleteWebsiteDialog({
       onClose={onClose}
       onConfirm={() => void write.runDelete(() => deleteWebsite(website.id), onDeleted)}
     >
-      <Typography>{c.irreversibleWebsite}</Typography>
-      <Typography sx={{ fontWeight: 700 }}>{website.name}</Typography>
+      <p className="text-base-content/80">{c.irreversibleWebsite}</p>
+      <p className="rounded-field bg-base-200 px-3 py-2 font-semibold">{website.name}</p>
       <ErrorBox error={write.error} />
     </Confirm>
   )

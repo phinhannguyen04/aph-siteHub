@@ -1,12 +1,12 @@
 'use client'
-import { Close } from '@mui/icons-material'
-import { Box, Button, Chip, Divider, Drawer, IconButton, Stack, Typography } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Eye, EyeOff, KeyRound, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Busy, Copy, ErrorBox, localDate } from '@/components/common'
+import { Busy, Button, Copy, ErrorBox, localDate, Modal } from '@/components/common'
 import { query, request } from '@/lib/api/client'
 import type { Account, ApiError } from '@/lib/api/types'
 import { c } from '@/lib/copy'
+import { Status } from './status'
 export function AccountDetail({
   id,
   onClose,
@@ -61,108 +61,91 @@ export function AccountDetail({
     guard.current = false
   }
   const a = account.data?.account
+  const edit = (target: Account) => {
+    setSecret(null)
+    sequence.current++
+    onEdit(target)
+  }
   return (
-    <Drawer
-      anchor="right"
-      open
-      onClose={onClose}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: '100%', sm: 440 }, p: 3 } }}
-    >
-      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6">{c.details}</Typography>
-        <IconButton aria-label={c.close} onClick={onClose}>
-          <Close />
-        </IconButton>
-      </Stack>
-      <Divider sx={{ my: 2 }} />
+    <Modal title={c.details} placement="end" closeButton onClose={onClose}>
       <ErrorBox error={account.error} retry={() => void account.refetch()} />
       {account.isPending ? (
         <Busy />
       ) : (
         a && (
-          <Stack spacing={2.5}>
-            {(
-              [
-                [c.id, a.id],
-                [c.provider, a.provider],
-                [c.loginName, a.login_name],
-                [c.email, a.email],
-                [c.externalId, a.external_account_id],
-                [c.createdAt, localDate(a.created_at)],
-              ] as const
-            ).map(([label, value]) => (
-              <Box key={label}>
-                <Typography variant="caption" color="text.secondary">
-                  {label}
-                </Typography>
-                <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-                  <Typography sx={{ flex: 1, minWidth: 0 }}>{value}</Typography>
-                  {[c.loginName, c.email, c.externalId].some((v) => v === label) && (
-                    <Copy value={value} label={`${c.copy} ${label}`} />
-                  )}
-                </Stack>
-              </Box>
-            ))}
-            <Chip
-              label={a.is_limit ? c.limited : c.unlimited}
-              color={a.is_limit ? 'warning' : 'success'}
-              variant="outlined"
-              sx={{ alignSelf: 'flex-start' }}
-            />
-            <Divider />
-            <Box>
-              <Typography variant="caption" color="text.secondary">
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="badge badge-ghost font-medium">{a.provider}</span>
+              <Status account={a} />
+            </div>
+            <dl className="divide-y divide-base-300 rounded-box border border-base-300">
+              {(
+                [
+                  [c.id, a.id],
+                  [c.provider, a.provider],
+                  [c.loginName, a.login_name],
+                  [c.email, a.email],
+                  [c.externalId, a.external_account_id],
+                  [c.createdAt, localDate(a.created_at)],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="px-4 py-2.5">
+                  <dt className="text-xs text-base-content/60">{label}</dt>
+                  <dd className="flex items-center gap-1">
+                    <span className="min-w-0 flex-1">{value}</span>
+                    {[c.loginName, c.email, c.externalId].some((v) => v === label) && (
+                      <Copy value={value} label={`${c.copy} ${label}`} />
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <section className="rounded-box border border-base-300 bg-base-200/50 p-4">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <KeyRound size={16} aria-hidden />
                 {c.secret}
-              </Typography>
-              <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-                <Typography component="code" sx={{ flex: 1, minWidth: 0, whiteSpace: 'pre-wrap' }}>
+              </h3>
+              <div className="mt-2 flex items-center gap-1 rounded-field bg-base-100 px-3 py-2">
+                <code className="min-w-0 flex-1 font-mono text-sm whitespace-pre-wrap">
                   {secret ?? '••••••'}
-                </Typography>
+                </code>
                 {secret !== null && <Copy value={secret} label={`${c.copy} ${c.secret}`} />}
-              </Stack>
-              <Button
-                loading={busy}
-                onClick={() => {
-                  if (secret !== null) {
-                    setSecret(null)
-                    sequence.current++
-                  } else void reveal()
-                }}
-              >
-                {secret !== null ? c.hide : c.reveal}
-              </Button>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                {c.secretHint}
-              </Typography>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-base-content/60">{c.secretHint}</p>
+                <Button
+                  className="btn-sm btn-outline"
+                  loading={busy}
+                  onClick={() => {
+                    if (secret !== null) {
+                      setSecret(null)
+                      sequence.current++
+                    } else void reveal()
+                  }}
+                >
+                  {secret !== null ? (
+                    <EyeOff size={14} aria-hidden />
+                  ) : (
+                    !busy && <Eye size={14} aria-hidden />
+                  )}
+                  {secret !== null ? c.hide : c.reveal}
+                </Button>
+              </div>
               <ErrorBox error={error} />
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                {c.passwordHint}
-              </Typography>
-              <Button
-                onClick={() => {
-                  setSecret(null)
-                  sequence.current++
-                  onEdit(a)
-                }}
-              >
+            </section>
+            <section className="rounded-box border border-base-300 p-4">
+              <p className="text-sm text-base-content/70">{c.passwordHint}</p>
+              <Button className="btn-sm btn-ghost -ms-2 mt-1" onClick={() => edit(a)}>
                 {c.setPassword}
               </Button>
-            </Box>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                setSecret(null)
-                sequence.current++
-                onEdit(a)
-              }}
-            >
+            </section>
+            <Button className="btn-primary" onClick={() => edit(a)}>
+              <Pencil size={16} aria-hidden />
               {c.editAccount}
             </Button>
-          </Stack>
+          </div>
         )
       )}
-    </Drawer>
+    </Modal>
   )
 }

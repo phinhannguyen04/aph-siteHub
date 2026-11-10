@@ -1,24 +1,21 @@
-import InitColorSchemeScript from '@mui/material/InitColorSchemeScript'
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter'
 import type { Metadata } from 'next'
 import { Providers } from '@/components/layout/providers'
+import { themeScript } from '@/lib/theme'
+import './globals.css'
+
 export const metadata: Metadata = {
   title: 'APH SiteHub',
   description: 'Website directory and provider account management',
 }
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="sitehub-light" suppressHydrationWarning>
+      <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static theme bootstrap script */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
-        <InitColorSchemeScript
-          attribute="class"
-          defaultMode="system"
-          modeStorageKey="sitehub-theme"
-          colorSchemeStorageKey="sitehub-theme"
-        />
-        <AppRouterCacheProvider>
-          <Providers>{children}</Providers>
-        </AppRouterCacheProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

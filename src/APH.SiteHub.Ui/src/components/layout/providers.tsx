@@ -1,6 +1,6 @@
 'use client'
-import { Alert, CssBaseline, Snackbar, ThemeProvider } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { CircleAlert, CircleCheck, X } from 'lucide-react'
 import {
   createContext,
   type ReactNode,
@@ -14,7 +14,7 @@ import { Login } from '@/components/auth/login'
 import { Busy, ErrorBox } from '@/components/common'
 import { onUnauthorized, request, setToken } from '@/lib/api/client'
 import type { ApiError } from '@/lib/api/types'
-import { theme } from '@/theme/theme'
+import { c } from '@/lib/copy'
 
 const NoticeContext = createContext<(message: string, severity?: 'success' | 'error') => void>(
   () => {},
@@ -34,6 +34,17 @@ export function Providers({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState<{ message: string; severity: 'success' | 'error' } | null>(
     null,
   )
+  const toast = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = toast.current
+    if (!el?.showPopover) return
+    // Re-showing moves the popover to the top of the top layer, above any open modal dialog.
+    if (el.matches(':popover-open')) el.hidePopover()
+    if (!notice) return
+    el.showPopover()
+    const timer = setTimeout(() => setNotice(null), 5000)
+    return () => clearTimeout(timer)
+  }, [notice])
   const notify = useCallback(
     (message: string, severity: 'success' | 'error' = 'success') =>
       setNotice({ message, severity }),
@@ -83,39 +94,55 @@ export function Providers({ children }: { children: ReactNode }) {
     setSession('guest')
   }
   return (
-    <ThemeProvider
-      theme={theme}
-      defaultMode="system"
-      modeStorageKey="sitehub-theme"
-      colorSchemeStorageKey="sitehub-theme"
-    >
-      <CssBaseline />
-      <QueryClientProvider client={client}>
-        <NoticeContext.Provider value={notify}>
-          <SessionContext.Provider value={{ logout }}>
-            {session === 'loading' ? (
-              <Busy />
-            ) : session === 'error' ? (
+    <QueryClientProvider client={client}>
+      <NoticeContext.Provider value={notify}>
+        <SessionContext.Provider value={{ logout }}>
+          {session === 'loading' ? (
+            <Busy />
+          ) : session === 'error' ? (
+            <div className="mx-auto max-w-xl p-6">
               <ErrorBox error={error} retry={bootstrap} />
-            ) : session === 'guest' ? (
-              <Login
-                expired={expired}
-                onSuccess={() => {
-                  setExpired(false)
-                  setSession('ready')
-                }}
-              />
-            ) : (
-              children
+            </div>
+          ) : session === 'guest' ? (
+            <Login
+              expired={expired}
+              onSuccess={() => {
+                setExpired(false)
+                setSession('ready')
+              }}
+            />
+          ) : (
+            children
+          )}
+          <div
+            ref={toast}
+            popover="manual"
+            className="fixed inset-auto end-4 bottom-4 m-0 max-w-[calc(100vw-2rem)] overflow-visible border-0 bg-transparent p-0"
+          >
+            {notice && (
+              <div
+                role={notice.severity === 'error' ? 'alert' : 'status'}
+                className={`alert shadow-lg ${notice.severity === 'error' ? 'alert-error' : 'alert-success'}`}
+              >
+                {notice.severity === 'error' ? (
+                  <CircleAlert size={18} aria-hidden />
+                ) : (
+                  <CircleCheck size={18} aria-hidden />
+                )}
+                <span>{notice.message}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs btn-square"
+                  aria-label={c.dismiss}
+                  onClick={() => setNotice(null)}
+                >
+                  <X size={14} />
+                </button>
+              </div>
             )}
-            <Snackbar open={!!notice} autoHideDuration={5000} onClose={() => setNotice(null)}>
-              <Alert severity={notice?.severity} onClose={() => setNotice(null)}>
-                {notice?.message}
-              </Alert>
-            </Snackbar>
-          </SessionContext.Provider>
-        </NoticeContext.Provider>
-      </QueryClientProvider>
-    </ThemeProvider>
+          </div>
+        </SessionContext.Provider>
+      </NoticeContext.Provider>
+    </QueryClientProvider>
   )
 }

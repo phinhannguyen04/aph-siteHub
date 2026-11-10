@@ -1,7 +1,9 @@
 'use client'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack } from '@mui/material'
+import { TriangleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { c } from '@/lib/copy'
+import { Button } from './button'
+import { Modal } from './modal'
 export function Confirm({
   title,
   children,
@@ -18,33 +20,29 @@ export function Confirm({
   disabled?: boolean
 }) {
   return (
-    <Dialog
-      open
+    <Modal
+      title={
+        <span className="flex items-center gap-2">
+          <span className="grid size-8 place-items-center rounded-full bg-error/15 text-error">
+            <TriangleAlert size={16} aria-hidden />
+          </span>
+          {title}
+        </span>
+      }
+      size="xs"
       onClose={pending ? undefined : onClose}
-      fullWidth
-      maxWidth="xs"
-      aria-labelledby="confirm-title"
+      actions={
+        <>
+          <Button className="btn-ghost" disabled={pending} onClick={onClose}>
+            {c.cancel}
+          </Button>
+          <Button className="btn-error" loading={pending} disabled={disabled} onClick={onConfirm}>
+            {c.delete}
+          </Button>
+        </>
+      }
     >
-      <DialogTitle id="confirm-title">{title}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {children}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button disabled={pending} onClick={onClose}>
-          {c.cancel}
-        </Button>
-        <Button
-          color="error"
-          variant="contained"
-          loading={pending}
-          disabled={disabled}
-          onClick={onConfirm}
-        >
-          {c.delete}
-        </Button>
-      </DialogActions>
-    </Dialog>
+      {children}
+    </Modal>
   )
 }

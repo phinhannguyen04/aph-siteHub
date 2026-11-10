@@ -242,7 +242,7 @@ test('website deletion confirms the name, refreshes the count and leaves an empt
   }))
   await page.goto('/?page=2&pageSize=12')
   await expect(page.getByRole('heading', { name: 'Website 13', exact: true })).toBeVisible()
-  const badge = page.locator('.MuiBadge-badge').last()
+  const badge = page.getByTestId('website-count')
   await expect(badge).toHaveText('13')
   const countRequests = state.countRequests
   await page.getByRole('button', { name: 'Delete Website 13', exact: true }).click()
@@ -324,8 +324,7 @@ test('desktop and 360px mobile layouts, navigation, dark theme and error recover
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/accounts-mobile.png', fullPage: true })
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Appearance', exact: true }).last().click()
-  await page.getByRole('option', { name: 'Dark', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(20, 25, 30)')
   await page

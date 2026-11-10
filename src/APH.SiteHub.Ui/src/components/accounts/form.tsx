@@ -1,18 +1,6 @@
 'use client'
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  Stack,
-  Switch,
-  TextField,
-} from '@mui/material'
 import { useState } from 'react'
-import { ErrorBox, PasswordField } from '@/components/common'
+import { Button, ErrorBox, Field, Modal, PasswordField } from '@/components/common'
 import { accountPatch } from '@/lib/api/accounts'
 import { useWrite } from '@/lib/api/hooks'
 import type { Account } from '@/lib/api/types'
@@ -47,85 +35,83 @@ export function AccountForm({ account, onClose }: { account?: Account; onClose: 
   }
   const patch = account ? accountPatch(account, input) : input
   return (
-    <Dialog
-      open
+    <Modal
+      title={account ? c.editAccount : c.addAccount}
       onClose={write.pending ? undefined : onClose}
-      fullWidth
-      maxWidth="sm"
-      aria-labelledby="account-form-title"
-    >
-      <Box
-        component="form"
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault()
-          const error = validate(values, !!account)
-          setValidation(error)
-          if (Object.keys(error).length) return
-          void write.run(
-            account ? `/api/accounts/${account.id}` : '/api/accounts',
-            account ? 'PATCH' : 'POST',
-            patch,
-            onClose,
-          )
-        }}
-      >
-        <DialogTitle id="account-form-title">{account ? c.editAccount : c.addAccount}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ pt: 1 }}>
-            <ErrorBox error={write.error} />
-            {fields.map(([key, label], i) => (
-              <TextField
-                key={key}
-                label={label}
-                error={!!validation[key]}
-                helperText={validation[key]}
-                autoFocus={i === 0 && !account}
-                required={!account}
-                value={values[key]}
-                slotProps={{ input: { readOnly: !!account } }}
-                onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
-              />
-            ))}
-            <PasswordField
-              label={account ? c.setPassword : c.password}
-              autoFocus={!!account}
-              autoComplete="new-password"
-              required={!account}
-              error={!!validation.password}
-              helperText={validation.password ?? (account ? c.unchanged : undefined)}
-              value={values.password}
-              onChange={(e) => setValues((v) => ({ ...v, password: e.target.value }))}
-            />
-            <PasswordField
-              label={c.secret}
-              autoComplete="off"
-              required={!account}
-              error={!!validation.secret_key}
-              helperText={validation.secret_key ?? (account ? c.unchanged : undefined)}
-              value={values.secret_key}
-              onChange={(e) => setValues((v) => ({ ...v, secret_key: e.target.value }))}
-            />
-            <FormControlLabel
-              control={<Switch checked={limit} onChange={(_, value) => setLimit(value)} />}
-              label={c.limited}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={write.pending}>
+      onSubmit={(e) => {
+        e.preventDefault()
+        const error = validate(values, !!account)
+        setValidation(error)
+        if (Object.keys(error).length) return
+        void write.run(
+          account ? `/api/accounts/${account.id}` : '/api/accounts',
+          account ? 'PATCH' : 'POST',
+          patch,
+          onClose,
+        )
+      }}
+      actions={
+        <>
+          <Button className="btn-ghost" onClick={onClose} disabled={write.pending}>
             {c.cancel}
           </Button>
           <Button
-            variant="contained"
+            className="btn-primary"
             type="submit"
             loading={write.pending}
             disabled={account && Object.keys(patch).length === 0}
           >
             {account ? c.save : c.create}
           </Button>
-        </DialogActions>
-      </Box>
-    </Dialog>
+        </>
+      }
+    >
+      <ErrorBox error={write.error} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {fields.map(([key, label], i) => (
+          <Field
+            key={key}
+            label={label}
+            type={key === 'email' ? 'email' : 'text'}
+            error={!!validation[key]}
+            helperText={validation[key]}
+            autoFocus={i === 0 && !account}
+            required={!account}
+            value={values[key]}
+            readOnly={!!account}
+            onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+          />
+        ))}
+      </div>
+      <div className="divider my-0" />
+      <PasswordField
+        label={account ? c.setPassword : c.password}
+        autoFocus={!!account}
+        autoComplete="new-password"
+        required={!account}
+        error={!!validation.password}
+        helperText={validation.password ?? (account ? c.unchanged : undefined)}
+        value={values.password}
+        onChange={(e) => setValues((v) => ({ ...v, password: e.target.value }))}
+      />
+      <PasswordField
+        label={c.secret}
+        autoComplete="off"
+        required={!account}
+        error={!!validation.secret_key}
+        helperText={validation.secret_key ?? (account ? c.unchanged : undefined)}
+        value={values.secret_key}
+        onChange={(e) => setValues((v) => ({ ...v, secret_key: e.target.value }))}
+      />
+      <label className="flex cursor-pointer items-center gap-3 self-start">
+        <input
+          type="checkbox"
+          className="toggle toggle-warning"
+          checked={limit}
+          onChange={(e) => setLimit(e.target.checked)}
+        />
+        <span className="text-sm font-medium">{c.limited}</span>
+      </label>
+    </Modal>
   )
 }

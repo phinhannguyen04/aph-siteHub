@@ -1,7 +1,6 @@
 'use client'
-import { TextField, Typography } from '@mui/material'
 import { useState } from 'react'
-import { Confirm, ErrorBox } from '@/components/common'
+import { Confirm, ErrorBox, Field } from '@/components/common'
 import { useWrite } from '@/lib/api/hooks'
 import type { Account } from '@/lib/api/types'
 import { c } from '@/lib/copy'
@@ -27,11 +26,14 @@ export function DeleteAccountDialog({
         void write.run(`/api/accounts/${account.id}`, 'DELETE', undefined, onDeleted)
       }
     >
-      <Typography>{c.irreversible}</Typography>
-      <Typography sx={{ fontWeight: 700 }}>{account.login_name}</Typography>
-      <TextField
+      <p className="text-base-content/80">{c.irreversible}</p>
+      <p className="rounded-field bg-base-200 px-3 py-2 font-mono font-semibold">
+        {account.login_name}
+      </p>
+      <Field
         autoFocus
         label={c.confirmLogin}
+        autoComplete="off"
         value={confirmation}
         onChange={(e) => setConfirmation(e.target.value)}
       />

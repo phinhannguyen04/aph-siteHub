@@ -14,24 +14,22 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.105.0",
+    "lucide-react": "1.71.0",
     "next": "16.4.3",
     "react": "19.3.1",
-    "react-dom": "19.3.1",
-    "@mui/material": "9.5.0",
-    "@mui/icons-material": "9.5.0",
-    "@mui/material-nextjs": "9.5.0",
-    "@emotion/react": "11.14.0",
-    "@emotion/styled": "11.14.1",
-    "@emotion/cache": "11.14.0",
-    "@tanstack/react-query": "5.105.0"
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@playwright/test": "1.64.1",
+    "@tailwindcss/postcss": "4.3.5",
     "@types/bun": "1.4.4",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "daisyui": "5.7.50",
+    "tailwindcss": "4.3.5",
     "typescript": "5.9.3"
   }
 }

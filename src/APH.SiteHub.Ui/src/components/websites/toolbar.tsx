@@ -1,7 +1,6 @@
 'use client'
-import { Add } from '@mui/icons-material'
-import { Autocomplete, Button, Stack, TextField } from '@mui/material'
-import { TagChip } from '@/components/common'
+import { Plus, Search } from 'lucide-react'
+import { Button, Field, TagSelect } from '@/components/common'
 import type { Tag } from '@/lib/api/types'
 import type { websiteFilters } from '@/lib/api/websites'
 import { c } from '@/lib/copy'
@@ -23,46 +22,28 @@ export function WebsiteToolbar({
   onAdd: () => void
 }) {
   return (
-    <Stack direction={{ xs: 'column', lg: 'row' }} sx={{ gap: 2 }}>
-      <TextField
+    <div className="flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-4 lg:flex-row lg:items-end">
+      <Field
+        type="search"
         label={c.searchWebsites}
         value={search}
         onChange={(e) => setSearch(e.target.value.slice(0, 160))}
-        sx={{ flex: 1 }}
+        className="flex-1"
+        start={<Search size={16} className="opacity-50" aria-hidden />}
       />
-      <Autocomplete
-        multiple
-        options={tags}
+      <TagSelect
+        label={c.filterTags}
+        tags={tags}
         value={filters.tagIds
           .map((id) => tags.find((t) => t.id === id))
           .filter((t) => t !== undefined)}
-        isOptionEqualToValue={(a, b) => a.id === b.id}
-        getOptionLabel={(t) => t.name}
-        onChange={(_, values) => update({ tagIds: values.map((t) => t.id), page: 1 })}
-        renderInput={(p) => <TextField {...p} label={c.filterTags} />}
-        renderValue={(values) => (
-          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-            {values.map((t) => (
-              <TagChip
-                key={t.id}
-                tag={t}
-                onDelete={() =>
-                  update({ tagIds: filters.tagIds.filter((id) => id !== t.id), page: 1 })
-                }
-              />
-            ))}
-          </Stack>
-        )}
-        sx={{ flex: 1 }}
+        onChange={(values) => update({ tagIds: values.map((t) => t.id), page: 1 })}
+        className="flex-1"
       />
-      <Button
-        variant="contained"
-        startIcon={<Add />}
-        onClick={() => onAdd()}
-        sx={{ flexShrink: 0 }}
-      >
+      <Button className="btn-primary shrink-0" onClick={() => onAdd()}>
+        <Plus size={16} aria-hidden />
         {c.addWebsite}
       </Button>
-    </Stack>
+    </div>
   )
 }

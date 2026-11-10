@@ -1,10 +1,10 @@
 'use client'
-import { Box, Button, Stack, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { AccountDetail } from '@/components/accounts/detail'
 import { AccountForm } from '@/components/accounts/form'
-import { Busy, Empty, ErrorBox } from '@/components/common'
+import { Busy, Button, Empty, ErrorBox } from '@/components/common'
+import { PageHeader } from '@/components/layout/page-header'
 import { query } from '@/lib/api/client'
 import type { Account, AccountStats } from '@/lib/api/types'
 import { c } from '@/lib/copy'
@@ -59,15 +59,8 @@ export function Accounts() {
     <AccountActions account={a} onEdit={setForm} onDelete={setDeleting} />
   )
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          {c.accounts}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 1 }}>
-          {c.accountIntro}
-        </Typography>
-      </Box>
+    <div className="flex flex-col gap-6">
+      <PageHeader title={c.accounts} intro={c.accountIntro} />
       <AccountStatsPanel stats={stats} />
       <AccountToolbar
         search={search}
@@ -93,6 +86,7 @@ export function Accounts() {
           body={accounts.data?.accounts.length ? c.noResultsBody : c.noAccountsBody}
           action={
             <Button
+              className="btn-primary"
               onClick={() => {
                 if (accounts.data?.accounts.length) {
                   setSearch('')
@@ -107,9 +101,9 @@ export function Accounts() {
         />
       ) : (
         <>
-          <Box sx={{ display: view === 'table' ? { xs: 'block', md: 'none' } : 'block' }}>
+          <div className={view === 'table' ? 'md:hidden' : undefined}>
             <AccountList accounts={filtered} actions={actions} onDetail={setDetail} />
-          </Box>
+          </div>
           {view === 'table' && (
             <AccountTable
               accounts={filtered}
@@ -138,7 +132,7 @@ export function Accounts() {
       )}
       {form && (
         <AccountForm account={form === 'new' ? undefined : form} onClose={() => setForm(null)} />
-      )}{' '}
+      )}
       {deleting && (
         <DeleteAccountDialog
           account={deleting}
@@ -149,6 +143,6 @@ export function Accounts() {
           }}
         />
       )}
-    </Stack>
+    </div>
   )
 }

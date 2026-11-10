@@ -1,41 +1,28 @@
 'use client'
-import { Visibility, VisibilityOff } from '@mui/icons-material'
-import { IconButton, InputAdornment, TextField } from '@mui/material'
-import { type ComponentProps, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
+import { useState } from 'react'
 import { c } from '@/lib/copy'
+import { Field, type FieldProps } from './field'
 
-export function PasswordField(props: ComponentProps<typeof TextField>) {
+export function PasswordField({ end, ...props }: Omit<FieldProps, 'type'>) {
   const [visible, setVisible] = useState(false)
   return (
-    <TextField
+    <Field
       {...props}
       type={visible ? 'text' : 'password'}
-      slotProps={{
-        ...props.slotProps,
-        input: (ownerState) => {
-          const input =
-            typeof props.slotProps?.input === 'function'
-              ? props.slotProps.input(ownerState)
-              : props.slotProps?.input
-          return {
-            ...input,
-            endAdornment: (
-              <>
-                {input?.endAdornment}
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label={visible ? c.hidePassword : c.showPassword}
-                    onClick={() => setVisible(!visible)}
-                    edge="end"
-                  >
-                    {visible ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              </>
-            ),
-          }
-        },
-      }}
+      end={
+        <>
+          {end}
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs btn-square -me-1"
+            aria-label={visible ? c.hidePassword : c.showPassword}
+            onClick={() => setVisible(!visible)}
+          >
+            {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </>
+      }
     />
   )
 }
