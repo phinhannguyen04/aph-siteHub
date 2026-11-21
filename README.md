@@ -10,6 +10,8 @@ src/
   APH.SiteHub.Application/     Feature/use-case folders, Contracts/, Abstractions/ and Common/
   APH.SiteHub.Infrastructure/  Dapper repositories, SQL schema migrations and Security/
   APH.SiteHub.Api/             Endpoints/, Contracts/, Security/, Middleware/, ErrorHandling/ Commands/ and Http/
+  APH.SiteHub.ServiceDefaults/ Shared .NET Aspire defaults: OpenTelemetry, service discovery, HTTP resilience, /alive
+  APH.SiteHub.AppHost/         .NET Aspire orchestration for local development (Oracle, migration, API, Next.js, dashboard)
 src/APH.SiteHub.Ui/           Next.js + MUI application (Biome); same-origin /api proxy via Next rewrites
 tests/APH.SiteHub.Tests/       xUnit, security interoperability fixtures and Oracle API tests
 scripts/backend.ts            Pass workspace .env to .NET development/maintenance commands
@@ -57,6 +59,25 @@ dotnet run --project src/APH.SiteHub.Api
 ```
 
 Development exposes `/openapi/v1.json`. Production does not expose OpenAPI.
+
+## Running with .NET Aspire
+
+The `APH.SiteHub.AppHost` project starts the whole stack for development and opens the Aspire dashboard (resources, console logs, structured logs, traces and metrics for the API):
+
+```bash
+dotnet user-secrets --project src/APH.SiteHub.AppHost set Parameters:account-encryption-key "$(openssl rand -hex 32)"
+dotnet user-secrets --project src/APH.SiteHub.AppHost set Parameters:admin-password-hash-base64 '<output of bun run hash-password>'
+bun run aspire      # same as: dotnet run --project src/APH.SiteHub.AppHost
+```
+
+It runs, in order: an Oracle container (`latest-lite`, its own named volume, the same `docker/oracle/init` script that creates the application schema), a one-shot `migrate` resource (`--migrate`), the `backend` API and the `frontend` (`bun run dev`). Each resource waits for the previous one to be healthy; the backend is gated on its database-backed `/health`. Ports are allocated by Aspire and shown in the dashboard, so it does not collide with the Compose stack on 8111.
+
+- `oracle-password`, `oracle-app-password` and `session-secret` are generated on first run and persisted in the AppHost user secrets. `account-encryption-key` and `admin-password-hash-base64` cannot be generated, so supply them as above (the dashboard prompts if they are missing). Keep the encryption key stable: stored account secrets are decrypted with it.
+- The generated database passwords contain only letters and digits, which keeps `DATABASE_URL` valid without URL-encoding.
+- The API adds `APH.SiteHub.ServiceDefaults`: OpenTelemetry traces, metrics and logs are exported over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (Aspire sets it), `/health` and `/alive` requests are filtered out of traces, and `/alive` is a dependency-free liveness probe exposed in Development only. Outside Aspire nothing changes.
+- **LAN access:** `LAN_HOST=<this machine's LAN IP> bun run aspire` serves the UI on a fixed port (`LAN_PORT`, default 8112) bound to all interfaces, so other machines open `http://<LAN_HOST>:8112`. The AppHost also adds that origin to `APP_ORIGINS` (the API compares the browser `Origin` exactly, port included) and to Next's `allowedDevOrigins`. Only the UI is exposed: the API stays behind the UI's `/api` proxy and the Aspire dashboard stays on localhost. The connection is plain http, so use a trusted network. Allow the port in the host firewall, for example (match the subnet of this machine, `ip -4 -br addr`) `sudo ufw allow from 10.30.0.0/22 to any port 8112 proto tcp`.
+- If `migrate` fails right after Oracle first starts (the schema user is created by the startup script), restart that resource from the dashboard.
+- Not covered: database-level (ODP.NET) tracing and Next.js telemetry. The AppHost is for local development; deployment is still `docker compose` below.
 
 ## Administrator credentials and secrets
 

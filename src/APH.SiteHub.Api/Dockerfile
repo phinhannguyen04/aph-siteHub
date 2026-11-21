@@ -4,6 +4,7 @@ COPY global.json Directory.Build.props ./
 COPY src/APH.SiteHub.Domain/APH.SiteHub.Domain.csproj src/APH.SiteHub.Domain/
 COPY src/APH.SiteHub.Application/APH.SiteHub.Application.csproj src/APH.SiteHub.Application/
 COPY src/APH.SiteHub.Infrastructure/APH.SiteHub.Infrastructure.csproj src/APH.SiteHub.Infrastructure/
+COPY src/APH.SiteHub.ServiceDefaults/APH.SiteHub.ServiceDefaults.csproj src/APH.SiteHub.ServiceDefaults/
 COPY src/APH.SiteHub.Api/APH.SiteHub.Api.csproj src/APH.SiteHub.Api/
 RUN dotnet restore src/APH.SiteHub.Api/APH.SiteHub.Api.csproj
 COPY src src

@@ -1,0 +1,14 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>aph-sitehub-apphost</UserSecretsId>
+    <!-- The dashboard and DCP come from NuGet packages; the optional Aspire CLI bundle is not needed. -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../APH.SiteHub.Api/APH.SiteHub.Api.csproj" />
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.Oracle" Version="13.6.5" />
+  </ItemGroup>
+</Project>

@@ -2,8 +2,11 @@ import type { NextConfig } from 'next'
 
 const target =
   process.env.SITEHUB_DEV_API_TARGET ?? `http://localhost:${process.env.API_PORT ?? 3000}`
+// Set by the Aspire AppHost when the dev UI is opened from another machine on the LAN.
+const lanHost = process.env.SITEHUB_LAN_HOST
 const config: NextConfig = {
   poweredByHeader: false,
+  allowedDevOrigins: lanHost ? [lanHost] : undefined,
   // The container image sets NEXT_OUTPUT=standalone; local `next start` keeps the default output.
   output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
   async rewrites() {
