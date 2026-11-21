@@ -71,11 +71,16 @@ export function AccountToolbar({
           </SelectField>
         </div>
         <div className="flex gap-2">
-          <Button className="btn-ghost flex-1 lg:flex-none" onClick={refresh} disabled={refreshing}>
+          <Button
+            variant="ghost"
+            className="flex-1 lg:flex-none"
+            onClick={refresh}
+            disabled={refreshing}
+          >
             <RefreshCw size={16} className={cx(refreshing && 'animate-spin')} aria-hidden />
             {c.refresh}
           </Button>
-          <Button className="btn-primary flex-1 shrink-0 lg:flex-none" onClick={onAdd}>
+          <Button variant="primary" className="flex-1 lg:flex-none" onClick={onAdd}>
             <Plus size={16} aria-hidden />
             {c.addAccount}
           </Button>
@@ -84,23 +89,27 @@ export function AccountToolbar({
       <div className="flex items-center justify-between">
         <p className="text-sm text-base-content/70">{c.count(count)}</p>
         {/* biome-ignore lint/a11y/useSemanticElements: toolbar-style toggle group */}
-        <div className="join hidden md:inline-flex" role="group" aria-label={c.viewMode}>
+        <div
+          className="hidden md:inline-flex [&>*:not(:first-child)]:-ms-px [&>*:not(:first-child)]:rounded-s-none [&>*:not(:last-child)]:rounded-e-none"
+          role="group"
+          aria-label={c.viewMode}
+        >
           {(
             [
               ['list', c.list, LayoutGrid],
               ['table', c.table, Rows3],
             ] as const
           ).map(([value, label, Icon]) => (
-            <button
+            <Button
               key={value}
-              type="button"
-              className={cx('join-item btn btn-sm', view === value && 'btn-active btn-primary')}
+              size="sm"
+              variant={view === value ? 'primary' : 'default'}
               aria-label={label}
               aria-pressed={view === value}
               onClick={() => setView(value)}
             >
               <Icon size={16} />
-            </button>
+            </Button>
           ))}
         </div>
       </div>

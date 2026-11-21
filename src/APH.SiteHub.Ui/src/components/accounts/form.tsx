@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Button, ErrorBox, Field, Modal, PasswordField } from '@/components/common'
+import { Button, ErrorBox, Field, Modal, PasswordField, ToggleField } from '@/components/common'
 import { accountPatch } from '@/lib/api/accounts'
 import { useWrite } from '@/lib/api/hooks'
 import type { Account } from '@/lib/api/types'
@@ -52,11 +52,11 @@ export function AccountForm({ account, onClose }: { account?: Account; onClose: 
       }}
       actions={
         <>
-          <Button className="btn-ghost" onClick={onClose} disabled={write.pending}>
+          <Button variant="ghost" onClick={onClose} disabled={write.pending}>
             {c.cancel}
           </Button>
           <Button
-            className="btn-primary"
+            variant="primary"
             type="submit"
             loading={write.pending}
             disabled={account && Object.keys(patch).length === 0}
@@ -83,7 +83,7 @@ export function AccountForm({ account, onClose }: { account?: Account; onClose: 
           />
         ))}
       </div>
-      <div className="divider my-0" />
+      <hr className="border-base-300" />
       <PasswordField
         label={account ? c.setPassword : c.password}
         autoFocus={!!account}
@@ -103,15 +103,7 @@ export function AccountForm({ account, onClose }: { account?: Account; onClose: 
         value={values.secret_key}
         onChange={(e) => setValues((v) => ({ ...v, secret_key: e.target.value }))}
       />
-      <label className="flex cursor-pointer items-center gap-3 self-start">
-        <input
-          type="checkbox"
-          className="toggle toggle-warning"
-          checked={limit}
-          onChange={(e) => setLimit(e.target.checked)}
-        />
-        <span className="text-sm font-medium">{c.limited}</span>
-      </label>
+      <ToggleField className="self-start" label={c.limited} checked={limit} onChange={setLimit} />
     </Modal>
   )
 }

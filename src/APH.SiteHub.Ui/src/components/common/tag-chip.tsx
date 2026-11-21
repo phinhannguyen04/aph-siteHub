@@ -18,7 +18,7 @@ export function tagTextColor(color: string) {
 export function TagChip({ tag, onDelete }: { tag: Tag; onDelete?: () => void }) {
   return (
     <span
-      className="badge badge-sm h-auto min-h-5 max-w-full gap-1 border-0 py-0.5 font-medium"
+      className="inline-flex min-h-5 max-w-full items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium"
       style={{ backgroundColor: tag.color, color: tagTextColor(tag.color) }}
     >
       <span className="truncate">{tag.name}</span>

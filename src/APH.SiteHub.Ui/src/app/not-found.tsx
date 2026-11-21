@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { Empty } from '@/components/common'
+import { buttonClass, Empty } from '@/components/common'
 import { c } from '@/lib/copy'
 export default function NotFound() {
   return (
@@ -9,7 +9,7 @@ export default function NotFound() {
         title={c.notFound}
         body={c.notFoundBody}
         action={
-          <Link className="btn btn-primary" href="/">
+          <Link className={buttonClass({ variant: 'primary' })} href="/">
             {c.home}
           </Link>
         }

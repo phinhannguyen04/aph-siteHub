@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react'
 import { Login } from '@/components/auth/login'
-import { Busy, ErrorBox } from '@/components/common'
+import { Alert, Busy, Button, ErrorBox } from '@/components/common'
 import { onUnauthorized, request, setToken } from '@/lib/api/client'
 import type { ApiError } from '@/lib/api/types'
 import { c } from '@/lib/copy'
@@ -34,14 +34,8 @@ export function Providers({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState<{ message: string; severity: 'success' | 'error' } | null>(
     null,
   )
-  const toast = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const el = toast.current
-    if (!el?.showPopover) return
-    // Re-showing moves the popover to the top of the top layer, above any open modal dialog.
-    if (el.matches(':popover-open')) el.hidePopover()
     if (!notice) return
-    el.showPopover()
     const timer = setTimeout(() => setNotice(null), 5000)
     return () => clearTimeout(timer)
   }, [notice])
@@ -114,15 +108,15 @@ export function Providers({ children }: { children: ReactNode }) {
           ) : (
             children
           )}
-          <div
-            ref={toast}
-            popover="manual"
-            className="fixed inset-auto end-4 bottom-4 m-0 max-w-[calc(100vw-2rem)] overflow-visible border-0 bg-transparent p-0"
-          >
-            {notice && (
-              <div
+          {/* Mounted only while a notice exists: Headless UI dialogs mark pre-existing siblings
+              inert, so a toast created after a dialog opened stays readable and dismissable. */}
+          {notice && (
+            <div className="fixed end-4 bottom-4 z-[100] max-w-[calc(100vw-2rem)]">
+              <Alert
+                solid
+                tone={notice.severity}
                 role={notice.severity === 'error' ? 'alert' : 'status'}
-                className={`alert shadow-lg ${notice.severity === 'error' ? 'alert-error' : 'alert-success'}`}
+                className="shadow-lg"
               >
                 {notice.severity === 'error' ? (
                   <CircleAlert size={18} aria-hidden />
@@ -130,17 +124,18 @@ export function Providers({ children }: { children: ReactNode }) {
                   <CircleCheck size={18} aria-hidden />
                 )}
                 <span>{notice.message}</span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-xs btn-square"
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  square
                   aria-label={c.dismiss}
                   onClick={() => setNotice(null)}
                 >
                   <X size={14} />
-                </button>
-              </div>
-            )}
-          </div>
+                </Button>
+              </Alert>
+            </div>
+          )}
         </SessionContext.Provider>
       </NoticeContext.Provider>
     </QueryClientProvider>

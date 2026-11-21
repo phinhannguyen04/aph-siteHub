@@ -40,7 +40,7 @@ export function WebsiteToolbar({
         onChange={(values) => update({ tagIds: values.map((t) => t.id), page: 1 })}
         className="flex-1"
       />
-      <Button className="btn-primary shrink-0" onClick={() => onAdd()}>
+      <Button variant="primary" onClick={() => onAdd()}>
         <Plus size={16} aria-hidden />
         {c.addWebsite}
       </Button>

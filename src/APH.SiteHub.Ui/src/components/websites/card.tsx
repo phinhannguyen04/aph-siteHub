@@ -1,6 +1,6 @@
 'use client'
 import { ExternalLink, Pencil, Trash2 } from 'lucide-react'
-import { Copy, localDate, TagChip } from '@/components/common'
+import { Button, Copy, localDate, TagChip } from '@/components/common'
 import type { Website } from '@/lib/api/types'
 import { c } from '@/lib/copy'
 
@@ -19,35 +19,37 @@ export function WebsiteCard({
   onDelete: (website: Website) => void
 }) {
   return (
-    <article className="card card-border group border-base-300 bg-base-100 transition-shadow hover:shadow-md">
-      <div className="card-body gap-3 p-5">
+    <article className="group flex flex-col rounded-box border border-base-300 bg-base-100 transition-shadow hover:shadow-md">
+      <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-center gap-3">
-          <div className="avatar avatar-placeholder">
-            <div
-              className="w-10 rounded-lg text-white"
-              style={{ backgroundColor: avatarColor(website.name) }}
-            >
-              <span className="font-semibold">{website.name.trim().slice(0, 1).toUpperCase()}</span>
-            </div>
+          <div
+            className="grid size-10 shrink-0 place-items-center rounded-lg font-semibold text-white"
+            style={{ backgroundColor: avatarColor(website.name) }}
+            aria-hidden
+          >
+            {website.name.trim().slice(0, 1).toUpperCase()}
           </div>
-          <h2 className="card-title min-w-0 flex-1 text-base leading-snug">{website.name}</h2>
+          <h2 className="min-w-0 flex-1 text-base leading-snug font-semibold">{website.name}</h2>
           <div className="flex opacity-80 group-hover:opacity-100">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm btn-square"
+            <Button
+              variant="ghost"
+              size="sm"
+              square
               aria-label={`${c.edit} ${website.name}`}
               onClick={() => onEdit(website)}
             >
               <Pencil size={16} />
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm btn-square text-error"
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              square
+              className="text-error"
               aria-label={`${c.delete} ${website.name}`}
               onClick={() => onDelete(website)}
             >
               <Trash2 size={16} />
-            </button>
+            </Button>
           </div>
         </div>
         <div className="flex items-center gap-1 rounded-field bg-base-200 px-2.5 py-1.5">
@@ -55,7 +57,7 @@ export function WebsiteCard({
             href={website.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="link link-hover link-primary min-w-0 flex-1 truncate text-sm"
+            className="min-w-0 flex-1 truncate text-sm text-primary hover:underline"
           >
             {website.url}
           </a>

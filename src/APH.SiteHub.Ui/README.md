@@ -1,6 +1,6 @@
 # APH SiteHub UI
 
-Standalone Next.js App Router + TypeScript dashboard styled with Tailwind CSS v4 and daisyUI 5 (icons: lucide-react). Requires Bun and Node.js 20.9+.
+Standalone Next.js App Router + TypeScript dashboard styled with Tailwind CSS v4 and Headless UI (`@headlessui/react`) for accessible interactive primitives (icons: lucide-react). Requires Bun and Node.js 20.9+.
 
 ```sh
 cd src/APH.SiteHub.Ui
@@ -32,10 +32,10 @@ Secrets are fetched on demand with `cache: 'no-store'`, held only in the mounted
 
 ## Structure
 
-- `src/app`: thin route pages, root layout with the pre-hydration theme script, `globals.css` (Tailwind + daisyUI `sitehub-light`/`sitehub-dark` themes) and custom 404.
+- `src/app`: thin route pages, root layout with the pre-hydration theme script, `globals.css` (Tailwind with `sitehub-light`/`sitehub-dark` colour tokens) and custom 404.
 - `src/components/accounts`: account screen, statistics, toolbar, sortable table, list, actions, forms, detail drawer and delete dialog.
 - `src/components/websites`: website screen, toolbar, pagination, card and form.
-- `src/components/tags`, `auth`, `layout`, `common`: tag forms/manager, sign-in/password change, shell/providers and reusable daisyUI controls (`Field`, `Modal` on native `<dialog>`, `TagSelect`, `Confirm`, toast).
+- `src/components/tags`, `auth`, `layout`, `common`: tag forms/manager, sign-in/password change, shell/providers and reusable Tailwind/Headless UI controls (`Button`, `Field`, `Modal` on Headless `Dialog`, `TagSelect` on Headless `Combobox`, `ToggleField` on `Switch`, `Confirm`, toast).
 - `src/lib/api`: typed discriminated results, CSRF/401 handling, query hooks, safe PATCH/query builders.
 - `src/lib/validation`: validation aligned with backend normalization.
 - `src/lib/copy.ts`: authored English UI copy.

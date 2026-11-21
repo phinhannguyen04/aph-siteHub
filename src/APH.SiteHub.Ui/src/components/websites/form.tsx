@@ -44,12 +44,12 @@ export function WebsiteForm({ website, onClose }: { website?: Website; onClose: 
         }}
         actions={
           <>
-            <Button className="btn-ghost" onClick={onClose} disabled={write.pending}>
+            <Button variant="ghost" onClick={onClose} disabled={write.pending}>
               {c.cancel}
             </Button>
             <Button
               type="submit"
-              className="btn-primary"
+              variant="primary"
               loading={write.pending}
               disabled={website && Object.keys(patch).length === 0}
             >
@@ -90,40 +90,42 @@ export function WebsiteForm({ website, onClose }: { website?: Website; onClose: 
           helperText={validation.tag_ids}
         />
         {selected.length > 1 && (
-          <ol className="list rounded-box border border-base-300">
+          <ol className="divide-y divide-base-300 rounded-box border border-base-300">
             {selected.map((t, i) => (
-              <li key={t.id} className="list-row items-center py-1.5">
+              <li key={t.id} className="flex items-center gap-3 px-4 py-1.5">
                 <span className="w-5 text-center text-xs text-base-content/50 tabular-nums">
                   {i + 1}
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <TagChip tag={t} />
                 </div>
                 <div className="flex">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-xs btn-square"
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    square
                     aria-label={`${c.up}: ${t.name}`}
                     disabled={i === 0}
                     onClick={() => move(i, -1)}
                   >
                     <ArrowUp size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-xs btn-square"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    square
                     aria-label={`${c.down}: ${t.name}`}
                     disabled={i === selected.length - 1}
                     onClick={() => move(i, 1)}
                   >
                     <ArrowDown size={14} />
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
           </ol>
         )}
-        <Button className="btn-ghost btn-sm self-start" onClick={() => setQuick(true)}>
+        <Button variant="ghost" size="sm" className="self-start" onClick={() => setQuick(true)}>
           <Plus size={16} aria-hidden />
           {c.quickTag}
         </Button>

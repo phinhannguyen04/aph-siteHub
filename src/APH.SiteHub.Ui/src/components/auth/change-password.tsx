@@ -1,20 +1,13 @@
 'use client'
 import { useRef, useState } from 'react'
-import { Button, ErrorBox, Modal, PasswordField } from '@/components/common'
+import { Button, ErrorBox, Modal, PasswordField, Progress } from '@/components/common'
 import { useNotice } from '@/components/layout/providers'
 import { request, setToken } from '@/lib/api/client'
 import type { ApiError } from '@/lib/api/types'
 import { c } from '@/lib/copy'
-import { cx } from '@/lib/cx'
 import { type PasswordErrors, changePassword as validate } from '@/lib/validation'
 
-const strengthColor = [
-  '',
-  'progress-error',
-  'progress-warning',
-  'progress-info',
-  'progress-success',
-]
+const strengthTone = ['primary', 'error', 'warning', 'info', 'success'] as const
 
 export function ChangePassword({ onClose }: { onClose: () => void }) {
   const [current, setCurrent] = useState('')
@@ -61,10 +54,10 @@ export function ChangePassword({ onClose }: { onClose: () => void }) {
       }}
       actions={
         <>
-          <Button className="btn-ghost" onClick={onClose} disabled={busy}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             {c.cancel}
           </Button>
-          <Button className="btn-primary" type="submit" loading={busy}>
+          <Button variant="primary" type="submit" loading={busy}>
             {c.save}
           </Button>
         </>
@@ -91,11 +84,12 @@ export function ChangePassword({ onClose }: { onClose: () => void }) {
           onChange={(e) => setNext(e.target.value)}
           required
         />
-        <progress
-          className={cx('progress mt-2 h-1.5 w-full', strengthColor[strength])}
+        <Progress
+          className="mt-2"
+          tone={strengthTone[strength]}
           value={strength}
           max={4}
-          aria-label={c.strength(strength)}
+          label={c.strength(strength)}
         />
       </div>
       <PasswordField

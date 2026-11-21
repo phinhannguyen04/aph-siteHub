@@ -86,7 +86,7 @@ export function Accounts() {
           body={accounts.data?.accounts.length ? c.noResultsBody : c.noAccountsBody}
           action={
             <Button
-              className="btn-primary"
+              variant="primary"
               onClick={() => {
                 if (accounts.data?.accounts.length) {
                   setSearch('')

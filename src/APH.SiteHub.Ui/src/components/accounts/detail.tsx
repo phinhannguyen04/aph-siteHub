@@ -2,7 +2,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff, KeyRound, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Busy, Button, Copy, ErrorBox, localDate, Modal } from '@/components/common'
+import { Badge, Busy, Button, Copy, ErrorBox, localDate, Modal } from '@/components/common'
 import { query, request } from '@/lib/api/client'
 import type { Account, ApiError } from '@/lib/api/types'
 import { c } from '@/lib/copy'
@@ -75,7 +75,7 @@ export function AccountDetail({
         a && (
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between gap-2">
-              <span className="badge badge-ghost font-medium">{a.provider}</span>
+              <Badge>{a.provider}</Badge>
               <Status account={a} />
             </div>
             <dl className="divide-y divide-base-300 rounded-box border border-base-300">
@@ -114,7 +114,8 @@ export function AccountDetail({
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-base-content/60">{c.secretHint}</p>
                 <Button
-                  className="btn-sm btn-outline"
+                  variant="outline"
+                  size="sm"
                   loading={busy}
                   onClick={() => {
                     if (secret !== null) {
@@ -135,11 +136,11 @@ export function AccountDetail({
             </section>
             <section className="rounded-box border border-base-300 p-4">
               <p className="text-sm text-base-content/70">{c.passwordHint}</p>
-              <Button className="btn-sm btn-ghost -ms-2 mt-1" onClick={() => edit(a)}>
+              <Button variant="ghost" size="sm" className="-ms-2 mt-1" onClick={() => edit(a)}>
                 {c.setPassword}
               </Button>
             </section>
-            <Button className="btn-primary" onClick={() => edit(a)}>
+            <Button variant="primary" onClick={() => edit(a)}>
               <Pencil size={16} aria-hidden />
               {c.editAccount}
             </Button>

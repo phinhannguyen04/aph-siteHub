@@ -2,13 +2,15 @@
 import { CircleAlert } from 'lucide-react'
 import type { ApiError } from '@/lib/api/types'
 import { c } from '@/lib/copy'
+import { Alert } from './alert'
+import { Button } from './button'
 export function ErrorBox({ error, retry }: { error: unknown; retry?: () => void }) {
   if (!error) return null
   const e = error as ApiError
   return (
-    <div role="alert" className="alert alert-error alert-soft">
+    <Alert tone="error" role="alert">
       <CircleAlert size={18} aria-hidden />
-      <span>
+      <span className="min-w-0 flex-1">
         {e.status === 403
           ? c.forbidden
           : e.status === 404
@@ -18,10 +20,10 @@ export function ErrorBox({ error, retry }: { error: unknown; retry?: () => void 
               : (e.message ?? String(error))}
       </span>
       {retry && (
-        <button type="button" className="btn btn-sm btn-ghost" onClick={retry}>
+        <Button size="sm" variant="ghost" className="ms-auto" onClick={retry}>
           {c.retry}
-        </button>
+        </Button>
       )}
-    </div>
+    </Alert>
   )
 }

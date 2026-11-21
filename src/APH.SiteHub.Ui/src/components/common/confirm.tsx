@@ -33,10 +33,10 @@ export function Confirm({
       onClose={pending ? undefined : onClose}
       actions={
         <>
-          <Button className="btn-ghost" disabled={pending} onClick={onClose}>
+          <Button variant="ghost" disabled={pending} onClick={onClose}>
             {c.cancel}
           </Button>
-          <Button className="btn-error" loading={pending} disabled={disabled} onClick={onConfirm}>
+          <Button variant="danger" loading={pending} disabled={disabled} onClick={onConfirm}>
             {c.delete}
           </Button>
         </>

@@ -1,4 +1,5 @@
 'use client'
+import { Button as HeadlessButton } from '@headlessui/react'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import { Button, ErrorBox, Field, Modal, TagChip, TextArea } from '@/components/common'
@@ -48,10 +49,10 @@ export function TagForm({
       }}
       actions={
         <>
-          <Button className="btn-ghost" disabled={write.pending} onClick={onClose}>
+          <Button variant="ghost" disabled={write.pending} onClick={onClose}>
             {c.cancel}
           </Button>
-          <Button type="submit" className="btn-primary" loading={write.pending}>
+          <Button type="submit" variant="primary" loading={write.pending}>
             {tag ? c.save : c.create}
           </Button>
         </>
@@ -77,17 +78,16 @@ export function TagForm({
       />
       <div className="flex flex-wrap gap-2">
         {palette.map((value) => (
-          <button
+          <HeadlessButton
             key={value}
-            type="button"
             aria-label={`${c.color} ${value}`}
             aria-pressed={color === value}
             onClick={() => setColor(value)}
-            className="btn btn-circle btn-sm border-0 ring-offset-2 ring-offset-base-100 aria-pressed:ring-2 aria-pressed:ring-base-content"
+            className="inline-flex size-8 items-center justify-center rounded-full ring-offset-2 ring-offset-base-100 aria-pressed:ring-2 aria-pressed:ring-base-content"
             style={{ backgroundColor: value, color: tagTextColor(value) }}
           >
             {color === value && <Check size={14} aria-hidden />}
-          </button>
+          </HeadlessButton>
         ))}
       </div>
       <Field

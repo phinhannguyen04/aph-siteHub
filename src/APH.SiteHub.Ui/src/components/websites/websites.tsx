@@ -77,7 +77,7 @@ export function Websites() {
       {data.isPending ? (
         <div className={grid}>
           {[1, 2, 3, 4, 5, 6].map((n) => (
-            <div key={n} className="skeleton h-52 rounded-box" />
+            <div key={n} className="h-52 animate-pulse rounded-box bg-base-300/70" />
           ))}
         </div>
       ) : data.data?.websites.length === 0 ? (
@@ -85,7 +85,7 @@ export function Websites() {
           title={filtered ? c.noResults : c.noWebsites}
           body={filtered ? c.noResultsBody : c.noWebsitesBody}
           action={
-            <Button className="btn-primary" onClick={filtered ? clear : () => setForm('new')}>
+            <Button variant="primary" onClick={filtered ? clear : () => setForm('new')}>
               {filtered ? c.clear : c.addWebsite}
             </Button>
           }

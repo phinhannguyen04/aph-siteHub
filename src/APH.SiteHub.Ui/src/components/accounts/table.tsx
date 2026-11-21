@@ -1,7 +1,7 @@
 'use client'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { localDate } from '@/components/common'
+import { Button, localDate } from '@/components/common'
 import type { Account } from '@/lib/api/types'
 import { c } from '@/lib/copy'
 import { Status } from './status'
@@ -37,7 +37,7 @@ export function AccountTable({
 }) {
   return (
     <div className="hidden overflow-x-auto rounded-box border border-base-300 bg-base-100 md:block">
-      <table className="table table-sm">
+      <table className="w-full text-start text-sm">
         <thead>
           <tr className="bg-base-200/60">
             {columns.map((col) => {
@@ -46,27 +46,29 @@ export function AccountTable({
               return (
                 <th
                   key={col.key}
+                  className="px-3 py-2 text-start"
                   aria-sort={active ? (asc ? 'ascending' : 'descending') : undefined}
                 >
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-xs -ms-2 gap-1 font-semibold"
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="-ms-2"
                     onClick={() => onSort(col.key)}
                   >
                     {col.label}
                     <Icon size={12} className={active ? '' : 'opacity-40'} aria-hidden />
-                  </button>
+                  </Button>
                 </th>
               )
             })}
-            <th className="text-end">{c.edit}</th>
+            <th className="px-3 py-2 text-end font-semibold">{c.edit}</th>
           </tr>
         </thead>
         <tbody>
           {accounts.map((a) => (
-            <tr key={a.id} className="hover:bg-base-200/50">
+            <tr key={a.id} className="border-t border-base-300 hover:bg-base-200/50">
               {columns.map((col) => (
-                <td key={col.key} className="max-w-56 [overflow-wrap:anywhere]">
+                <td key={col.key} className="max-w-56 px-3 py-2 [overflow-wrap:anywhere]">
                   {col.key === 'is_limit' ? (
                     <Status account={a} />
                   ) : col.key === 'created_at' ? (
@@ -77,7 +79,7 @@ export function AccountTable({
                     <button
                       type="button"
                       onClick={() => onDetail(a.id)}
-                      className="link link-hover link-primary text-start font-medium [overflow-wrap:anywhere]"
+                      className="text-start font-medium text-primary hover:underline [overflow-wrap:anywhere]"
                     >
                       {a.login_name}
                     </button>
@@ -88,7 +90,7 @@ export function AccountTable({
                   )}
                 </td>
               ))}
-              <td className="whitespace-nowrap">
+              <td className="px-3 py-2 whitespace-nowrap">
                 <div className="flex justify-end">{actions(a)}</div>
               </td>
             </tr>

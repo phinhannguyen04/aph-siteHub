@@ -2,7 +2,7 @@
 import { Globe, LockKeyhole } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
-import { Button, ErrorBox, PasswordField } from '@/components/common'
+import { Alert, Button, ErrorBox, PasswordField } from '@/components/common'
 import { request, setToken } from '@/lib/api/client'
 import type { ApiError } from '@/lib/api/types'
 import { c } from '@/lib/copy'
@@ -19,12 +19,12 @@ export function Login({ expired, onSuccess }: { expired: boolean; onSuccess: () 
     <div className="relative grid min-h-dvh place-items-center overflow-hidden p-4">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_30rem_at_50%_-10%,color-mix(in_oklab,var(--color-primary)_22%,transparent),transparent)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_30rem_at_50%_-10%,color-mix(in_oklab,var(--sh-primary)_22%,transparent),transparent)]"
       />
-      <div className="card relative w-full max-w-sm border border-base-300 bg-base-100 shadow-xl">
+      <div className="relative w-full max-w-sm rounded-box border border-base-300 bg-base-100 shadow-xl">
         <form
           noValidate
-          className="card-body gap-5 p-6 sm:p-8"
+          className="flex flex-col gap-5 p-6 sm:p-8"
           onSubmit={async (e) => {
             e.preventDefault()
             if (guard.current) return
@@ -66,9 +66,9 @@ export function Login({ expired, onSuccess }: { expired: boolean; onSuccess: () 
             </div>
           </div>
           {expired && (
-            <div role="status" className="alert alert-warning alert-soft text-sm">
+            <Alert tone="warning" role="status">
               {c.expired}
-            </div>
+            </Alert>
           )}
           <ErrorBox error={error} />
           <PasswordField
@@ -83,7 +83,7 @@ export function Login({ expired, onSuccess }: { expired: boolean; onSuccess: () 
             disabled={busy}
             start={<LockKeyhole size={16} className="opacity-50" aria-hidden />}
           />
-          <Button type="submit" className="btn-primary btn-block" loading={busy}>
+          <Button type="submit" variant="primary" block loading={busy}>
             {c.signIn}
           </Button>
         </form>

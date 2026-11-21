@@ -18,12 +18,12 @@ export function TagsManager({ onClose }: { onClose: () => void }) {
         title={c.tags}
         onClose={onClose}
         actions={
-          <Button className="btn-ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             {c.close}
           </Button>
         }
       >
-        <Button className="btn-primary btn-sm self-start" onClick={() => setForm('new')}>
+        <Button variant="primary" size="sm" className="self-start" onClick={() => setForm('new')}>
           <Plus size={16} aria-hidden />
           {c.newTag}
         </Button>
@@ -33,37 +33,40 @@ export function TagsManager({ onClose }: { onClose: () => void }) {
         ) : tags.data?.tags.length === 0 ? (
           <Empty title={c.noTags} body="" />
         ) : (
-          <ul className="list rounded-box border border-base-300">
+          <ul className="divide-y divide-base-300 rounded-box border border-base-300">
             {tags.data?.tags.map((tag) => (
-              <li key={tag.id} className="list-row items-center">
+              <li key={tag.id} className="flex items-center gap-3 px-4 py-3">
                 <span
                   className="size-3 rounded-full"
                   style={{ backgroundColor: tag.color }}
                   aria-hidden
                 />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <TagChip tag={tag} />
                   {tag.description && (
                     <p className="mt-1 text-sm text-base-content/70">{tag.description}</p>
                   )}
                 </div>
                 <div className="flex">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm btn-square"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    square
                     aria-label={`${c.edit} ${tag.name}`}
                     onClick={() => setForm(tag)}
                   >
                     <Pencil size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm btn-square text-error"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    square
+                    className="text-error"
                     aria-label={`${c.delete} ${tag.name}`}
                     onClick={() => setDeleting(tag)}
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}

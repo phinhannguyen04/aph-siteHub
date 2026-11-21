@@ -1,5 +1,7 @@
 'use client'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useId } from 'react'
+import { Button, buttonClass, SelectBox } from '@/components/common'
 import type { websiteFilters } from '@/lib/api/websites'
 import { c } from '@/lib/copy'
 import { cx } from '@/lib/cx'
@@ -21,6 +23,7 @@ export function WebsitePagination({
   filters: Filters
   update: (v: Partial<Filters>) => void
 }) {
+  const sizeId = useId()
   const count = Math.max(1, Math.ceil(total / filters.pageSize))
   return (
     <div className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap">
@@ -31,52 +34,57 @@ export function WebsitePagination({
           total,
         )}
       </p>
-      <nav aria-label={c.pagination} className="join">
-        <button
-          type="button"
-          className="join-item btn btn-sm"
+      <nav
+        aria-label={c.pagination}
+        className="inline-flex [&>*:not(:first-child)]:-ms-px [&>*:not(:first-child)]:rounded-s-none [&>*:not(:last-child)]:rounded-e-none"
+      >
+        <Button
+          size="sm"
           aria-label={c.previousPage}
           disabled={filters.page <= 1}
           onClick={() => update({ page: filters.page - 1 })}
         >
           <ChevronLeft size={16} />
-        </button>
+        </Button>
         {pages(filters.page, count).map((p, i) =>
           p === 'gap' ? (
-            // biome-ignore lint/suspicious/noArrayIndexKey: gaps have no identity
-            <span key={`gap-${i}`} className="join-item btn btn-sm btn-disabled">
+            <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: gaps have no identity
+              key={`gap-${i}`}
+              className={cx(buttonClass({ size: 'sm' }), 'cursor-not-allowed opacity-50')}
+              aria-hidden
+            >
               …
             </span>
           ) : (
-            <button
+            <Button
               key={p}
-              type="button"
-              className={cx(
-                'join-item btn btn-sm tabular-nums',
-                p === filters.page && 'btn-primary',
-              )}
+              size="sm"
+              variant={p === filters.page ? 'primary' : 'default'}
+              className="tabular-nums"
               aria-label={c.goToPage(p)}
               aria-current={p === filters.page ? 'page' : undefined}
               onClick={() => update({ page: p })}
             >
               {p}
-            </button>
+            </Button>
           ),
         )}
-        <button
-          type="button"
-          className="join-item btn btn-sm"
+        <Button
+          size="sm"
           aria-label={c.nextPage}
           disabled={filters.page >= count}
           onClick={() => update({ page: filters.page + 1 })}
         >
           <ChevronRight size={16} />
-        </button>
+        </Button>
       </nav>
-      <label className="flex items-center gap-2 text-sm text-base-content/70">
-        {c.pageSize}
-        <select
-          className="select select-sm w-20"
+      <div className="flex items-center gap-2 text-sm text-base-content/70">
+        <label htmlFor={sizeId}>{c.pageSize}</label>
+        <SelectBox
+          id={sizeId}
+          size="sm"
+          className="w-20"
           value={filters.pageSize}
           onChange={(e) => update({ pageSize: Number(e.target.value), page: 1 })}
         >
@@ -85,8 +93,8 @@ export function WebsitePagination({
               {n}
             </option>
           ))}
-        </select>
-      </label>
+        </SelectBox>
+      </div>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 import { Mail } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Badge, Button } from '@/components/common'
 import type { Account } from '@/lib/api/types'
 import { c } from '@/lib/copy'
 import { Status } from './status'
@@ -16,16 +17,16 @@ export function AccountList({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {accounts.map((a) => (
-        <article key={a.id} className="card card-border border-base-300 bg-base-100">
-          <div className="card-body gap-2 p-5">
+        <article key={a.id} className="rounded-box border border-base-300 bg-base-100">
+          <div className="flex flex-col gap-2 p-5">
             <div className="flex items-center justify-between gap-2">
-              <span className="badge badge-ghost badge-sm font-medium">{a.provider}</span>
+              <Badge size="sm">{a.provider}</Badge>
               <Status account={a} />
             </div>
             <button
               type="button"
               onClick={() => onDetail(a.id)}
-              className="link link-hover mt-1 text-start text-lg font-semibold [overflow-wrap:anywhere]"
+              className="mt-1 text-start text-lg font-semibold hover:underline [overflow-wrap:anywhere]"
             >
               {a.login_name}
             </button>
@@ -34,14 +35,10 @@ export function AccountList({
               <span className="min-w-0">{a.email}</span>
             </p>
             <p className="font-mono text-xs text-base-content/60">{a.external_account_id}</p>
-            <div className="card-actions mt-2 items-center justify-between border-t border-base-300 pt-3">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm -ms-2"
-                onClick={() => onDetail(a.id)}
-              >
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-base-300 pt-3">
+              <Button variant="ghost" size="sm" className="-ms-2" onClick={() => onDetail(a.id)}>
                 {c.details}
-              </button>
+              </Button>
               {actions(a)}
             </div>
           </div>

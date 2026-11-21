@@ -1,5 +1,6 @@
 'use client'
 import { Pencil, Trash2 } from 'lucide-react'
+import { Button } from '@/components/common'
 import type { Account } from '@/lib/api/types'
 import { c } from '@/lib/copy'
 
@@ -14,22 +15,25 @@ export function AccountActions({
 }) {
   return (
     <div className="flex">
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm btn-square"
+      <Button
+        variant="ghost"
+        size="sm"
+        square
         aria-label={`${c.edit} ${a.login_name}`}
         onClick={() => onEdit(a)}
       >
         <Pencil size={16} />
-      </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm btn-square text-error"
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        square
+        className="text-error"
         aria-label={`${c.delete} ${a.login_name}`}
         onClick={() => onDelete(a)}
       >
         <Trash2 size={16} />
-      </button>
+      </Button>
     </div>
   )
 }
