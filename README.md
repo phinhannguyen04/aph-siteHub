@@ -66,17 +66,19 @@ The `APH.SiteHub.AppHost` project starts the whole stack for development and ope
 
 ```bash
 dotnet user-secrets --project src/APH.SiteHub.AppHost set Parameters:account-encryption-key "$(openssl rand -hex 32)"
-dotnet user-secrets --project src/APH.SiteHub.AppHost set Parameters:admin-password-hash-base64 '<output of bun run hash-password>'
+dotnet user-secrets --project src/APH.SiteHub.AppHost set Parameters:admin-password-hash-base64 "$(grep '^ADMIN_PASSWORD_HASH_BASE64=' .env | cut -d= -f2-)"
 bun run aspire      # same as: dotnet run --project src/APH.SiteHub.AppHost
 ```
 
-It runs, in order: an Oracle container (`latest-lite`, its own named volume, the same `docker/oracle/init` script that creates the application schema), a one-shot `migrate` resource (`--migrate`), the `backend` API and the `frontend` (`bun run dev`). Each resource waits for the previous one to be healthy; the backend is gated on its database-backed `/health`. Ports are allocated by Aspire and shown in the dashboard, so it does not collide with the Compose stack on 8111.
+It runs, in order: an Oracle container (`latest-lite`, the named volume `aph-sitehub-aspire-oracle-data`, and the same `docker/oracle/init` script that creates the application schema, mounted exactly as Compose does), a one-shot `migrate` resource (`--migrate`), the `backend` API and the `frontend` (`bun run dev`). Oracle only counts as healthy once the application user can log in, so `migrate` never races the init script; the backend is then gated on its database-backed `/health`. Ports are allocated by Aspire and shown in the dashboard, so it does not collide with the Compose stack on 8111.
 
-- `oracle-password`, `oracle-app-password` and `session-secret` are generated on first run and persisted in the AppHost user secrets. `account-encryption-key` and `admin-password-hash-base64` cannot be generated, so supply them as above (the dashboard prompts if they are missing). Keep the encryption key stable: stored account secrets are decrypted with it.
+- `oracle-password`, `oracle-app-password` and `session-secret` are generated on first run and persisted in the AppHost user secrets. `account-encryption-key` and `admin-password-hash-base64` cannot be generated, so supply them as above (the dashboard prompts if they are missing). The second command reuses the hash already in `.env`; if you have none, generate one as described under "Administrator credentials and secrets". The value must be the base64 text itself: a placeholder or the raw `$argon2id$` hash makes `migrate` fail with a Base-64 `FormatException`. Keep the encryption key stable: stored account secrets are decrypted with it.
 - The generated database passwords contain only letters and digits, which keeps `DATABASE_URL` valid without URL-encoding.
 - The API adds `APH.SiteHub.ServiceDefaults`: OpenTelemetry traces, metrics and logs are exported over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (Aspire sets it), `/health` and `/alive` requests are filtered out of traces, and `/alive` is a dependency-free liveness probe exposed in Development only. Outside Aspire nothing changes.
-- **LAN access:** `LAN_HOST=<this machine's LAN IP> bun run aspire` serves the UI on a fixed port (`LAN_PORT`, default 8112) bound to all interfaces, so other machines open `http://<LAN_HOST>:8112`. The AppHost also adds that origin to `APP_ORIGINS` (the API compares the browser `Origin` exactly, port included) and to Next's `allowedDevOrigins`. Only the UI is exposed: the API stays behind the UI's `/api` proxy and the Aspire dashboard stays on localhost. The connection is plain http, so use a trusted network. Allow the port in the host firewall, for example (match the subnet of this machine, `ip -4 -br addr`) `sudo ufw allow from 10.30.0.0/22 to any port 8112 proto tcp`.
-- If `migrate` fails right after Oracle first starts (the schema user is created by the startup script), restart that resource from the dashboard.
+- **One-command LAN start:** `bun run aspire:lan` detects this machine's LAN IP, opens the UI port in ufw (`sudo` may ask for your password once; the rules are idempotent) and starts the AppHost with `LAN_HOST` set. Override with `LAN_HOST=<ip>` or `LAN_PORT=<port>`.
+- **LAN access (manual):** `LAN_HOST=<this machine's LAN IP> bun run aspire` serves the UI on a fixed port (`LAN_PORT`, default 8113) bound to all interfaces, so other machines open `http://<LAN_HOST>:8113`. The AppHost also adds that origin to `APP_ORIGINS` (the API compares the browser `Origin` exactly, port included) and to Next's `allowedDevOrigins`. Only the UI is exposed: the API stays behind the UI's `/api` proxy and the Aspire dashboard stays on localhost. The connection is plain http, so use a trusted network. Allow the port in the host firewall, for example (match the subnet of this machine, `ip -4 -br addr`) `sudo ufw allow from 10.30.0.0/22 to any port 8112 proto tcp`.
+- The AppHost dashboard (Resources, console logs, start/stop) is at `http://localhost:15181`, localhost only (the plain-http launch profile is first, so no trusted dev certificate is needed; the login link with its token is printed on start). From another machine use an SSH tunnel (`ssh -L 15181:localhost:15181 <user>@<host>`). The always-on dashboard for the Compose deployment is the separate container on port 15180 (see below).
+- Two Aspire features are deliberately not used because they failed on this host: `WithDataVolume()` (DCP left the volume "Pending" forever) and `WithInitFiles()` (the schema user was missing when `migrate` ran). Both are replaced by plain `docker --volume` mounts in `Program.cs`.
 - Not covered: database-level (ODP.NET) tracing and Next.js telemetry. The AppHost is for local development; deployment is still `docker compose` below.
 
 ## Administrator credentials and secrets
@@ -144,6 +146,12 @@ curl --fail http://localhost:8111/health
 ```
 
 `ORACLE_APP_PASSWORD` is applied only when the user is first created. Changing it later requires `ALTER USER` in the database as well as updating `DATABASE_URL`. Do not remove the `oracle_data` volume. Keep the administrator hash and `ACCOUNT_ENCRYPTION_KEY` unchanged across deployments: stored hashes and encrypted secrets stay readable.
+
+### Aspire Dashboard container
+
+Compose also runs the standalone Aspire Dashboard (`dashboard` service, image `mcr.microsoft.com/dotnet/aspire-dashboard`) on `http://<host>:15180`. It has no login (`ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`): opening the URL is enough. The backend exports its logs, traces and metrics to it over OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT=http://dashboard:18889`, reachable only inside the Compose network). Docker publishes the port itself, so no `ufw` rule is needed. Anyone who can reach the port sees logs and traces over plain http, so keep it on a trusted network; to require a token again, replace that variable with `DASHBOARD__FRONTEND__AUTHMODE=BrowserToken` and `DASHBOARD__FRONTEND__BROWSERTOKEN=<secret>`.
+
+The standalone dashboard shows telemetry only. The Resources page, per-process console logs and start/stop exist only when the AppHost orchestrates the processes (`bun run aspire`, dashboard on `http://localhost:15181`). Compose containers are started by Docker, not by the AppHost, so the AppHost knows nothing about them.
 
 ### Moving existing PostgreSQL data
 

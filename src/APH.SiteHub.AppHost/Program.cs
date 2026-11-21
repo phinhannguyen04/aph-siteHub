@@ -1,4 +1,7 @@
 using Aspire.Hosting.JavaScript;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Oracle.ManagedDataAccess.Client;
 
 // Local orchestration for development: `dotnet run --project src/APH.SiteHub.AppHost`.
 // Production keeps using docker-compose.yml; the API and UI are unchanged and still read the same
@@ -12,7 +15,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // on a fixed, unproxied port bound to all interfaces. Aspire's own proxy listens on localhost only. The API stays
 // behind the UI's /api proxy, and the Aspire dashboard stays on localhost because it exposes logs and settings.
 var lanHost = builder.Configuration["LAN_HOST"];
-var lanPort = int.TryParse(builder.Configuration["LAN_PORT"], out var configuredPort) ? configuredPort : 8112;
+var lanPort = int.TryParse(builder.Configuration["LAN_PORT"], out var configuredPort) ? configuredPort : 8113;
 string lanOrigin = $"http://{lanHost}:{lanPort}";
 
 // Generated once and persisted to the AppHost user secrets, so the Oracle volume keeps working across runs.
@@ -36,14 +39,49 @@ var sessionSecret = builder.AddParameter(
 var encryptionKey = builder.AddParameter("account-encryption-key", secret: true);
 var adminHashBase64 = builder.AddParameter("admin-password-hash-base64", secret: true);
 
+// Same bind mount docker-compose.yml uses: the lite image sources /opt/oracle/scripts/startup/*.sh on every start, and the
+// script creates the least-privilege schema user (idempotent). This is the path verified to work. With WithInitFiles()
+// the user was still missing when migrate ran, and WithDataVolume() left DCP's volume object "Pending" forever on this
+// host, so the mounts are passed to docker directly. The named volume keeps the database between runs.
+var oracleInit = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "docker", "oracle", "init"));
 var oracle = builder.AddOracle("oracle", oraclePassword)
     .WithImageTag("latest-lite")
-    .WithDataVolume()
-    // Idempotent script that creates the least-privilege schema user, same one docker-compose mounts.
-    .WithInitFiles(Path.Combine(builder.AppHostDirectory, "..", "..", "docker", "oracle", "init"))
+    .WithContainerRuntimeArgs(
+        "--volume", "aph-sitehub-aspire-oracle-data:/opt/oracle/oradata",
+        "--volume", $"{oracleInit}:/opt/oracle/scripts/startup:ro")
     .WithEnvironment("ORACLE_APP_USER", appUser)
     .WithEnvironment("ORACLE_APP_PASSWORD", appPassword);
 var database = oracle.AddDatabase("sitehub", oracleService);
+
+// The database is "up" well before the init script has created the schema user, and migrating in that window fails
+// with ORA-01017. Gate everything on actually logging in as the application user.
+builder.Services.AddHealthChecks().AddAsyncCheck("sitehub-app-user", async cancellationToken =>
+{
+    try
+    {
+        var endpoint = oracle.Resource.PrimaryEndpoint;
+        var connection = new OracleConnectionStringBuilder
+        {
+            DataSource = $"{endpoint.Host}:{endpoint.Port}/{oracleService}",
+            UserID = appUser,
+            Password = await appPassword.Resource.GetValueAsync(cancellationToken),
+            ConnectionTimeout = 5
+        };
+        await using var probe = new OracleConnection(connection.ConnectionString);
+        await probe.OpenAsync(cancellationToken);
+        return HealthCheckResult.Healthy();
+    }
+    catch (Exception exception) when (exception is not OperationCanceledException)
+    {
+        // Shown as the resource's health report in the dashboard; the console line helps when it never turns healthy.
+        var reason = exception is OracleException oracleError
+            ? $"ORA-{oracleError.Number:D5}"
+            : $"{exception.GetType().Name}: {exception.Message}";
+        Console.Error.WriteLine($"[health sitehub-app-user] not ready yet: {reason}");
+        return HealthCheckResult.Unhealthy($"Cannot log in as {appUser} yet ({reason})");
+    }
+});
+oracle.WithHealthCheck("sitehub-app-user");
 
 var databaseUrl = ReferenceExpression.Create(
     $"oracle://{appUser}:{appPassword}@{oracle.Resource.PrimaryEndpoint.Property(EndpointProperty.Host)}:{oracle.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)}/{oracleService}");
@@ -76,6 +114,7 @@ EndpointReference FrontendOrigin() => frontend!.GetEndpoint("http");
 // One-shot schema migration (the same `--migrate` command as `bun run migrate` / `compose run backend --migrate`).
 var migrate = WithSiteHubSettings(
         builder.AddProject<Projects.APH_SiteHub_Api>("migrate").WithArgs("--migrate"), FrontendOrigin)
+    .WaitFor(oracle)
     .WaitFor(database);
 
 var backend = WithSiteHubSettings(

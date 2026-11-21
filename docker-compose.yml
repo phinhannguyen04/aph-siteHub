@@ -25,6 +25,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       API_PORT: 3000
       ASPNETCORE_ENVIRONMENT: Production
+      # Ship logs/traces/metrics to the dashboard service below (see ServiceDefaults).
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://dashboard:18889
+      OTEL_SERVICE_NAME: sitehub-api
     depends_on:
       oracle:
         condition: service_healthy
@@ -51,6 +54,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
+
+  dashboard:
+    # Standalone Aspire Dashboard: logs, traces and metrics sent by the backend over OTLP.
+    # The Resources page needs the AppHost (bun run aspire) and is not available here.
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    ports:
+      - '15180:18888'
+    environment:
+      # No login: anyone who can reach port 15180 sees logs and traces. Trusted LAN only.
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: 'true'
+      # The OTLP port (18889) is not published: only services on the Compose network reach it.
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
     restart: unless-stopped
 
 volumes:
