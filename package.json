@@ -5,7 +5,6 @@
     "dev": "bun scripts/backend.ts dev",
     "dev:frontend": "bun --cwd src/APH.SiteHub.Ui dev",
     "aspire": "dotnet run --project src/APH.SiteHub.AppHost",
-    "aspire:lan": "bun scripts/aspire-lan.ts",
     "typecheck": "dotnet build APH.SiteHub.sln && bun --cwd src/APH.SiteHub.Ui typecheck",
     "build": "dotnet build APH.SiteHub.sln -c Release && bun --cwd src/APH.SiteHub.Ui build",
     "test": "dotnet test APH.SiteHub.sln && bun --cwd src/APH.SiteHub.Ui test",
