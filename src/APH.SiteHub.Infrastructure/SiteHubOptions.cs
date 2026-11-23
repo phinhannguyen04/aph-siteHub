@@ -4,11 +4,8 @@ namespace APH.SiteHub.Infrastructure;
 
 public sealed record SiteHubOptions(
     string ConnectionString,
-    string SessionSecret,
     string[] Origins,
-    bool CookieSecure,
     string? EncryptionKey,
-    string? AdminPasswordHash,
     int Port
 )
 {
@@ -36,11 +33,6 @@ public sealed record SiteHubOptions(
             UserID = Uri.UnescapeDataString(user[0]),
             Password = user.Length > 1 ? Uri.UnescapeDataString(user[1]) : ""
         };
-        var secret = config["SESSION_SECRET"] ?? "";
-        if (secret.Length < 32)
-        {
-            throw new InvalidOperationException("SESSION_SECRET must be at least 32 characters");
-        }
         var origin = config["APP_ORIGIN"] ?? throw new InvalidOperationException("APP_ORIGIN is required");
         var origins = new[] { origin }.Concat((config["APP_ORIGINS"] ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)).Select(value =>
         {
@@ -56,23 +48,14 @@ public sealed record SiteHubOptions(
         {
             throw new InvalidOperationException("ACCOUNT_ENCRYPTION_KEY must contain 64 hexadecimal characters");
         }
-        var hash = !string.IsNullOrEmpty(config["ADMIN_PASSWORD_HASH_BASE64"])
-            ? System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(config["ADMIN_PASSWORD_HASH_BASE64"]!)) : config["ADMIN_PASSWORD_HASH"];
-        if (!string.IsNullOrEmpty(hash) && !hash.StartsWith("$argon2id$", StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Initial password hash must be Argon2id");
-        }
         if (!int.TryParse(config["API_PORT"] ?? "3000", out var port) || port is < 1 or > 65535)
         {
             throw new InvalidOperationException("Invalid API_PORT");
         }
         return new(
             connection.ConnectionString,
-            secret,
             origins,
-            config["COOKIE_SECURE"] != "false",
             key,
-            hash,
             port
         );
     }

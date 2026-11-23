@@ -1,4 +1,3 @@
-'use client'
 import { useState } from 'react'
 import { Button, ErrorBox, Field, Modal, PasswordField, ToggleField } from '@/components/common'
 import { accountPatch } from '@/lib/api/accounts'

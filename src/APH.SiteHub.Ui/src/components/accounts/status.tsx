@@ -1,4 +1,3 @@
-'use client'
 import { Badge } from '@/components/common'
 import type { Account } from '@/lib/api/types'
 import { c } from '@/lib/copy'

@@ -1,4 +1,3 @@
-'use client'
 import { Field as HeadlessField, Label as HeadlessLabel, Switch } from '@headlessui/react'
 import { ChevronDown } from 'lucide-react'
 import {

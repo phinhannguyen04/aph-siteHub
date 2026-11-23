@@ -1,4 +1,3 @@
-'use client'
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button, ErrorBox, Field, Modal, TagChip, TagSelect } from '@/components/common'

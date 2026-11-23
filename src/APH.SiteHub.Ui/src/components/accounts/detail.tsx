@@ -1,4 +1,3 @@
-'use client'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff, KeyRound, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'

@@ -1,4 +1,3 @@
-'use client'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/common'
 import type { Account } from '@/lib/api/types'

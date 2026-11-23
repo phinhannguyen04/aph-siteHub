@@ -29,15 +29,9 @@ var appPassword = builder.AddParameter(
     new GenerateParameterDefault { MinLength = 24, Special = false },
     secret: true,
     persist: true);
-var sessionSecret = builder.AddParameter(
-    "session-secret",
-    new GenerateParameterDefault { MinLength = 48, Special = false },
-    secret: true,
-    persist: true);
-// These cannot be generated: stored secrets must stay decryptable, and the admin hash is yours.
-// Provide them with `dotnet user-secrets` (see README) or when the dashboard prompts for them.
+// This cannot be generated: stored secrets must stay decryptable.
+// Provide it with `dotnet user-secrets` (see README) or when the dashboard prompts for it.
 var encryptionKey = builder.AddParameter("account-encryption-key", secret: true);
-var adminHashBase64 = builder.AddParameter("admin-password-hash-base64", secret: true);
 
 // Same bind mount docker-compose.yml uses: the lite image sources /opt/oracle/scripts/startup/*.sh on every start, and the
 // script creates the least-privilege schema user (idempotent). This is the path verified to work. With WithInitFiles()
@@ -91,19 +85,12 @@ IResourceBuilder<T> WithSiteHubSettings<T>(IResourceBuilder<T> resource, Func<En
 {
     resource
         .WithEnvironment("DATABASE_URL", databaseUrl)
-        .WithEnvironment("SESSION_SECRET", sessionSecret)
         .WithEnvironment("ACCOUNT_ENCRYPTION_KEY", encryptionKey)
-        .WithEnvironment("ADMIN_PASSWORD_HASH_BASE64", adminHashBase64)
         .WithEnvironment(context => context.EnvironmentVariables["APP_ORIGIN"] = origin());
     if (!string.IsNullOrWhiteSpace(lanHost))
     {
-        // The API compares the browser's Origin header exactly, port included.
+        // The API's CORS policy compares the browser's Origin header exactly, port included.
         resource.WithEnvironment("APP_ORIGINS", lanOrigin);
-    }
-    if (builder.ExecutionContext.IsRunMode)
-    {
-        // Locally everything is served over plain http, so Secure cookies would never be sent back.
-        resource.WithEnvironment("COOKIE_SECURE", "false");
     }
     return resource;
 }
@@ -129,11 +116,11 @@ var web = builder.AddJavaScriptApp("frontend", "../APH.SiteHub.Ui", "dev").WithB
 web = string.IsNullOrWhiteSpace(lanHost)
     ? web.WithHttpEndpoint(env: "SITEHUB_DEV_PORT")
     : web.WithHttpEndpoint(port: lanPort, targetPort: lanPort, env: "SITEHUB_DEV_PORT", isProxied: false)
-        // Lets `next dev` serve dev assets and HMR to this hostname (see next.config.ts).
+        // Lets the Vite dev server accept requests for this hostname (see vite.config.ts).
         .WithEnvironment("SITEHUB_LAN_HOST", lanHost);
 frontend = web
     .WithExternalHttpEndpoints()
-    // next.config.ts proxies /api and /health to this target.
+    // vite.config.ts proxies /api and /health to this target.
     .WithEnvironment("SITEHUB_DEV_API_TARGET", backend.GetEndpoint("http"))
     .WithHttpHealthCheck("/health")
     .WaitFor(backend);

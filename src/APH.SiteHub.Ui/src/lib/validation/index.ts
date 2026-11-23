@@ -11,21 +11,6 @@ export type AccountField =
   | 'password'
   | 'secret_key'
 export type AccountErrors = FieldErrors<AccountField>
-export type PasswordErrors = FieldErrors<'currentPassword' | 'newPassword' | 'confirmPassword'>
-export function password(value: string, min = 1) {
-  return value.trim().length > 0 && value.length >= min && value.length <= 256
-}
-export function login(value: string): FieldErrors<'password'> {
-  return password(value) ? {} : { password: c.invalidPassword }
-}
-export function changePassword(current: string, next: string, confirm: string): PasswordErrors {
-  const errors: PasswordErrors = {}
-  if (!password(current)) errors.currentPassword = c.invalidPassword
-  if (!password(next, 12)) errors.newPassword = c.invalidNewPassword
-  else if (current === next) errors.newPassword = c.passwordDifferent
-  if (next !== confirm) errors.confirmPassword = c.passwordMismatch
-  return errors
-}
 export function website(name: string, url: string, ids: string[]): WebsiteErrors {
   const errors: WebsiteErrors = {}
   if (!name.trim()) errors.name = c.nameRequired

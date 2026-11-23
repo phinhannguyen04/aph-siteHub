@@ -1,4 +1,3 @@
-'use client'
 import { ExternalLink, Pencil, Trash2 } from 'lucide-react'
 import { Button, Copy, localDate, TagChip } from '@/components/common'
 import type { Website } from '@/lib/api/types'

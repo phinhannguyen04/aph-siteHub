@@ -22,18 +22,11 @@ public sealed class OracleFactAttribute : FactAttribute
 public sealed class ApiTests
 {
     [OracleFact]
-    public async Task DeletesWebsiteAndCascadesTagsOnlyWithAuthenticatedCsrfRequest()
+    public async Task DeletesWebsiteAndCascadesTags()
     {
         await using var fixture = await ApiFixture.CreateAsync(seeded: false);
         using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
-        var login = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            password = "legacy-password-123"
-        });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        var csrf = (await Json(login)).GetProperty("csrfToken").GetString()!;
-        client.DefaultRequestHeaders.Add("x-csrf-token", csrf);
         var tag = await client.PostAsJsonAsync("/api/tags", new
         {
             name = "Delete test",
@@ -51,21 +44,7 @@ public sealed class ApiTests
         var id = (await Json(website)).GetProperty("website").GetProperty("id").GetString()!;
         var path = "/api/websites/" + id;
 
-        using var anonymous = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        anonymous.DefaultRequestHeaders.Add("Origin", "http://localhost");
-        anonymous.DefaultRequestHeaders.Add("x-csrf-token", csrf);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.DeleteAsync(path)).StatusCode);
-        client.DefaultRequestHeaders.Remove("x-csrf-token");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync(path)).StatusCode);
-        client.DefaultRequestHeaders.Add("x-csrf-token", "invalid");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync(path)).StatusCode);
-        client.DefaultRequestHeaders.Remove("x-csrf-token");
-        client.DefaultRequestHeaders.Add("x-csrf-token", csrf);
-        client.DefaultRequestHeaders.Remove("Origin");
-        client.DefaultRequestHeaders.Add("Origin", "https://untrusted.example");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync(path)).StatusCode);
-        client.DefaultRequestHeaders.Remove("Origin");
-        client.DefaultRequestHeaders.Add("Origin", "http://localhost");
+
         await using (var scope = fixture.Factory.Services.CreateAsyncScope())
         {
             var connection = await scope.ServiceProvider.GetRequiredService<DbSession>().OpenAsync(CancellationToken.None);
@@ -97,30 +76,12 @@ public sealed class ApiTests
     }
 
     [OracleFact]
-    public async Task ServesSeededDataAndPreservesApiSecurityAndTransactions()
+    public async Task ServesSeededDataAndPreservesTransactions()
     {
         await using var fixture = await ApiFixture.CreateAsync(seeded: true);
         using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health")).StatusCode);
-        var unauthorized = await client.GetAsync("/api/websites");
-        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
-        Assert.Equal("UNAUTHORIZED", (await Json(unauthorized)).GetProperty("error").GetProperty("code").GetString());
-        var login = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            password = "legacy-password-123"
-        });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        var cookie = login.Headers.GetValues("Set-Cookie").Single();
-        Assert.Contains("httponly", cookie.ToLowerInvariant());
-        Assert.Contains("samesite=strict", cookie.ToLowerInvariant());
-        var csrf = (await Json(login)).GetProperty("csrfToken").GetString()!;
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/tags", new
-        {
-            name = "blocked",
-            color = "#123456"
-        })).StatusCode);
-        client.DefaultRequestHeaders.Add("x-csrf-token", csrf);
         var tagsResponse = await Json(await client.GetAsync("/api/tags"));
         Assert.Equal("Legacy tag", tagsResponse.GetProperty("tags")[0].GetProperty("name").GetString());
         var legacySecret = await client.GetAsync("/api/accounts/" + SecurityTests.Legacy.GetProperty("id").GetString() + "/secret-key");
@@ -226,24 +187,6 @@ public sealed class ApiTests
         {
             is_limit = (bool?)null
         })).StatusCode);
-        client.DefaultRequestHeaders.Remove("Origin");
-        client.DefaultRequestHeaders.Add("Origin", "https://untrusted.example");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync("/api/tags/missing")).StatusCode);
-        client.DefaultRequestHeaders.Remove("Origin");
-        client.DefaultRequestHeaders.Add("Origin", "http://localhost");
-        using var oldSession = fixture.Factory.CreateClient();
-        oldSession.DefaultRequestHeaders.Add("Cookie", cookie.Split(';')[0]);
-        var changed = await client.PostAsJsonAsync("/api/auth/change-password", new
-        {
-            currentPassword = "legacy-password-123",
-            newPassword = "replacement-password-123"
-        });
-        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await oldSession.GetAsync("/api/auth/session")).StatusCode);
-        client.DefaultRequestHeaders.Remove("x-csrf-token");
-        client.DefaultRequestHeaders.Add("x-csrf-token", (await Json(changed)).GetProperty("csrfToken").GetString());
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/auth/logout", null)).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/session")).StatusCode);
     }
     [OracleFact]
     public async Task PagesWebsitesAndTreatsSearchWildcardsAsLiteralText()
@@ -251,12 +194,6 @@ public sealed class ApiTests
         await using var fixture = await ApiFixture.CreateAsync(seeded: false);
         using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Add("Origin", "http://localhost");
-        var login = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            password = "legacy-password-123"
-        });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        client.DefaultRequestHeaders.Add("x-csrf-token", (await Json(login)).GetProperty("csrfToken").GetString());
         foreach (var name in new[] { "Alpha", "Beta", "100%_done" })
         {
             Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/websites", new
@@ -279,47 +216,6 @@ public sealed class ApiTests
         var underscore = await Json(await client.GetAsync("/api/websites?search=" + Uri.EscapeDataString("a_p")));
         Assert.Equal(0, underscore.GetProperty("total").GetInt32());
     }
-    [OracleFact]
-    public async Task CreatesFreshSchemaAndRejectsBruteForceLogin()
-    {
-        await using var fixture = await ApiFixture.CreateAsync(seeded: false);
-        using var client = fixture.Factory.CreateClient();
-        client.DefaultRequestHeaders.Add("Origin", "http://localhost");
-        for (var i = 0; i < 5; i++)
-        {
-            Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/auth/login", new
-            {
-                password = "wrong"
-            })).StatusCode);
-        }
-        Assert.Equal(HttpStatusCode.TooManyRequests, (await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            password = "legacy-password-123"
-        })).StatusCode);
-    }
-    [OracleFact]
-    public async Task CredentialReadFailureStaysServerErrorInsteadOfUnauthorized()
-    {
-        await using var fixture = await ApiFixture.CreateAsync(seeded: false);
-        using var client = fixture.Factory.CreateClient();
-        client.DefaultRequestHeaders.Add("Origin", "http://localhost");
-        var login = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            password = "legacy-password-123"
-        });
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        await using (var scope = fixture.Factory.Services.CreateAsyncScope())
-        {
-            var connection = await scope.ServiceProvider.GetRequiredService<DbSession>().OpenAsync(CancellationToken.None);
-            await connection.ExecuteAsync("DROP TABLE admin_credentials");
-        }
-        var response = await client.GetAsync("/api/auth/session");
-        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
-        var error = (await Json(response)).GetProperty("error");
-        Assert.Equal("INTERNAL_ERROR", error.GetProperty("code").GetString());
-        Assert.Equal("Internal server error", error.GetProperty("message").GetString());
-    }
-
     private static async Task<JsonElement> Json(HttpResponseMessage response) => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.Clone();
 }
 internal static class TestSql
@@ -379,12 +275,9 @@ internal sealed class ApiFixture : IAsyncDisposable
             await connection.ExecuteAsync($"GRANT CREATE SESSION, CREATE TABLE TO {schemaUser}");
         }
         fixture.Set("DATABASE_URL", $"oracle://{schemaUser}:{Uri.EscapeDataString(password)}@{url.Host}:{url.Port}/{service}");
-        fixture.Set("SESSION_SECRET", "test-session-secret-32-characters-long");
         fixture.Set("APP_ORIGIN", "http://localhost");
         fixture.Set("APP_ORIGINS", "");
-        fixture.Set("COOKIE_SECURE", "false");
         fixture.Set("ACCOUNT_ENCRYPTION_KEY", new string('a', 64));
-        fixture.Set("ADMIN_PASSWORD_HASH_BASE64", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(SecurityTests.Legacy.GetProperty("hash").GetString()!)));
         await using var scope = fixture.Factory.Services.CreateAsyncScope();
         var migrator = scope.ServiceProvider.GetRequiredService<DatabaseMigrator>();
         Assert.Equal(1, await migrator.PendingAsync(CancellationToken.None));
@@ -394,10 +287,9 @@ internal sealed class ApiFixture : IAsyncDisposable
         var db = await scope.ServiceProvider.GetRequiredService<DbSession>().OpenAsync(CancellationToken.None);
         if (seeded)
         {
-            // Rows written by the previous implementation: a stored Argon2 hash and an encrypted account secret
-            // must stay readable, so the on-disk formats are unchanged.
+            // Rows written by the previous implementation: an encrypted account secret must stay readable,
+            // so the on-disk format is unchanged.
             var json = SecurityTests.Legacy;
-            await TestSql.ExecuteAsync(db, "INSERT INTO admin_credentials VALUES ('primary', :hash, 'legacy-version')", ("hash", json.GetProperty("hash").GetString()!));
             await db.ExecuteAsync("INSERT INTO tags VALUES ('11111111-1111-4111-8111-111111111111', 'Legacy tag', 'legacy tag', NULL, '#123456', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')");
             await db.ExecuteAsync("INSERT INTO websites VALUES ('22222222-2222-4222-8222-222222222222', 'Legacy site', 'https://legacy.example/', 'legacy site https://legacy.example/', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')");
             await db.ExecuteAsync("INSERT INTO website_tags VALUES ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111', 0)");

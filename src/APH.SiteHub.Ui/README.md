@@ -1,6 +1,6 @@
 # APH SiteHub UI
 
-Standalone Next.js App Router + TypeScript dashboard styled with Tailwind CSS v4 and Headless UI (`@headlessui/react`) for accessible interactive primitives (icons: lucide-react). Requires Bun and Node.js 20.9+.
+Single-page React + TypeScript dashboard built with Vite, routed by TanStack Router and styled with Tailwind CSS v4 and Headless UI (`@headlessui/react`) for accessible interactive primitives (icons: lucide-react). Server state uses TanStack Query. Requires Bun and Node.js 20.19+.
 
 ```sh
 cd src/APH.SiteHub.Ui
@@ -8,39 +8,35 @@ bun install
 bun run dev
 ```
 
-Open `http://localhost:8111`. Start the existing ASP.NET Core backend separately using the repository README. Its `APP_ORIGIN` must exactly match the browser origin, including the port. Port 8111 must be available; this UI does not replace the existing Compose frontend or change deployment configuration.
+Open `http://localhost:8111`. Start the ASP.NET Core backend separately using the repository README. Port 8111 must be available.
 
-| Variable                 | Default                                | Purpose                                                 |
-| ------------------------ | -------------------------------------- | ------------------------------------------------------- |
-| `SITEHUB_DEV_PORT`       | `8111`                                 | UI development and start port                           |
-| `SITEHUB_DEV_API_TARGET` | `http://localhost:${API_PORT ?? 3000}` | Backend destination for `/api/*` and `/health` rewrites |
-| `API_PORT`               | `3000`                                 | Default backend port when no target is specified        |
-| `SITEHUB_TEST_BROWSER`   | Playwright-managed Chromium            | Optional browser executable override for Playwright     |
+| Variable                 | Default                                | Purpose                                                            |
+| ------------------------ | -------------------------------------- | ------------------------------------------------------------------ |
+| `SITEHUB_DEV_PORT`       | `8111`                                 | Dev and preview server port                                        |
+| `SITEHUB_DEV_API_TARGET` | `http://localhost:${API_PORT ?? 3000}` | Backend destination for the dev/preview `/api` and `/health` proxy |
+| `API_PORT`               | `3000`                                 | Default backend port when no target is specified                   |
+| `SITEHUB_LAN_HOST`       | unset                                  | Extra hostname the Vite dev server accepts (LAN access)            |
+| `SITEHUB_TEST_BROWSER`   | Playwright-managed Chromium            | Optional browser executable override for Playwright                |
 
-Production rewrites are fixed when `next build` runs. Set `SITEHUB_DEV_API_TARGET` (or `API_PORT` when using the default target) **at build time**; changing these variables only when running `next start` does not update the built proxy destination. Rebuild to change it. Development rewrites are evaluated when `next dev` starts.
+`vite build` emits static files to `dist/`. In development and `vite preview`, `vite.config.ts` proxies `/api` and `/health` to the backend. The production image (`Dockerfile`) serves `dist/` with nginx and proxies the same two paths to `http://backend:3000` (see `nginx.conf`), so the browser only ever talks to one origin. Because the proxy is resolved at runtime, changing the backend address only needs an nginx config change, not a rebuild.
 
-```sh
-SITEHUB_DEV_API_TARGET=http://backend:3000 bun run build
-bun run start
-```
-
-Next 16+ does not run ESLint during build; Biome is the only lint/format tool in this package.
-
-All authentication and data fetching run in the browser through relative, same-origin URLs. There are no API route handlers or cookie-based page middleware. The backend session cookie is HttpOnly and scoped to `/api`; the client bootstraps with `/api/auth/session`. CSRF stays in module memory and rotates after password changes. A 401 clears the query cache and returns to the sign-in surface without losing the current URL. For change-password 401, a session probe distinguishes an incorrect current password from expiry. Theme preference is the only localStorage state.
+There is no sign-in: the app opens straight on the requested route and every API call is a plain same-origin `fetch`. Anyone who can reach the UI can read and change all data, so run it only on a trusted network or put it behind your own access control (reverse proxy, VPN). Theme preference is the only `localStorage` state.
 
 Secrets are fetched on demand with `cache: 'no-store'`, held only in the mounted account drawer, and discarded after 30 seconds or unmount. They never enter React Query, browser storage, or logs. Account PATCH and website PATCH omit unchanged fields. Tag associations preserve the selected order.
 
 ## Structure
 
-- `src/app`: thin route pages, root layout with the pre-hydration theme script, `globals.css` (Tailwind with `sitehub-light`/`sitehub-dark` colour tokens) and custom 404.
+- `index.html`: Vite entry with the pre-paint theme script.
+- `src/main.tsx`: mounts the router. `src/router.tsx`: code-based TanStack Router tree (root providers, pathless shell layout, `/` websites, `/accounts`, not-found). Search params stay plain strings so the website filter URL (`?page=2&search=…&tagIds=a,b`) is unchanged.
+- `src/globals.css`: Tailwind with `sitehub-light`/`sitehub-dark` colour tokens.
 - `src/components/accounts`: account screen, statistics, toolbar, sortable table, list, actions, forms, detail drawer and delete dialog.
 - `src/components/websites`: website screen, toolbar, pagination, card and form.
-- `src/components/tags`, `auth`, `layout`, `common`: tag forms/manager, sign-in/password change, shell/providers and reusable Tailwind/Headless UI controls (`Button`, `Field`, `Modal` on Headless `Dialog`, `TagSelect` on Headless `Combobox`, `ToggleField` on `Switch`, `Confirm`, toast).
-- `src/lib/api`: typed discriminated results, CSRF/401 handling, query hooks, safe PATCH/query builders.
+- `src/components/tags`, `layout`, `common`: tag forms/manager, shell/providers and reusable Tailwind/Headless UI controls (`Button`, `Field`, `Modal` on Headless `Dialog`, `TagSelect` on Headless `Combobox`, `ToggleField` on `Switch`, `Confirm`, toast).
+- `src/lib/api`: typed discriminated results, query hooks, safe PATCH/query builders.
 - `src/lib/validation`: validation aligned with backend normalization.
 - `src/lib/copy.ts`: authored English UI copy.
 - `src/lib/theme.ts`: light/dark/system preference stored under `sitehub-theme`, applied as `data-theme` plus a `dark`/`light` class on `<html>`.
-- `tests`: security/contract and PasswordField unit checks and mocked API browser scenarios.
+- `tests`: contract and PasswordField unit checks and mocked API browser scenarios.
 
 ## Verification
 
@@ -55,6 +51,6 @@ bun run test:e2e
 
 If the environment denies writes to Bun's shared cache, set `BUN_INSTALL_CACHE_DIR="$PWD/.bun-cache"` and `BUN_TMPDIR="$PWD/.bun-tmp"` before installation. Both directories are ignored by Git and Biome.
 
-Browser tests use API fixtures rather than a production database. Production rewrites and real backend/database behavior are outside this fixture suite. They cover session expiry and lockout messages, CSRF rotation, URL filters, minimal PATCH bodies, tag conflict/delete, account list/table, reveal timeout, typed deletion, theme selection, error recovery, inline field validation, external-resource privacy, and desktop/360px layouts. They start a production Next server at port 18111; build first. Install Chromium with `bunx playwright install chromium`, or set `SITEHUB_TEST_BROWSER` to an existing Chromium executable. Screenshots and temporary reports are written under `test-results/`.
+Browser tests use API fixtures rather than a production database. The nginx proxy and real backend/database behavior are outside this fixture suite. They cover direct access with no sign-in, URL filters, minimal PATCH bodies, tag conflict/delete, account list/table, reveal timeout, typed deletion, theme selection, error recovery, inline field validation, external-resource privacy, and desktop/360px layouts. `test:e2e` builds the app and starts `vite preview` on port 18111. Install Chromium with `bunx playwright install chromium`, or set `SITEHUB_TEST_BROWSER` to an existing Chromium executable. Screenshots and temporary reports are written under `test-results/`.
 
-The backend's actual login limiter, database persistence, encryption, and cookie issuance require integration testing against a separately provisioned backend. No production traffic, credentials or database records are changed by the fixture suite.
+Database persistence and encryption require integration testing against a separately provisioned backend. No production traffic, credentials or database records are changed by the fixture suite.

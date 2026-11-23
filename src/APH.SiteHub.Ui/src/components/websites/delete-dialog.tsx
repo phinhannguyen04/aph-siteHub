@@ -1,4 +1,3 @@
-'use client'
 import { Confirm, ErrorBox } from '@/components/common'
 import { useWrite } from '@/lib/api/hooks'
 import type { Website } from '@/lib/api/types'

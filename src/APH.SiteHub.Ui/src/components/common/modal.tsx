@@ -1,4 +1,3 @@
-'use client'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import { X } from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'

@@ -3,13 +3,12 @@
   "files": {
     "includes": [
       "**",
-      "!!.next",
+      "!!dist",
       "!!node_modules",
       "!!.bun-cache",
       "!!.bun-tmp",
       "!!test-results",
-      "!!playwright-report",
-      "!!next-env.d.ts"
+      "!!playwright-report"
     ]
   },
   "formatter": {

@@ -1,4 +1,3 @@
-'use client'
 import { LayoutGrid, Plus, RefreshCw, Rows3, Search } from 'lucide-react'
 import { Button, Field, SelectField } from '@/components/common'
 import { c } from '@/lib/copy'

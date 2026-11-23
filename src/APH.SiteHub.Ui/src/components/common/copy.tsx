@@ -1,4 +1,3 @@
-'use client'
 import { Copy as CopyIcon } from 'lucide-react'
 import { useNotice } from '@/components/layout/providers'
 import { c } from '@/lib/copy'

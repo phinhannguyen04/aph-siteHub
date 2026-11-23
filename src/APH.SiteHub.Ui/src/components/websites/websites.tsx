@@ -1,7 +1,6 @@
-'use client'
 import { useQuery } from '@tanstack/react-query'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, Empty, ErrorBox } from '@/components/common'
 import { PageHeader } from '@/components/layout/page-header'
 import { WebsiteForm } from '@/components/websites/form'
@@ -15,10 +14,9 @@ import { DeleteWebsiteDialog } from './delete-dialog'
 import { WebsitePagination } from './pagination'
 import { WebsiteToolbar } from './toolbar'
 export function Websites() {
-  const params = useSearchParams()
-  const router = useRouter()
-  const path = usePathname()
-  const filters = websiteFilters(new URLSearchParams(params.toString()))
+  const navigate = useNavigate()
+  const searchText = useRouterState({ select: (state) => state.location.searchStr })
+  const filters = websiteFilters(new URLSearchParams(searchText))
   const searchKey = websiteSearch(filters)
   const [search, setSearch] = useState(filters.search)
   const [form, setForm] = useState<Website | 'new' | null>(null)
@@ -28,20 +26,31 @@ export function Websites() {
     queryKey: ['websites', searchKey],
     queryFn: () => query<WebsitePage>(`/api/websites?${searchKey}`),
   })
-  const update = (patch: Partial<typeof filters>) =>
-    router.replace(`${path}?${websiteSearch({ ...filters, ...patch })}`, { scroll: false })
+  // Filters live in the URL (replace, not push, so typing and paging do not fill the history).
+  const replaceFilters = useCallback(
+    (next: ReturnType<typeof websiteFilters>) =>
+      void navigate({
+        to: '/',
+        search: Object.fromEntries(new URLSearchParams(websiteSearch(next))),
+        replace: true,
+        resetScroll: false,
+      }),
+    [navigate],
+  )
+  const update = (patch: Partial<typeof filters>) => replaceFilters({ ...filters, ...patch })
   useEffect(() => setSearch(filters.search), [filters.search])
   useEffect(() => {
     const timer = setTimeout(() => {
       if (search.trim() !== filters.search) {
-        const next = websiteFilters(new URLSearchParams(searchKey))
-        router.replace(`${path}?${websiteSearch({ ...next, search: search.trim(), page: 1 })}`, {
-          scroll: false,
+        replaceFilters({
+          ...websiteFilters(new URLSearchParams(searchKey)),
+          search: search.trim(),
+          page: 1,
         })
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [search, filters.search, searchKey, path, router])
+  }, [search, filters.search, searchKey, replaceFilters])
   useEffect(() => {
     if (
       data.data &&
@@ -49,12 +58,9 @@ export function Websites() {
       filters.page > Math.ceil(data.data.total / filters.pageSize)
     ) {
       const next = websiteFilters(new URLSearchParams(searchKey))
-      router.replace(
-        `${path}?${websiteSearch({ ...next, page: Math.ceil(data.data.total / next.pageSize) })}`,
-        { scroll: false },
-      )
+      replaceFilters({ ...next, page: Math.ceil(data.data.total / next.pageSize) })
     }
-  }, [data.data, filters.page, filters.pageSize, searchKey, path, router])
+  }, [data.data, filters.page, filters.pageSize, searchKey, replaceFilters])
   const filtered = !!filters.search || filters.tagIds.length > 0
   const clear = () => {
     setSearch('')

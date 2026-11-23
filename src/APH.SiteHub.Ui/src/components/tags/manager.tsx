@@ -1,4 +1,3 @@
-'use client'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Busy, Button, Confirm, Empty, ErrorBox, Modal, TagChip } from '@/components/common'

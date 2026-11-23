@@ -15,8 +15,6 @@ public static class DependencyInjection
         services.AddScoped<IWebsiteRepository, WebsiteRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
-        services.AddScoped<ICredentialRepository, CredentialRepository>();
-        services.AddSingleton<IPasswordHasher, ArgonPasswordHasher>();
         services.AddSingleton<ISecretProtector, SecretProtector>();
         return services;
     }

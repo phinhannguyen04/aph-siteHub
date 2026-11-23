@@ -4,8 +4,6 @@ const command = Bun.argv[2] ?? 'dev'
 const commands: Record<string, string[]> = {
   dev: ['dotnet', 'watch', '--project', project, 'run'],
   migrate: ['dotnet', 'run', '--project', project, '--', '--migrate'],
-  'hash-password': ['dotnet', 'run', '--project', project, '--', '--hash-password'],
-  'reset-password': ['dotnet', 'run', '--project', project, '--', '--reset-password'],
 }
 const args = commands[command]
 if (!args) {

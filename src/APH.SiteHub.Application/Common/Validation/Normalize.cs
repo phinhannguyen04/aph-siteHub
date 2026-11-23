@@ -12,9 +12,6 @@ public static partial class Normalize
     ) =>
         string.IsNullOrWhiteSpace(value) || value.Trim().Length > max
             ? Result<string>.Failure(Error.Invalid($"Invalid {label}")) : Result<string>.Success(value.Trim());
-    public static Result<string> Password(string? value, int min = 1) =>
-        string.IsNullOrWhiteSpace(value) || value.Length < min || value.Length > 256
-            ? Result<string>.Failure(Error.Invalid($"Password must be between {min} and 256 characters")) : Result<string>.Success(value);
     public static Result<string> Url(string? value)
     {
         var text = Required(

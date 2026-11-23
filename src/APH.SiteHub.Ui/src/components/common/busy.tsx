@@ -1,4 +1,3 @@
-'use client'
 import { c } from '@/lib/copy'
 import { Spinner } from './spinner'
 export function Busy() {

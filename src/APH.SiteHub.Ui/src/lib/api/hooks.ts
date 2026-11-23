@@ -1,4 +1,3 @@
-'use client'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useNotice } from '@/components/layout/providers'

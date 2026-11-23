@@ -1,4 +1,3 @@
-'use client'
 import { Plus, Search } from 'lucide-react'
 import { Button, Field, TagSelect } from '@/components/common'
 import type { Tag } from '@/lib/api/types'

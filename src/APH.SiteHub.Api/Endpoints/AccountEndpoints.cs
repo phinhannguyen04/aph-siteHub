@@ -1,6 +1,5 @@
 using APH.SiteHub.Api.Contracts;
 using APH.SiteHub.Api.Http;
-using APH.SiteHub.Api.Security;
 using APH.SiteHub.Application.Accounts;
 
 namespace APH.SiteHub.Api.Endpoints;
@@ -10,8 +9,6 @@ public static class AccountEndpoints
     public static void MapAccountEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/accounts")
-            .RequireAuthorization()
-            .AddEndpointFilter<CsrfFilter>()
             .WithTags("Accounts");
 
         group.MapGet(

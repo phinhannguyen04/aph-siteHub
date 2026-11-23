@@ -1,4 +1,3 @@
-'use client'
 import { Button as HeadlessButton } from '@headlessui/react'
 import { Check } from 'lucide-react'
 import { useState } from 'react'

@@ -1,4 +1,3 @@
-'use client'
 import { useState } from 'react'
 import { Confirm, ErrorBox, Field } from '@/components/common'
 import { useWrite } from '@/lib/api/hooks'

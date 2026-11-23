@@ -10,10 +10,6 @@ public static class MaintenanceCommandDispatcher
         {
             result = await MigrateDatabaseCommand.RunAsync(services);
         }
-        else if (args.Contains("--reset-password"))
-        {
-            result = await ResetPasswordCommand.RunAsync(services);
-        }
         else
         {
             return Result<bool>.Success(false);

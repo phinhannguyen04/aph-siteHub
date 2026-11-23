@@ -6,15 +6,6 @@ using APH.SiteHub.Infrastructure;
 using APH.SiteHub.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
-if (args.Contains("--hash-password"))
-{
-    var hash = HashPasswordCommand.Run();
-    if (hash.IsFailure)
-    {
-        CommandFailureWriter.Write(hash.Error);
-    }
-    return;
-}
 var options = SiteHubOptions.Read(builder.Configuration);
 builder.AddServiceDefaults();
 builder.AddApi(options);
@@ -38,7 +29,6 @@ if (app.Environment.IsDevelopment())
 }
 app.MapHealthEndpoints();
 app.MapDefaultEndpoints();
-app.MapAuthEndpoints();
 app.MapWebsiteEndpoints();
 app.MapTagEndpoints();
 app.MapAccountEndpoints();

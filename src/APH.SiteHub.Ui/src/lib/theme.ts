@@ -1,12 +1,8 @@
-'use client'
 import { useEffect, useState } from 'react'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export const THEME_KEY = 'sitehub-theme'
 const modes: ThemeMode[] = ['light', 'dark', 'system']
-
-// Runs before hydration so the stored preference is applied without a flash of the wrong theme.
-export const themeScript = `(function(){try{var m=localStorage.getItem('${THEME_KEY}');if(m!=='light'&&m!=='dark')m='system';var d=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);var e=document.documentElement;e.dataset.theme=d?'sitehub-dark':'sitehub-light';e.classList.toggle('dark',d);e.classList.toggle('light',!d);e.style.colorScheme=d?'dark':'light'}catch(_){}})()`
 
 function readMode(): ThemeMode {
   try {

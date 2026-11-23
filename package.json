@@ -10,8 +10,6 @@
     "test": "dotnet test APH.SiteHub.sln && bun --cwd src/APH.SiteHub.Ui test",
     "test:backend": "dotnet test APH.SiteHub.sln",
     "migrate": "bun scripts/backend.ts migrate",
-    "hash-password": "bun scripts/backend.ts hash-password",
-    "reset-password": "bun scripts/backend.ts reset-password",
     "lint": "eslint scripts && bun --cwd src/APH.SiteHub.Ui check",
     "format": "prettier --write . && dotnet format APH.SiteHub.sln",
     "format:check": "prettier --check . && dotnet format APH.SiteHub.sln --verify-no-changes"

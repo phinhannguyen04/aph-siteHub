@@ -1,24 +1,9 @@
-'use client'
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Globe,
-  KeyRound,
-  LayoutGrid,
-  LogOut,
-  Menu,
-  Monitor,
-  Moon,
-  Sun,
-  Tags,
-  X,
-} from 'lucide-react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { Link, useRouterState } from '@tanstack/react-router'
+import { Globe, LayoutGrid, Menu, Monitor, Moon, Sun, Tags, X } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { ChangePassword } from '@/components/auth/change-password'
 import { Badge, Button, SelectBox } from '@/components/common'
-import { useSession } from '@/components/layout/providers'
 import { TagsManager } from '@/components/tags/manager'
 import { query } from '@/lib/api/client'
 import { c } from '@/lib/copy'
@@ -40,7 +25,6 @@ function Sidebar({
   setMode,
   onNavigate,
   onTags,
-  onPassword,
   onClose,
 }: {
   path: string
@@ -50,10 +34,8 @@ function Sidebar({
   /** Called after any item is chosen (closes the mobile drawer). */
   onNavigate: () => void
   onTags: () => void
-  onPassword: () => void
   onClose?: () => void
 }) {
-  const session = useSession()
   const ThemeIcon = themeIcons[mode]
   const links = [
     { href: '/', label: c.websites, icon: Globe },
@@ -80,7 +62,7 @@ function Sidebar({
             return (
               <li key={item.href}>
                 <Link
-                  href={item.href}
+                  to={item.href}
                   className={cx(
                     navItem,
                     active && 'bg-neutral text-neutral-content hover:bg-neutral',
@@ -119,19 +101,6 @@ function Sidebar({
               {c.tags}
             </button>
           </li>
-          <li>
-            <button
-              type="button"
-              className={navItem}
-              onClick={() => {
-                onNavigate()
-                onPassword()
-              }}
-            >
-              <KeyRound size={18} aria-hidden />
-              {c.changePassword}
-            </button>
-          </li>
         </ul>
         <div className="mt-auto flex flex-col gap-3 border-t border-base-300 p-4">
           <SelectBox
@@ -145,15 +114,6 @@ function Sidebar({
             <option value="dark">{c.dark}</option>
             <option value="system">{c.system}</option>
           </SelectBox>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="justify-start"
-            onClick={() => void session.logout()}
-          >
-            <LogOut size={16} aria-hidden />
-            {c.signOut}
-          </Button>
         </div>
       </nav>
     </div>
@@ -163,8 +123,7 @@ function Sidebar({
 export function Shell({ children }: { children: ReactNode }) {
   const [mobile, setMobile] = useState(false)
   const [tags, setTags] = useState(false)
-  const [password, setPassword] = useState(false)
-  const path = usePathname()
+  const path = useRouterState({ select: (state) => state.location.pathname })
   const { mode, setMode } = useThemeMode()
   const count = useQuery({
     queryKey: ['count'],
@@ -176,7 +135,6 @@ export function Shell({ children }: { children: ReactNode }) {
     mode,
     setMode,
     onTags: () => setTags(true),
-    onPassword: () => setPassword(true),
   }
   return (
     <div className="md:flex">
@@ -214,7 +172,6 @@ export function Shell({ children }: { children: ReactNode }) {
         </Dialog>
       )}
       {tags && <TagsManager onClose={() => setTags(false)} />}
-      {password && <ChangePassword onClose={() => setPassword(false)} />}
     </div>
   )
 }

@@ -1,5 +1,4 @@
 using APH.SiteHub.Api.Http;
-using APH.SiteHub.Api.Security;
 using APH.SiteHub.Application.Tags;
 
 namespace APH.SiteHub.Api.Endpoints;
@@ -9,8 +8,6 @@ public static class TagEndpoints
     public static void MapTagEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/tags")
-            .RequireAuthorization()
-            .AddEndpointFilter<CsrfFilter>()
             .WithTags("Tags");
 
         group.MapGet(

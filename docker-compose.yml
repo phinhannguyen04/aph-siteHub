@@ -48,7 +48,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      # /health is proxied by the Next.js rewrite to the backend's database-backed probe.
+      # /health is proxied by nginx to the backend's database-backed probe.
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/health']
       interval: 10s
       timeout: 5s

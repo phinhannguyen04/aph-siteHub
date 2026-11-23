@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: 'bun run start --port 18111',
+    command: 'bun run build && bun run start --port 18111',
     url: 'http://127.0.0.1:18111',
     reuseExistingServer: false,
   },

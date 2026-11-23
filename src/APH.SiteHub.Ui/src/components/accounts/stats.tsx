@@ -1,4 +1,3 @@
-'use client'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { CircleCheck, CircleGauge, Users } from 'lucide-react'
 import { ErrorBox, Progress } from '@/components/common'

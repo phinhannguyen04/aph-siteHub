@@ -1,4 +1,3 @@
-'use client'
 import { Mail } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge, Button } from '@/components/common'

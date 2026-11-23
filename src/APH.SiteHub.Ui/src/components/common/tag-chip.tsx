@@ -1,4 +1,3 @@
-'use client'
 import { X } from 'lucide-react'
 import type { Tag } from '@/lib/api/types'
 import { c } from '@/lib/copy'

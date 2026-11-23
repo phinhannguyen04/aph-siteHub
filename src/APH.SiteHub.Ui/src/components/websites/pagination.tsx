@@ -1,4 +1,3 @@
-'use client'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useId } from 'react'
 import { Button, buttonClass, SelectBox } from '@/components/common'
