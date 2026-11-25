@@ -1,7 +1,7 @@
 using System.Globalization;
 using APH.SiteHub.Application;
 using APH.SiteHub.Application.Websites;
-namespace APH.SiteHub.Api.Endpoints;
+namespace APH.SiteHub.Api.Http;
 
 public static class WebsiteListQueryParser
 {

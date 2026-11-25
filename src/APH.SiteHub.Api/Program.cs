@@ -1,6 +1,5 @@
 using APH.SiteHub.Api;
 using APH.SiteHub.Api.Commands;
-using APH.SiteHub.Api.Endpoints;
 using APH.SiteHub.Api.Middleware;
 using APH.SiteHub.Infrastructure;
 using APH.SiteHub.ServiceDefaults;
@@ -27,9 +26,6 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-app.MapHealthEndpoints();
 app.MapDefaultEndpoints();
-app.MapWebsiteEndpoints();
-app.MapTagEndpoints();
-app.MapAccountEndpoints();
+app.MapControllers();
 app.Run();

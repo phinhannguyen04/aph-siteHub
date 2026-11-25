@@ -2,7 +2,7 @@ namespace APH.SiteHub.Application.Accounts;
 
 internal static class AccountValidation
 {
-    // Limits mirror the Oracle column sizes (VARCHAR2 is capped at 4000 bytes).
+    // Limits mirror the PostgreSQL column sizes.
     internal const int MaxPassword = 256;
     internal const int MaxSecretKey = 1024;
     internal const int MaxProvider = 128;

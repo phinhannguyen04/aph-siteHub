@@ -1,20 +1,17 @@
 services:
-  oracle:
-    # Official Oracle Database Free image (23ai, "lite" variant) from Oracle Container Registry.
-    image: container-registry.oracle.com/database/free:latest-lite
+  postgres:
+    image: postgres:17-alpine
     environment:
-      ORACLE_PWD: ${ORACLE_PWD:?Set ORACLE_PWD in .env}
-      ORACLE_APP_USER: ${ORACLE_APP_USER:-sitehub}
-      ORACLE_APP_PASSWORD: ${ORACLE_APP_PASSWORD:?Set ORACLE_APP_PASSWORD in .env}
+      POSTGRES_USER: ${POSTGRES_USER:-sitehub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-sitehub}
     volumes:
-      - oracle_data:/opt/oracle/oradata
-      - ./docker/oracle/init:/opt/oracle/scripts/startup:ro
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', '/opt/oracle/checkDBStatus.sh >/dev/null || exit 1']
-      interval: 15s
-      timeout: 10s
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
       retries: 20
-      start_period: 120s
     restart: unless-stopped
   backend:
     build:
@@ -29,7 +26,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://dashboard:18889
       OTEL_SERVICE_NAME: sitehub-api
     depends_on:
-      oracle:
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ['CMD', 'curl', '--fail', '--silent', 'http://127.0.0.1:3000/health']
@@ -58,7 +55,7 @@ services:
 
   dashboard:
     # Standalone Aspire Dashboard: logs, traces and metrics sent by the backend over OTLP.
-    # The Resources page needs the AppHost (bun run aspire) and is not available here.
+    # The Resources page needs the AppHost (npm run aspire) and is not available here.
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
     ports:
       - '15180:18888'
@@ -70,4 +67,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  oracle_data:
+  postgres_data:

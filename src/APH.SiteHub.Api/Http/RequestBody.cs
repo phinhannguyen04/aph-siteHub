@@ -2,7 +2,7 @@ using APH.SiteHub.Api.Contracts;
 using System.Globalization;
 using System.Text.Json;
 using APH.SiteHub.Application;
-namespace APH.SiteHub.Api.Endpoints;
+namespace APH.SiteHub.Api.Http;
 
 // A successful parse guarantees field types/presence before typed accessors are used.
 public sealed class RequestBody

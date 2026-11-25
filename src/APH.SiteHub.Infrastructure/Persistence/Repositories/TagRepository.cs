@@ -8,9 +8,6 @@ public sealed class TagRepository(DbSession session, DatabaseOperation database)
 {
     internal const string Columns = "tag_id AS id, name, name_key, description, color, created_at, updated_at";
 
-    // Oracle stores '' as NULL: an empty description is written as NULL and read back as "".
-    private static object? Blank(string value) => value.Length == 0 ? null : value;
-
     public Task<Result<List<Tag>>> ListAsync(CancellationToken ct) => database.ExecuteAsync<List<Tag>>(async () =>
     {
         var connection = await session.OpenAsync(ct);
@@ -28,15 +25,15 @@ public sealed class TagRepository(DbSession session, DatabaseOperation database)
         if (create)
         {
             await connection.ExecuteAsync(Sql.Command(
-                "INSERT INTO tags (tag_id, name, name_key, description, color, created_at, updated_at) VALUES (:id, :name, :nameKey, :description, :color, :createdAt, :updatedAt)",
-                new { id = tag.Id, name = tag.Name, nameKey = tag.NameKey, description = Blank(tag.Description), color = tag.Color, createdAt = tag.CreatedAt, updatedAt = tag.UpdatedAt },
+                "INSERT INTO tags (tag_id, name, name_key, description, color, created_at, updated_at) VALUES (@id, @name, @nameKey, @description, @color, @createdAt, @updatedAt)",
+                new { id = tag.Id, name = tag.Name, nameKey = tag.NameKey, description = tag.Description, color = tag.Color, createdAt = tag.CreatedAt, updatedAt = tag.UpdatedAt },
                 null,
                 ct
             ));
             return Result<Tag>.Success(tag);
         }
         await using var tx = await connection.BeginTransactionAsync(ct);
-        var row = await connection.QuerySingleOrDefaultAsync<Tag>(Sql.Command($"SELECT {Columns} FROM tags WHERE tag_id = :id FOR UPDATE", new { id = tag.Id }, tx, ct));
+        var row = await connection.QuerySingleOrDefaultAsync<Tag>(Sql.Command($"SELECT {Columns} FROM tags WHERE tag_id = @id FOR UPDATE", new { id = tag.Id }, tx, ct));
         if (row is null)
         {
             return Result<Tag>.Failure(Error.Missing("Tag"));
@@ -47,8 +44,8 @@ public sealed class TagRepository(DbSession session, DatabaseOperation database)
         row.Color = tag.Color;
         row.UpdatedAt = tag.UpdatedAt;
         await connection.ExecuteAsync(Sql.Command(
-            "UPDATE tags SET name = :name, name_key = :nameKey, description = :description, color = :color, updated_at = :updatedAt WHERE tag_id = :id",
-            new { id = row.Id, name = row.Name, nameKey = row.NameKey, description = Blank(row.Description), color = row.Color, updatedAt = row.UpdatedAt },
+            "UPDATE tags SET name = @name, name_key = @nameKey, description = @description, color = @color, updated_at = @updatedAt WHERE tag_id = @id",
+            new { id = row.Id, name = row.Name, nameKey = row.NameKey, description = row.Description, color = row.Color, updatedAt = row.UpdatedAt },
             tx,
             ct
         ));
@@ -59,7 +56,7 @@ public sealed class TagRepository(DbSession session, DatabaseOperation database)
     public Task<Result<bool>> DeleteAsync(string id, CancellationToken ct) => database.ExecuteAsync<bool>(async () =>
     {
         var connection = await session.OpenAsync(ct);
-        return Result<bool>.Success(await connection.ExecuteAsync(Sql.Command("DELETE FROM tags WHERE tag_id = :id", new { id }, null, ct)) > 0);
+        return Result<bool>.Success(await connection.ExecuteAsync(Sql.Command("DELETE FROM tags WHERE tag_id = @id", new { id }, null, ct)) > 0);
 
     }, ct);
 }

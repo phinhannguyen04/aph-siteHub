@@ -9,15 +9,14 @@ public sealed class AccountRepository(DbSession session, DatabaseOperation datab
 {
     private const string PublicColumns = "account_id AS id, provider, name AS login_name, external_account_id, email, is_limit, created_at";
 
-    // is_limit is NUMBER(1) in Oracle; read it as an int and convert explicitly.
-    private sealed class AccountRow
+        private sealed class AccountRow
     {
         public string Id { get; set; } = "";
         public string Provider { get; set; } = "";
         public string LoginName { get; set; } = "";
         public string ExternalAccountId { get; set; } = "";
         public string Email { get; set; } = "";
-        public int IsLimit { get; set; }
+        public bool IsLimit { get; set; }
         public DateTime CreatedAt { get; set; }
         public AccountResponse ToResponse() => new(
             Id,
@@ -25,7 +24,7 @@ public sealed class AccountRepository(DbSession session, DatabaseOperation datab
             LoginName,
             ExternalAccountId,
             Email,
-            IsLimit != 0,
+            IsLimit,
             DateTime.SpecifyKind(CreatedAt, DateTimeKind.Utc)
         );
     }
@@ -55,7 +54,7 @@ public sealed class AccountRepository(DbSession session, DatabaseOperation datab
         await connection.ExecuteAsync(Sql.Command(
             """
             INSERT INTO accounts (account_id, provider, name, external_account_id, email, password, secret_key_encrypted, is_limit, created_at)
-            VALUES (:id, :provider, :loginName, :externalId, :email, :password, :secret, :isLimit, :createdAt)
+            VALUES (@id, @provider, @loginName, @externalId, @email, @password, @secret, @isLimit, @createdAt)
             """,
             new
             {
@@ -66,7 +65,7 @@ public sealed class AccountRepository(DbSession session, DatabaseOperation datab
                 email = account.Email,
                 password = account.Password,
                 secret = account.SecretKeyEncrypted,
-                isLimit = account.IsLimit ? 1 : 0,
+                isLimit = account.IsLimit,
                 createdAt = account.CreatedAt
             },
             null,
@@ -87,12 +86,12 @@ public sealed class AccountRepository(DbSession session, DatabaseOperation datab
         await using var tx = await connection.BeginTransactionAsync(ct);
         var affected = await connection.ExecuteAsync(Sql.Command(
             """
-            UPDATE accounts SET password = COALESCE(:password, password),
-              secret_key_encrypted = COALESCE(:secret, secret_key_encrypted),
-              is_limit = COALESCE(:isLimit, is_limit)
-            WHERE account_id = :id
+            UPDATE accounts SET password = COALESCE(@password, password),
+              secret_key_encrypted = COALESCE(@secret, secret_key_encrypted),
+              is_limit = COALESCE(@isLimit, is_limit)
+            WHERE account_id = @id
             """,
-            new { id, password, secret = encryptedSecret, isLimit = limited is null ? (int?)null : limited.Value ? 1 : 0 },
+            new { id, password, secret = encryptedSecret, isLimit = limited },
             tx,
             ct
         ));
@@ -108,20 +107,20 @@ public sealed class AccountRepository(DbSession session, DatabaseOperation datab
     public Task<Result<string?>> SecretAsync(string id, CancellationToken ct) => database.ExecuteAsync<string?>(async () =>
     {
         var connection = await session.OpenAsync(ct);
-        return Result<string?>.Success(await connection.QuerySingleOrDefaultAsync<string>(Sql.Command("SELECT secret_key_encrypted FROM accounts WHERE account_id = :id", new { id }, null, ct)));
+        return Result<string?>.Success(await connection.QuerySingleOrDefaultAsync<string>(Sql.Command("SELECT secret_key_encrypted FROM accounts WHERE account_id = @id", new { id }, null, ct)));
 
     }, ct);
     public Task<Result<bool>> DeleteAsync(string id, CancellationToken ct) => database.ExecuteAsync<bool>(async () =>
     {
         var connection = await session.OpenAsync(ct);
-        return Result<bool>.Success(await connection.ExecuteAsync(Sql.Command("DELETE FROM accounts WHERE account_id = :id", new { id }, null, ct)) > 0);
+        return Result<bool>.Success(await connection.ExecuteAsync(Sql.Command("DELETE FROM accounts WHERE account_id = @id", new { id }, null, ct)) > 0);
 
     }, ct);
     public Task<Result<AccountStats>> StatsAsync(CancellationToken ct) => database.ExecuteAsync<AccountStats>(async () =>
     {
         var connection = await session.OpenAsync(ct);
         var rows = await connection.QueryAsync<StatsRow>(Sql.Command(
-            "SELECT provider, COUNT(*) AS total, SUM(is_limit) AS limited FROM accounts GROUP BY provider ORDER BY provider",
+            "SELECT provider, COUNT(*) AS total, COUNT(*) FILTER (WHERE is_limit) AS limited FROM accounts GROUP BY provider ORDER BY provider",
             null,
             null,
             ct
@@ -146,5 +145,5 @@ public sealed class AccountRepository(DbSession session, DatabaseOperation datab
         string id,
         System.Data.Common.DbTransaction? tx,
         CancellationToken ct
-    ) => (await connection.QuerySingleOrDefaultAsync<AccountRow>(Sql.Command($"SELECT {PublicColumns} FROM accounts WHERE account_id = :id", new { id }, tx, ct)))?.ToResponse();
+    ) => (await connection.QuerySingleOrDefaultAsync<AccountRow>(Sql.Command($"SELECT {PublicColumns} FROM accounts WHERE account_id = @id", new { id }, tx, ct)))?.ToResponse();
 }

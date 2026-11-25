@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
+using Npgsql;
 namespace APH.SiteHub.Infrastructure;
 
 public sealed record SiteHubOptions(
@@ -13,24 +13,26 @@ public sealed record SiteHubOptions(
     {
         var database = config["DATABASE_URL"] ?? throw new InvalidOperationException("DATABASE_URL is required");
         var uri = new Uri(database);
-        if (uri.Scheme != "oracle")
+        if (uri.Scheme is not ("postgres" or "postgresql"))
         {
-            throw new InvalidOperationException("DATABASE_URL must use oracle://user:password@host:port/service_name");
+            throw new InvalidOperationException("DATABASE_URL must use postgres://user:password@host:port/database");
         }
         var user = uri.UserInfo.Split(':', 2);
-        var service = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
-        if (string.IsNullOrEmpty(uri.Host) || string.IsNullOrEmpty(service) || user[0].Length == 0)
+        var name = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
+        if (string.IsNullOrEmpty(uri.Host) || string.IsNullOrEmpty(name) || user[0].Length == 0)
         {
-            throw new InvalidOperationException("DATABASE_URL must include user, host and service name");
+            throw new InvalidOperationException("DATABASE_URL must include user, host and database name");
         }
         if (uri.Query.Length > 1)
         {
             throw new InvalidOperationException("Unsupported DATABASE_URL parameter");
         }
-        var connection = new OracleConnectionStringBuilder
+        var connection = new NpgsqlConnectionStringBuilder
         {
-            DataSource = $"{uri.Host}:{(uri.Port > 0 ? uri.Port : 1521)}/{service}",
-            UserID = Uri.UnescapeDataString(user[0]),
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Database = name,
+            Username = Uri.UnescapeDataString(user[0]),
             Password = user.Length > 1 ? Uri.UnescapeDataString(user[1]) : ""
         };
         var origin = config["APP_ORIGIN"] ?? throw new InvalidOperationException("APP_ORIGIN is required");

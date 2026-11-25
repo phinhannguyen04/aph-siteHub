@@ -1,13 +1,10 @@
 using Aspire.Hosting.JavaScript;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Oracle.ManagedDataAccess.Client;
 
 // Local orchestration for development: `dotnet run --project src/APH.SiteHub.AppHost`.
 // Production keeps using docker-compose.yml; the API and UI are unchanged and still read the same
 // environment variables, Aspire only supplies them (plus the dashboard, telemetry and health gating).
 const string appUser = "sitehub";
-const string oracleService = "FREEPDB1";
+const string databaseName = "sitehub";
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -18,14 +15,9 @@ var lanHost = builder.Configuration["LAN_HOST"];
 var lanPort = int.TryParse(builder.Configuration["LAN_PORT"], out var configuredPort) ? configuredPort : 8113;
 string lanOrigin = $"http://{lanHost}:{lanPort}";
 
-// Generated once and persisted to the AppHost user secrets, so the Oracle volume keeps working across runs.
-var oraclePassword = builder.AddParameter(
-    "oracle-password",
-    new GenerateParameterDefault { MinLength = 24, Special = false },
-    secret: true,
-    persist: true);
-var appPassword = builder.AddParameter(
-    "oracle-app-password",
+// Generated once and persisted to the AppHost user secrets, so the Postgres volume keeps working across runs.
+var postgresPassword = builder.AddParameter(
+    "postgres-password",
     new GenerateParameterDefault { MinLength = 24, Special = false },
     secret: true,
     persist: true);
@@ -33,52 +25,16 @@ var appPassword = builder.AddParameter(
 // Provide it with `dotnet user-secrets` (see README) or when the dashboard prompts for it.
 var encryptionKey = builder.AddParameter("account-encryption-key", secret: true);
 
-// Same bind mount docker-compose.yml uses: the lite image sources /opt/oracle/scripts/startup/*.sh on every start, and the
-// script creates the least-privilege schema user (idempotent). This is the path verified to work. With WithInitFiles()
-// the user was still missing when migrate ran, and WithDataVolume() left DCP's volume object "Pending" forever on this
-// host, so the mounts are passed to docker directly. The named volume keeps the database between runs.
-var oracleInit = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "docker", "oracle", "init"));
-var oracle = builder.AddOracle("oracle", oraclePassword)
-    .WithImageTag("latest-lite")
-    .WithContainerRuntimeArgs(
-        "--volume", "aph-sitehub-aspire-oracle-data:/opt/oracle/oradata",
-        "--volume", $"{oracleInit}:/opt/oracle/scripts/startup:ro")
-    .WithEnvironment("ORACLE_APP_USER", appUser)
-    .WithEnvironment("ORACLE_APP_PASSWORD", appPassword);
-var database = oracle.AddDatabase("sitehub", oracleService);
-
-// The database is "up" well before the init script has created the schema user, and migrating in that window fails
-// with ORA-01017. Gate everything on actually logging in as the application user.
-builder.Services.AddHealthChecks().AddAsyncCheck("sitehub-app-user", async cancellationToken =>
-{
-    try
-    {
-        var endpoint = oracle.Resource.PrimaryEndpoint;
-        var connection = new OracleConnectionStringBuilder
-        {
-            DataSource = $"{endpoint.Host}:{endpoint.Port}/{oracleService}",
-            UserID = appUser,
-            Password = await appPassword.Resource.GetValueAsync(cancellationToken),
-            ConnectionTimeout = 5
-        };
-        await using var probe = new OracleConnection(connection.ConnectionString);
-        await probe.OpenAsync(cancellationToken);
-        return HealthCheckResult.Healthy();
-    }
-    catch (Exception exception) when (exception is not OperationCanceledException)
-    {
-        // Shown as the resource's health report in the dashboard; the console line helps when it never turns healthy.
-        var reason = exception is OracleException oracleError
-            ? $"ORA-{oracleError.Number:D5}"
-            : $"{exception.GetType().Name}: {exception.Message}";
-        Console.Error.WriteLine($"[health sitehub-app-user] not ready yet: {reason}");
-        return HealthCheckResult.Unhealthy($"Cannot log in as {appUser} yet ({reason})");
-    }
-});
-oracle.WithHealthCheck("sitehub-app-user");
+// The named volume keeps the database between runs. It is passed to docker directly: Aspire's
+// WithDataVolume() left DCP's volume object "Pending" forever on this host.
+var postgresUser = builder.AddParameter("postgres-user", appUser);
+var postgres = builder.AddPostgres("postgres", postgresUser, postgresPassword)
+    .WithImageTag("17-alpine")
+    .WithContainerRuntimeArgs("--volume", "aph-sitehub-aspire-postgres-data:/var/lib/postgresql/data");
+var database = postgres.AddDatabase(databaseName);
 
 var databaseUrl = ReferenceExpression.Create(
-    $"oracle://{appUser}:{appPassword}@{oracle.Resource.PrimaryEndpoint.Property(EndpointProperty.Host)}:{oracle.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)}/{oracleService}");
+    $"postgres://{appUser}:{postgresPassword}@{postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host)}:{postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)}/{databaseName}");
 
 IResourceBuilder<T> WithSiteHubSettings<T>(IResourceBuilder<T> resource, Func<EndpointReference> origin)
     where T : ProjectResource
@@ -98,10 +54,10 @@ IResourceBuilder<T> WithSiteHubSettings<T>(IResourceBuilder<T> resource, Func<En
 IResourceBuilder<JavaScriptAppResource>? frontend = null;
 EndpointReference FrontendOrigin() => frontend!.GetEndpoint("http");
 
-// One-shot schema migration (the same `--migrate` command as `bun run migrate` / `compose run backend --migrate`).
+// One-shot schema migration (the same `--migrate` command as `npm run migrate` / `compose run backend --migrate`).
 var migrate = WithSiteHubSettings(
         builder.AddProject<Projects.APH_SiteHub_Api>("migrate").WithArgs("--migrate"), FrontendOrigin)
-    .WaitFor(oracle)
+    .WaitFor(postgres)
     .WaitFor(database);
 
 var backend = WithSiteHubSettings(
@@ -112,7 +68,7 @@ var backend = WithSiteHubSettings(
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrate);
 
-var web = builder.AddJavaScriptApp("frontend", "../APH.SiteHub.Ui", "dev").WithBun();
+var web = builder.AddJavaScriptApp("frontend", "../APH.SiteHub.Ui", "dev").WithNpm();
 web = string.IsNullOrWhiteSpace(lanHost)
     ? web.WithHttpEndpoint(env: "SITEHUB_DEV_PORT")
     : web.WithHttpEndpoint(port: lanPort, targetPort: lanPort, env: "SITEHUB_DEV_PORT", isProxied: false)

@@ -1,12 +1,12 @@
 using APH.SiteHub.Application;
 using Microsoft.Extensions.Logging;
-using Oracle.ManagedDataAccess.Client;
+using Npgsql;
 namespace APH.SiteHub.Infrastructure.Persistence;
 
 public sealed class DatabaseOperation(ILogger<DatabaseOperation> logger)
 {
-    public const int UniqueViolation = 1;
-    public const int ParentKeyNotFound = 2291;
+    public const string UniqueViolation = PostgresErrorCodes.UniqueViolation;
+    public const string ForeignKeyViolation = PostgresErrorCodes.ForeignKeyViolation;
 
     // Catch only at the driver boundary, after transaction scopes have rolled back/disposed.
     public async Task<Result<T>> ExecuteAsync<T>(Func<Task<Result<T>>> operation, CancellationToken ct)
@@ -19,27 +19,27 @@ public sealed class DatabaseOperation(ILogger<DatabaseOperation> logger)
         catch (OperationCanceledException) { throw; }
         catch (Exception exception)
         {
-            var number = FindOracle(exception)?.Number;
-            if (Translate(number) is { } known)
+            var code = FindPostgres(exception)?.SqlState;
+            if (Translate(code) is { } known)
             {
                 return Result<T>.Failure(known);
             }
             logger.LogError(
-                "Database operation failed with exception type {Type} and Oracle error {OraCode}",
+                "Database operation failed with exception type {Type} and SQLSTATE {SqlState}",
                 exception.GetType().Name,
-                number
+                code
             );
             return Result<T>.Failure(Error.Unexpected());
         }
     }
 
     /// <summary>Maps constraint violations to client-safe errors; null means unexpected.</summary>
-    public static Error? Translate(int? oracleError) => oracleError switch
+    public static Error? Translate(string? sqlState) => sqlState switch
     {
         UniqueViolation => Error.Conflict("A record with this name or provider/external ID already exists"),
-        ParentKeyNotFound => Error.Invalid("One or more tags do not exist"),
+        ForeignKeyViolation => Error.Invalid("One or more tags do not exist"),
         _ => null
     };
 
-    private static OracleException? FindOracle(Exception exception) => exception is OracleException oracle ? oracle : exception.InnerException is { } inner ? FindOracle(inner) : null;
+    private static PostgresException? FindPostgres(Exception exception) => exception is PostgresException postgres ? postgres : exception.InnerException is { } inner ? FindPostgres(inner) : null;
 }

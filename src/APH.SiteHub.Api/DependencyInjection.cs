@@ -18,6 +18,13 @@ public static class DependencyInjection
                         .AllowAnyMethod()
             )
         );
+        builder.Services.AddControllers()
+            .ConfigureApiBehaviorOptions(api => api.SuppressModelStateInvalidFilter = true)
+            .AddJsonOptions(json =>
+            {
+                json.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                json.JsonSerializerOptions.DictionaryKeyPolicy = null;
+            });
         builder.Services.AddExceptionHandler<ApiExceptionHandler>().AddProblemDetails();
         builder.Services.AddOpenApi();
         builder.Services.ConfigureHttpJsonOptions(json =>
@@ -25,7 +32,6 @@ public static class DependencyInjection
             json.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
             json.SerializerOptions.DictionaryKeyPolicy = null;
         });
-        builder.Services.Configure<RouteHandlerOptions>(route => route.ThrowOnBadRequest = true);
         return builder;
     }
 }

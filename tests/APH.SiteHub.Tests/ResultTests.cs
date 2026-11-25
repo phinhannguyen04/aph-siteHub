@@ -64,20 +64,20 @@ public sealed class ResultTests
 
     [Theory]
     [InlineData(DatabaseOperation.UniqueViolation, ErrorType.Conflict)]
-    [InlineData(DatabaseOperation.ParentKeyNotFound, ErrorType.Validation)]
-    public void DatabaseBoundaryTranslatesConstraintErrors(int oracleError, ErrorType expected)
+    [InlineData(DatabaseOperation.ForeignKeyViolation, ErrorType.Validation)]
+    public void DatabaseBoundaryTranslatesConstraintErrors(string sqlState, ErrorType expected)
     {
-        var error = DatabaseOperation.Translate(oracleError);
+        var error = DatabaseOperation.Translate(sqlState);
         Assert.NotNull(error);
         Assert.Equal(expected, error.Type);
-        Assert.DoesNotContain("ORA-", error.Message);
+        Assert.DoesNotContain("SQLSTATE", error.Message);
     }
 
     [Theory]
     [InlineData(null)]
-    [InlineData(942)]
-    [InlineData(12899)]
-    public void UnknownOracleErrorsAreNotTranslated(int? oracleError) => Assert.Null(DatabaseOperation.Translate(oracleError));
+    [InlineData("42P01")]
+    [InlineData("22001")]
+    public void UnknownDatabaseErrorsAreNotTranslated(string? sqlState) => Assert.Null(DatabaseOperation.Translate(sqlState));
 
     [Fact]
     public async Task DatabaseBoundaryHidesUnexpectedDetails()
