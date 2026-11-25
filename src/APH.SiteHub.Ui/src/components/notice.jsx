@@ -1,38 +1,42 @@
+import { Toast } from '@base-ui/react/toast'
+import { Tooltip } from '@base-ui/react/tooltip'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck, X } from 'lucide-react'
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { c } from '@/lib/copy'
-import { Button, cx } from './ui'
 
-const NoticeContext = createContext(() => {})
-export const useNotice = () => useContext(NoticeContext)
+/** Returns `notify(message, severity = 'success' | 'error')`, backed by Base UI Toast. */
+export function useNotice() {
+  const manager = Toast.useToastManager()
+  return useCallback(
+    (message, severity = 'success') =>
+      manager.add({ title: message, type: severity, timeout: severity === 'error' ? 8000 : 4000 }),
+    [manager],
+  )
+}
 
-function Toast({ notice, onDismiss }) {
-  const ref = useRef(null)
-  useEffect(() => {
-    const element = ref.current
-    element?.showPopover()
-    return () => {
-      if (element?.matches(':popover-open')) element.hidePopover()
-    }
-  }, [])
+function ToastList() {
+  const { toasts } = Toast.useToastManager()
   return (
-    <div
-      ref={ref}
-      popover="manual"
-      className={cx('toast', notice.severity === 'error' && 'error')}
-      role={notice.severity === 'error' ? 'alert' : 'status'}
-    >
-      {notice.severity === 'error' ? (
-        <CircleAlert size={18} aria-hidden />
-      ) : (
-        <CircleCheck size={18} aria-hidden />
-      )}
-      <span>{notice.message}</span>
-      <Button variant="ghost" size="sm" icon aria-label={c.dismiss} onClick={onDismiss}>
-        <X size={14} />
-      </Button>
-    </div>
+    <Toast.Portal>
+      <Toast.Viewport className="toast-viewport">
+        {toasts.map((toast) => (
+          <Toast.Root key={toast.id} toast={toast} className="toast" data-type={toast.type}>
+            <Toast.Content className="toast-content">
+              {toast.type === 'error' ? (
+                <CircleAlert size={16} aria-hidden />
+              ) : (
+                <CircleCheck size={16} aria-hidden />
+              )}
+              <Toast.Title className="toast-title" />
+              <Toast.Close className="toast-close" aria-label={c.dismiss}>
+                <X size={14} />
+              </Toast.Close>
+            </Toast.Content>
+          </Toast.Root>
+        ))}
+      </Toast.Viewport>
+    </Toast.Portal>
   )
 }
 
@@ -45,22 +49,14 @@ export function Providers({ children }) {
         },
       }),
   )
-  const [notice, setNotice] = useState(null)
-  useEffect(() => {
-    if (!notice) return
-    const timer = setTimeout(() => setNotice(null), 5000)
-    return () => clearTimeout(timer)
-  }, [notice])
-  const notify = useCallback(
-    (message, severity = 'success') => setNotice({ message, severity, id: Date.now() }),
-    [],
-  )
   return (
     <QueryClientProvider client={client}>
-      <NoticeContext.Provider value={notify}>
-        {children}
-        {notice && <Toast key={notice.id} notice={notice} onDismiss={() => setNotice(null)} />}
-      </NoticeContext.Provider>
+      <Tooltip.Provider delay={300}>
+        <Toast.Provider limit={3}>
+          {children}
+          <ToastList />
+        </Toast.Provider>
+      </Tooltip.Provider>
     </QueryClientProvider>
   )
 }

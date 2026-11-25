@@ -13,6 +13,7 @@ const proxy = { '/api': target, '/health': target }
 
 export default defineConfig({
   plugins: [react()],
+  build: { chunkSizeWarningLimit: 600 },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     host: true,

@@ -1,6 +1,6 @@
 # APH SiteHub UI
 
-Single-page React (JavaScript) dashboard built with Vite and routed by React Router (`react-router`). Server state uses TanStack Query, icons come from lucide-react and styling is plain hand-written CSS (`src/styles.css`: warm paper palette, serif headings, light/dark themes). Requires Node.js 22+.
+Single-page React (JavaScript) dashboard built with Vite and routed by React Router (`react-router`). Interactive primitives come from Base UI (`@base-ui/react`: Dialog, AlertDialog, Field, Select, Switch, Toggle/ToggleGroup, Tooltip, Toast). Server state uses TanStack Query, icons come from lucide-react and styling is plain hand-written CSS (`src/styles.css`) built on the Devlane "Drafts" design tokens (Inter 13px, oklch colours, 2–24px spacing scale, 6px radius, 150ms motion, light/dark themes). Requires Node.js 22+.
 
 ```sh
 cd src/APH.SiteHub.Ui
@@ -27,8 +27,10 @@ Secrets are fetched on demand with `cache: 'no-store'`, held only in the mounted
 
 - `index.html`: Vite entry with the pre-paint theme script.
 - `src/main.jsx`: mounts `BrowserRouter` with the routes: a shell layout, `/` websites, `/accounts` and a not-found page. Website filters live in the URL (`?page=2&search=…&tagIds=a,b`) through `useSearchParams`.
-- `src/styles.css`: design tokens (`:root` / `[data-theme='dark']`) and all component styles.
-- `src/components`: `ui.jsx` (buttons, fields, native `<dialog>` modal, tag chips, confirm dialog), `notice.jsx` (query client and toast) and `shell.jsx` (header, navigation, theme switch).
+- `src/styles.css`: design tokens (`:root` / `[data-theme='dark']`) and all component styles. Base UI parts are styled through their `data-*` attributes (`data-pressed`, `data-checked`, `data-starting-style`, …).
+- `src/components/ui/`: one file per shared control (`button.jsx`, `field.jsx`, `select.jsx`, `modal.jsx`, `confirm.jsx`, `tag-chip.jsx`, …) built on Base UI, plus `utils.js`; `index.js` re-exports them so pages import from `@/components/ui`.
+- `src/components`: `notice.jsx` (query client, tooltip provider and toast) and `shell.jsx` (collapsible sidebar, top bar, theme switch).
+  The sidebar collapses to an icon rail on desktop (state in `localStorage`, toggle with the top-bar button or Ctrl/Cmd + B) and becomes an off-canvas drawer below 860px.
 - `src/pages`: `websites.jsx` and `accounts.jsx`.
 - `src/features`: website, account and tag forms, account detail drawer and delete dialogs.
 - `src/lib`: API client and helpers (`api.js`), validation, copy text, theme and the shared write hook.

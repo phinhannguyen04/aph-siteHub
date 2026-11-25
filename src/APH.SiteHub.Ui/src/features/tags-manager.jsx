@@ -160,24 +160,24 @@ export function TagsManager({ onClose }) {
             </li>
           ))}
         </ul>
+        {form && <TagForm tag={form === 'new' ? undefined : form} onClose={() => setForm(null)} />}
+        {deleting && (
+          <Confirm
+            title={c.deleteTag}
+            body={`${deleting.name}: ${c.tagWarning}`}
+            action={c.delete}
+            pending={write.pending}
+            error={write.error}
+            onClose={() => setDeleting(null)}
+            onConfirm={() =>
+              void write.runDelete(
+                () => deleteTag(deleting.id),
+                () => setDeleting(null),
+              )
+            }
+          />
+        )}
       </Modal>
-      {form && <TagForm tag={form === 'new' ? undefined : form} onClose={() => setForm(null)} />}
-      {deleting && (
-        <Confirm
-          title={c.deleteTag}
-          body={`${deleting.name}: ${c.tagWarning}`}
-          action={c.delete}
-          pending={write.pending}
-          error={write.error}
-          onClose={() => setDeleting(null)}
-          onConfirm={() =>
-            void write.runDelete(
-              () => deleteTag(deleting.id),
-              () => setDeleting(null),
-            )
-          }
-        />
-      )}
     </>
   )
 }

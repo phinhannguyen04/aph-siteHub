@@ -7,6 +7,7 @@ import { buttonLink, Empty } from '@/components/ui'
 import { c } from '@/lib/copy'
 import { Accounts } from '@/pages/accounts'
 import { Websites } from '@/pages/websites'
+import '@fontsource-variable/inter'
 import './styles.css'
 
 function NotFound() {

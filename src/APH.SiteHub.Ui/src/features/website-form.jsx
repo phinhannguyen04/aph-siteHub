@@ -87,7 +87,12 @@ export function WebsiteForm({ website, onClose }) {
             <legend className="sr-only">{c.tagPicker}</legend>
             {tags.data?.tags.length === 0 && <span className="help">{c.noTags}</span>}
             {tags.data?.tags.map((t) => (
-              <TagChip key={t.id} tag={t} pressed={ids.has(t.id)} onClick={() => toggle(t)} />
+              <TagChip
+                key={t.id}
+                tag={t}
+                pressed={ids.has(t.id)}
+                onPressedChange={() => toggle(t)}
+              />
             ))}
             <Button variant="ghost" size="sm" onClick={() => setQuick(true)}>
               <Plus size={14} aria-hidden />
@@ -128,13 +133,13 @@ export function WebsiteForm({ website, onClose }) {
             ))}
           </ol>
         )}
+        {quick && (
+          <TagForm
+            onClose={() => setQuick(false)}
+            onCreated={(tag) => setSelected((old) => (old.length < 50 ? [...old, tag] : old))}
+          />
+        )}
       </Modal>
-      {quick && (
-        <TagForm
-          onClose={() => setQuick(false)}
-          onCreated={(tag) => setSelected((old) => (old.length < 50 ? [...old, tag] : old))}
-        />
-      )}
     </>
   )
 }

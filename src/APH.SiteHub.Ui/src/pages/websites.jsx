@@ -121,14 +121,9 @@ function Pagination({ total, filters, update }) {
       <Select
         label={c.pageSize}
         value={filters.pageSize}
-        onChange={(e) => update({ pageSize: Number(e.target.value), page: 1 })}
-      >
-        {[12, 24, 48].map((n) => (
-          <option key={n} value={n}>
-            {n} / page
-          </option>
-        ))}
-      </Select>
+        onValueChange={(n) => update({ pageSize: Number(n), page: 1 })}
+        options={[12, 24, 48].map((n) => ({ value: n, label: `${n} / page` }))}
+      />
     </div>
   )
 }
@@ -219,7 +214,7 @@ export function Websites() {
               key={t.id}
               tag={t}
               pressed={filters.tagIds.includes(t.id)}
-              onClick={() => toggleTag(t.id)}
+              onPressedChange={() => toggleTag(t.id)}
             />
           ))}
         </fieldset>

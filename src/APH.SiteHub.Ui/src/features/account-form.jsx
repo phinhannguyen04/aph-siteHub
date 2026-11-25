@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, ErrorBox, Field, Modal, PasswordField, Toggle } from '@/components/ui'
+import { Button, ErrorBox, Field, Modal, PasswordField, SwitchField } from '@/components/ui'
 import { accountPatch } from '@/lib/api'
 import { c } from '@/lib/copy'
 import { useWrite } from '@/lib/hooks'
@@ -103,7 +103,7 @@ export function AccountForm({ account, onClose }) {
         value={values.secret_key}
         onChange={set('secret_key')}
       />
-      <Toggle label={c.limited} checked={limit} onChange={setLimit} />
+      <SwitchField label={c.limited} checked={limit} onChange={setLimit} />
     </Modal>
   )
 }

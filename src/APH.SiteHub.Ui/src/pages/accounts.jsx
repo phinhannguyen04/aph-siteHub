@@ -132,29 +132,30 @@ export function Accounts() {
       <Stats stats={stats} />
       <div className="toolbar">
         <SearchBox label={c.searchAccounts} value={search} onChange={setSearch} />
-        <Select label={c.provider} value={provider} onChange={(e) => setProvider(e.target.value)}>
-          <option value="">
-            {c.provider}: {c.all}
-          </option>
-          {providers.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </Select>
-        <Select label={c.status} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">
-            {c.status}: {c.all}
-          </option>
-          <option value="limited">{c.limited}</option>
-          <option value="unlimited">{c.unlimited}</option>
-        </Select>
+        <Select
+          label={c.provider}
+          value={provider || 'all'}
+          onValueChange={(v) => setProvider(v === 'all' ? '' : v)}
+          options={[
+            { value: 'all', label: `${c.provider}: ${c.all}` },
+            ...providers.map((p) => ({ value: p, label: p })),
+          ]}
+        />
+        <Select
+          label={c.status}
+          value={status}
+          onValueChange={setStatus}
+          options={[
+            { value: 'all', label: `${c.status}: ${c.all}` },
+            { value: 'limited', label: c.limited },
+            { value: 'unlimited', label: c.unlimited },
+          ]}
+        />
         <span className="help">{c.count(filtered.length)}</span>
         <Button
           size="sm"
           icon
           aria-label={c.refresh}
-          title={c.refresh}
           onClick={() => {
             void accounts.refetch()
             void stats.refetch()
