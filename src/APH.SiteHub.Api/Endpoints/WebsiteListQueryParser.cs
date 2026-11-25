@@ -17,7 +17,12 @@ public static class WebsiteListQueryParser
             {
                 return Result<int>.Success(fallback);
             }
-            return !int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var n) || value.ToString().StartsWith('0')
+            return !int.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var n
+            ) || value.ToString().StartsWith('0')
                 ? Result<int>.Failure(Error.Invalid($"Invalid {key}")) : Result<int>.Success(n);
         }
         var page = Integer("page", 1);
@@ -27,6 +32,11 @@ public static class WebsiteListQueryParser
             return Result<ListWebsitesQuery>.Failure(error);
         }
         var ids = query["tagIds"].ToString();
-        return Result<ListWebsitesQuery>.Success(new(page.Value, size.Value, query["search"].ToString(), ids.Length == 0 ? [] : ids.Split(',')));
+        return Result<ListWebsitesQuery>.Success(new(
+            page.Value,
+            size.Value,
+            query["search"].ToString(),
+            ids.Length == 0 ? [] : ids.Split(',')
+        ));
     }
 }

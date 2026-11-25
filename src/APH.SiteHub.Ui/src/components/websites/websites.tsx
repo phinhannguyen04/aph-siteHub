@@ -1,9 +1,8 @@
-'use client'
-import { Box, Button, Skeleton, Stack, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { Empty, ErrorBox } from '@/components/common'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
+import { useCallback, useEffect, useState } from 'react'
+import { Button, Empty, ErrorBox } from '@/components/common'
+import { PageHeader } from '@/components/layout/page-header'
 import { WebsiteForm } from '@/components/websites/form'
 import { query } from '@/lib/api/client'
 import { useTags } from '@/lib/api/hooks'
@@ -15,10 +14,9 @@ import { DeleteWebsiteDialog } from './delete-dialog'
 import { WebsitePagination } from './pagination'
 import { WebsiteToolbar } from './toolbar'
 export function Websites() {
-  const params = useSearchParams()
-  const router = useRouter()
-  const path = usePathname()
-  const filters = websiteFilters(new URLSearchParams(params.toString()))
+  const navigate = useNavigate()
+  const searchText = useRouterState({ select: (state) => state.location.searchStr })
+  const filters = websiteFilters(new URLSearchParams(searchText))
   const searchKey = websiteSearch(filters)
   const [search, setSearch] = useState(filters.search)
   const [form, setForm] = useState<Website | 'new' | null>(null)
@@ -28,20 +26,31 @@ export function Websites() {
     queryKey: ['websites', searchKey],
     queryFn: () => query<WebsitePage>(`/api/websites?${searchKey}`),
   })
-  const update = (patch: Partial<typeof filters>) =>
-    router.replace(`${path}?${websiteSearch({ ...filters, ...patch })}`, { scroll: false })
+  // Filters live in the URL (replace, not push, so typing and paging do not fill the history).
+  const replaceFilters = useCallback(
+    (next: ReturnType<typeof websiteFilters>) =>
+      void navigate({
+        to: '/',
+        search: Object.fromEntries(new URLSearchParams(websiteSearch(next))),
+        replace: true,
+        resetScroll: false,
+      }),
+    [navigate],
+  )
+  const update = (patch: Partial<typeof filters>) => replaceFilters({ ...filters, ...patch })
   useEffect(() => setSearch(filters.search), [filters.search])
   useEffect(() => {
     const timer = setTimeout(() => {
       if (search.trim() !== filters.search) {
-        const next = websiteFilters(new URLSearchParams(searchKey))
-        router.replace(`${path}?${websiteSearch({ ...next, search: search.trim(), page: 1 })}`, {
-          scroll: false,
+        replaceFilters({
+          ...websiteFilters(new URLSearchParams(searchKey)),
+          search: search.trim(),
+          page: 1,
         })
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [search, filters.search, searchKey, path, router])
+  }, [search, filters.search, searchKey, replaceFilters])
   useEffect(() => {
     if (
       data.data &&
@@ -49,27 +58,18 @@ export function Websites() {
       filters.page > Math.ceil(data.data.total / filters.pageSize)
     ) {
       const next = websiteFilters(new URLSearchParams(searchKey))
-      router.replace(
-        `${path}?${websiteSearch({ ...next, page: Math.ceil(data.data.total / next.pageSize) })}`,
-        { scroll: false },
-      )
+      replaceFilters({ ...next, page: Math.ceil(data.data.total / next.pageSize) })
     }
-  }, [data.data, filters.page, filters.pageSize, searchKey, path, router])
+  }, [data.data, filters.page, filters.pageSize, searchKey, replaceFilters])
   const filtered = !!filters.search || filters.tagIds.length > 0
   const clear = () => {
     setSearch('')
     update({ search: '', tagIds: [], page: 1 })
   }
+  const grid = 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3'
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          {c.websites}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 1 }}>
-          {c.websiteIntro}
-        </Typography>
-      </Box>
+    <div className="flex flex-col gap-6">
+      <PageHeader title={c.websites} intro={c.websiteIntro} />
       <WebsiteToolbar
         search={search}
         setSearch={setSearch}
@@ -81,39 +81,23 @@ export function Websites() {
       <ErrorBox error={tags.error} retry={() => void tags.refetch()} />
       <ErrorBox error={data.error} retry={() => void data.refetch()} />
       {data.isPending ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', xl: 'repeat(3,1fr)' },
-            gap: 2,
-          }}
-        >
+        <div className={grid}>
           {[1, 2, 3, 4, 5, 6].map((n) => (
-            <Skeleton key={n} variant="rounded" height={205} />
+            <div key={n} className="h-52 animate-pulse rounded-box bg-base-300/70" />
           ))}
-        </Box>
+        </div>
       ) : data.data?.websites.length === 0 ? (
         <Empty
           title={filtered ? c.noResults : c.noWebsites}
           body={filtered ? c.noResultsBody : c.noWebsitesBody}
           action={
-            <Button onClick={filtered ? clear : () => setForm('new')}>
+            <Button variant="primary" onClick={filtered ? clear : () => setForm('new')}>
               {filtered ? c.clear : c.addWebsite}
             </Button>
           }
         />
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2,minmax(0,1fr))',
-              xl: 'repeat(3,minmax(0,1fr))',
-            },
-            gap: 2,
-          }}
-        >
+        <div className={grid}>
           {data.data?.websites.map((website) => (
             <WebsiteCard
               key={website.id}
@@ -122,7 +106,7 @@ export function Websites() {
               onDelete={setDeleting}
             />
           ))}
-        </Box>
+        </div>
       )}
       {data.data && data.data.total > 0 && (
         <WebsitePagination total={data.data.total} filters={filters} update={update} />
@@ -141,6 +125,6 @@ export function Websites() {
           }}
         />
       )}
-    </Stack>
+    </div>
   )
 }

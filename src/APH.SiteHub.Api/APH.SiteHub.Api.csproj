@@ -4,4 +4,7 @@
     <ProjectReference Include="../APH.SiteHub.Infrastructure/APH.SiteHub.Infrastructure.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\APH.SiteHub.ServiceDefaults\APH.SiteHub.ServiceDefaults.csproj" />
+  </ItemGroup>
 </Project>

@@ -26,8 +26,6 @@ public static class ApiPipelineExtensions
             await next(http);
         });
         app.UseCors();
-        app.UseAuthentication();
-        app.UseAuthorization();
         return app;
     }
 }

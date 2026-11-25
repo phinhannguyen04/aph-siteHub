@@ -1,11 +1,10 @@
-'use client'
-import { CircularProgress, Stack, Typography } from '@mui/material'
 import { c } from '@/lib/copy'
+import { Spinner } from './spinner'
 export function Busy() {
   return (
-    <Stack role="status" spacing={2} sx={{ ...{ py: 8 }, alignItems: 'center' }}>
-      <CircularProgress />
-      <Typography>{c.loading}</Typography>
-    </Stack>
+    <div role="status" className="flex flex-col items-center gap-3 py-16 text-base-content/70">
+      <Spinner className="size-8 border-[3px] text-primary" />
+      <p>{c.loading}</p>
+    </div>
   )
 }

@@ -2,10 +2,11 @@
   "name": "aph-sitehub-ui",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev -p ${SITEHUB_DEV_PORT:-8111}",
-    "build": "next build",
-    "start": "next start -p ${SITEHUB_DEV_PORT:-8111}",
+    "dev": "vite",
+    "build": "vite build",
+    "start": "vite preview",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",
@@ -14,16 +15,15 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "next": "16.4.3",
+    "@headlessui/react": "2.2.10",
+    "@tailwindcss/vite": "4.3.5",
+    "@tanstack/react-query": "5.105.0",
+    "@tanstack/react-router": "1.170.46",
+    "@vitejs/plugin-react": "6.3.0",
+    "lucide-react": "1.71.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "@mui/material": "9.5.0",
-    "@mui/icons-material": "9.5.0",
-    "@mui/material-nextjs": "9.5.0",
-    "@emotion/react": "11.14.0",
-    "@emotion/styled": "11.14.1",
-    "@emotion/cache": "11.14.0",
-    "@tanstack/react-query": "5.105.0"
+    "vite": "8.3.8"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
@@ -32,6 +32,7 @@
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.5",
     "typescript": "5.9.3"
   }
 }

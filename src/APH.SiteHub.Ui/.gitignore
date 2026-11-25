@@ -1,5 +1,5 @@
 node_modules/
-.next/
+dist/
 *.tsbuildinfo
 .env*
 !.env.example
@@ -10,4 +10,3 @@ node_modules/
 test-results/
 playwright-report/
 
-next-env.d.ts

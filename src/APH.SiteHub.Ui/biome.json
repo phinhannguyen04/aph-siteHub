@@ -3,13 +3,12 @@
   "files": {
     "includes": [
       "**",
-      "!!.next",
+      "!!dist",
       "!!node_modules",
       "!!.bun-cache",
       "!!.bun-tmp",
       "!!test-results",
-      "!!playwright-report",
-      "!!next-env.d.ts"
+      "!!playwright-report"
     ]
   },
   "formatter": {
@@ -20,8 +19,28 @@
     "lineEnding": "lf"
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "semicolons": "asNeeded", "trailingCommas": "all" }
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all"
+    }
   },
-  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
 }

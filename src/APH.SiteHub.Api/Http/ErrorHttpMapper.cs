@@ -17,7 +17,11 @@ public static class ErrorHttpMapper
     };
     public static object Body(Error error) => new { error = new { code = error.Code, message = error.Message } };
     public static IResult ToHttpResult(Error error) => Results.Json(Body(error), statusCode: StatusCode(error));
-    public static Task WriteAsync(HttpResponse response, Error error, CancellationToken ct)
+    public static Task WriteAsync(
+        HttpResponse response,
+        Error error,
+        CancellationToken ct
+    )
     {
         response.StatusCode = StatusCode(error);
         return response.WriteAsJsonAsync(Body(error), ct);

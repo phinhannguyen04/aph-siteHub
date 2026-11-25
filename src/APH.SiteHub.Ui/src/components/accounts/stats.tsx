@@ -1,85 +1,73 @@
-'use client'
-import { Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { ErrorBox } from '@/components/common'
+import { CircleCheck, CircleGauge, Users } from 'lucide-react'
+import { ErrorBox, Progress } from '@/components/common'
 import type { AccountStats } from '@/lib/api/types'
 import { c } from '@/lib/copy'
 export function AccountStatsPanel({ stats }: { stats: UseQueryResult<{ stats: AccountStats }> }) {
   return (
     <>
-      {' '}
       <ErrorBox error={stats.error} retry={() => void stats.refetch()} />
       {stats.isPending ? (
-        <LinearProgress aria-label={c.loading} />
+        <Progress label={c.loading} />
       ) : (
         stats.data && (
           <>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3,minmax(0,1fr))',
-                gap: { xs: 1, sm: 2 },
-              }}
-            >
+            <div className="grid w-full grid-cols-1 divide-y divide-base-300 overflow-hidden rounded-box border border-base-300 bg-base-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               {[
-                { label: c.total, value: stats.data.stats.total },
-                { label: c.limited, value: stats.data.stats.limited },
-                { label: c.unlimited, value: stats.data.stats.unlimited },
+                {
+                  label: c.total,
+                  value: stats.data.stats.total,
+                  icon: Users,
+                  tone: 'text-primary',
+                },
+                {
+                  label: c.limited,
+                  value: stats.data.stats.limited,
+                  icon: CircleGauge,
+                  tone: 'text-warning',
+                },
+                {
+                  label: c.unlimited,
+                  value: stats.data.stats.unlimited,
+                  icon: CircleCheck,
+                  tone: 'text-success',
+                },
               ].map((item) => (
-                <Card key={item.label}>
-                  <CardContent sx={{ p: { xs: 1.5, sm: 2.5 } }}>
-                    <Typography color="text.secondary" variant="body2">
-                      {item.label}
-                    </Typography>
-                    <Typography
-                      variant="h4"
-                      component="p"
-                      sx={{ fontVariantNumeric: 'tabular-nums', mt: 1 }}
-                    >
-                      {item.value}
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <div key={item.label} className="flex items-center justify-between gap-4 px-6 py-4">
+                  <div>
+                    <div className="text-sm text-base-content/60">{item.label}</div>
+                    <p className="text-3xl font-extrabold tabular-nums">{item.value}</p>
+                  </div>
+                  <div className={item.tone}>
+                    <item.icon size={26} aria-hidden />
+                  </div>
+                </div>
               ))}
-            </Box>
+            </div>
             {stats.data.stats.providers.length > 0 && (
-              <Box>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  {c.providers}
-                </Typography>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                      xs: '1fr',
-                      sm: 'repeat(2,minmax(0,1fr))',
-                      xl: 'repeat(3,minmax(0,1fr))',
-                    },
-                    gap: 2,
-                  }}
-                >
+              <section className="rounded-box border border-base-300 bg-base-100 p-5">
+                <h2 className="mb-4 text-base font-semibold">{c.providers}</h2>
+                <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-3">
                   {stats.data.stats.providers.map((p) => (
-                    <Box key={p.provider}>
-                      <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 1 }}>
-                        <Typography variant="body2">{p.provider}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {c.count(p.total)}
-                        </Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
+                    <div key={p.provider}>
+                      <div className="flex justify-between gap-2 text-sm">
+                        <span className="font-medium">{p.provider}</span>
+                        <span className="text-base-content/60">{c.count(p.total)}</span>
+                      </div>
+                      <Progress
+                        className="my-2"
+                        tone="warning"
                         value={p.total ? (p.limited / p.total) * 100 : 0}
-                        color="warning"
-                        aria-label={`${p.provider}: ${p.limited} ${c.limited}, ${p.unlimited} ${c.unlimited}`}
-                        sx={{ my: 1, borderRadius: 1, height: 6 }}
+                        max={100}
+                        label={`${p.provider}: ${p.limited} ${c.limited}, ${p.unlimited} ${c.unlimited}`}
                       />
-                      <Typography variant="caption" color="text.secondary">
+                      <p className="text-xs text-base-content/60">
                         {p.limited} {c.limited} · {p.unlimited} {c.unlimited}
-                      </Typography>
-                    </Box>
+                      </p>
+                    </div>
                   ))}
-                </Box>
-              </Box>
+                </div>
+              </section>
             )}
           </>
         )

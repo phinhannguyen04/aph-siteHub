@@ -7,11 +7,19 @@ namespace APH.SiteHub.Api;
 // Last-resort transport boundary for malformed framework requests and unexpected bugs.
 public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExceptionHandler
 {
-    public async ValueTask<bool> TryHandleAsync(HttpContext http, Exception exception, CancellationToken ct)
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext http,
+        Exception exception,
+        CancellationToken ct
+    )
     {
         var error = exception switch
         {
-            BadHttpRequestException { StatusCode: 413 } => new Error("HTTP_ERROR", "Invalid request", ErrorType.PayloadTooLarge),
+            BadHttpRequestException { StatusCode: 413 } => new Error(
+                "HTTP_ERROR",
+                "Invalid request",
+                ErrorType.PayloadTooLarge
+            ),
             BadHttpRequestException or JsonException => Error.Invalid("Invalid request body"),
             _ => Error.Unexpected()
         };
@@ -19,7 +27,11 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
         {
             logger.LogError("API request failed with exception type {Type}", exception.GetType().Name);
         }
-        await ErrorHttpMapper.WriteAsync(http.Response, error, ct);
+        await ErrorHttpMapper.WriteAsync(
+            http.Response,
+            error,
+            ct
+        );
         return true;
     }
 }

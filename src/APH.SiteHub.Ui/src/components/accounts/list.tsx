@@ -1,6 +1,6 @@
-'use client'
-import { Box, Button, Card, CardActions, CardContent, Stack, Typography } from '@mui/material'
+import { Mail } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Badge, Button } from '@/components/common'
 import type { Account } from '@/lib/api/types'
 import { c } from '@/lib/copy'
 import { Status } from './status'
@@ -14,57 +14,35 @@ export function AccountList({
   onDetail: (id: string) => void
 }) {
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: {
-          xs: '1fr',
-          sm: 'repeat(2,minmax(0,1fr))',
-          xl: 'repeat(3,minmax(0,1fr))',
-        },
-        gap: 2,
-      }}
-    >
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {accounts.map((a) => (
-        <Card key={a.id}>
-          <CardContent>
-            <Stack
-              direction="row"
-              sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                {a.provider}
-              </Typography>
+        <article key={a.id} className="rounded-box border border-base-300 bg-base-100">
+          <div className="flex flex-col gap-2 p-5">
+            <div className="flex items-center justify-between gap-2">
+              <Badge size="sm">{a.provider}</Badge>
               <Status account={a} />
-            </Stack>
-            <Button
+            </div>
+            <button
+              type="button"
               onClick={() => onDetail(a.id)}
-              sx={{
-                fontSize: 18,
-                px: 0,
-                my: 1,
-                justifyContent: 'flex-start',
-                textAlign: 'left',
-                overflowWrap: 'anywhere',
-              }}
+              className="mt-1 text-start text-lg font-semibold hover:underline [overflow-wrap:anywhere]"
             >
               {a.login_name}
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              {a.email}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {a.external_account_id}
-            </Typography>
-          </CardContent>
-          <CardActions sx={{ justifyContent: 'space-between', px: 2 }}>
-            <Button size="small" onClick={() => onDetail(a.id)}>
-              {c.details}
-            </Button>
-            <Box>{actions(a)}</Box>
-          </CardActions>
-        </Card>
+            </button>
+            <p className="flex items-center gap-1.5 text-sm text-base-content/70">
+              <Mail size={14} className="shrink-0" aria-hidden />
+              <span className="min-w-0">{a.email}</span>
+            </p>
+            <p className="font-mono text-xs text-base-content/60">{a.external_account_id}</p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-base-300 pt-3">
+              <Button variant="ghost" size="sm" className="-ms-2" onClick={() => onDetail(a.id)}>
+                {c.details}
+              </Button>
+              {actions(a)}
+            </div>
+          </div>
+        </article>
       ))}
-    </Box>
+    </div>
   )
 }

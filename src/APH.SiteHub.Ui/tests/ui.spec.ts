@@ -6,7 +6,8 @@ test.beforeEach(({ page }) => {
   browserErrors.set(page, errors)
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
-    if (message.type() === 'error' && message.text().startsWith('MUI:')) errors.push(message.text())
+    if (message.type() === 'error' && message.text().startsWith('Warning:'))
+      errors.push(message.text())
   })
 })
 test.afterEach(({ page }) => {
@@ -39,23 +40,18 @@ const account = {
   is_limit: false,
   created_at: tag.created_at,
 }
-async function mock(page: Page, authenticated = true) {
+async function mock(page: Page) {
   const state = {
-    authenticated,
-    token: 'csrf-first',
     secretRequests: 0,
-    expire: false,
     mutations: [] as {
       path: string
       method: string
       body: Record<string, unknown> | null
-      csrf: string | undefined
     }[],
     queries: [] as string[],
     sites: [site],
     accounts: [account],
     tags: [tag],
-    lock: false,
     conflict: false,
     database: false,
     countRequests: 0,
@@ -69,28 +65,7 @@ async function mock(page: Page, authenticated = true) {
     const respond = (data: unknown, status = 200) => route.fulfill({ status, json: data })
     const fail = (status: number, code: string, message: string) =>
       respond({ error: { code, message } }, status)
-    if (method !== 'GET')
-      state.mutations.push({ path, method, body, csrf: req.headers()['x-csrf-token'] })
-    if (path === '/api/auth/login') {
-      if (state.lock) return fail(429, 'RATE_LIMITED', 'Please try again in 15 minutes')
-      if (body?.password !== 'correct password') return fail(401, 'UNAUTHORIZED', 'Unauthorized')
-      state.authenticated = true
-      return respond({ csrfToken: state.token })
-    }
-    if (!state.authenticated || state.expire) return fail(401, 'UNAUTHORIZED', 'Unauthorized')
-    if (method !== 'GET' && req.headers()['x-csrf-token'] !== state.token)
-      return fail(403, 'FORBIDDEN', 'Invalid CSRF')
-    if (path === '/api/auth/session') return respond({ csrfToken: state.token })
-    if (path === '/api/auth/logout') {
-      state.authenticated = false
-      return respond({ ok: true })
-    }
-    if (path === '/api/auth/change-password') {
-      if (body?.currentPassword !== 'correct password')
-        return fail(401, 'UNAUTHORIZED', 'Incorrect password')
-      state.token = 'csrf-rotated'
-      return respond({ csrfToken: state.token })
-    }
+    if (method !== 'GET') state.mutations.push({ path, method, body })
     if (state.database) return fail(503, 'DATABASE_UNAVAILABLE', 'Unavailable')
     if (path === '/api/websites/count') {
       state.countRequests++
@@ -171,33 +146,26 @@ async function mock(page: Page, authenticated = true) {
   })
   return state
 }
-test('login errors, lockout, route restoration, session expiry, and theme-only storage', async ({
+test('opens directly on the requested route with no sign-in step and theme-only storage', async ({
   page,
 }) => {
-  const state = await mock(page, false)
+  const requests: string[] = []
+  page.on('request', (request) => requests.push(new URL(request.url()).pathname))
+  await mock(page)
   await page.goto('/accounts')
-  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
-  await expect(page.getByText('Your session has expired. Please sign in again.')).toHaveCount(0)
-  await page.getByLabel(/^Password/).fill('wrong')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByText('Incorrect password', { exact: true })).toBeVisible()
-  state.lock = true
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByText('Too many attempts. Sign in is locked for 15 minutes.')).toBeVisible()
-  state.lock = false
-  await page.getByLabel(/^Password/).fill('correct password')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Accounts', exact: true })).toBeVisible()
   expect(page.url()).toContain('/accounts')
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Change password', exact: true })).toHaveCount(0)
+  expect(requests.filter((path) => path.startsWith('/api/auth'))).toEqual([])
+  await page.goto('/login')
+  await expect(page.getByText('Page not found', { exact: true })).toBeVisible()
   expect(
     await page.evaluate(() =>
       Object.keys(localStorage).every((k) => k.startsWith('sitehub-theme')),
     ),
   ).toBe(true)
-  state.expire = true
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
-  await expect(page.getByText('Your session has expired. Please sign in again.')).toBeVisible()
 })
 test('website URL filters, minimal PATCH and tag creation/conflict/deletion', async ({ page }) => {
   const state = await mock(page)
@@ -228,7 +196,6 @@ test('website URL filters, minimal PATCH and tag creation/conflict/deletion', as
   ).toBeVisible()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(page.getByText('No tags yet. Create one to organize your websites.')).toBeVisible()
-  expect(state.mutations.every((m) => m.csrf === state.token)).toBe(true)
 })
 test('website deletion confirms the name, refreshes the count and leaves an emptied page', async ({
   page,
@@ -242,7 +209,7 @@ test('website deletion confirms the name, refreshes the count and leaves an empt
   }))
   await page.goto('/?page=2&pageSize=12')
   await expect(page.getByRole('heading', { name: 'Website 13', exact: true })).toBeVisible()
-  const badge = page.locator('.MuiBadge-badge').last()
+  const badge = page.getByTestId('website-count')
   await expect(badge).toHaveText('13')
   const countRequests = state.countRequests
   await page.getByRole('button', { name: 'Delete Website 13', exact: true }).click()
@@ -291,24 +258,6 @@ test('account list/table, secret timeout, minimal edit and typed delete', async 
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(page.getByText('No accounts yet', { exact: true })).toBeVisible()
 })
-test('change-password rotates CSRF; wrong password keeps the form and expired session logs out', async ({
-  page,
-}) => {
-  const state = await mock(page)
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Change password', exact: true }).click()
-  await page.getByLabel(/^Current password/).fill('wrong')
-  await page.getByLabel(/^New password/).fill('a new strong password')
-  await page.getByLabel(/^Confirm new password/).fill('a new strong password')
-  await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(page.getByText('Incorrect password', { exact: true })).toBeVisible()
-  await page.getByLabel(/^Current password/).fill('correct password')
-  await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(page.getByText('Other sessions have been signed out')).toBeVisible()
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
-  expect(state.mutations.at(-1)?.csrf).toBe('csrf-rotated')
-})
 test('desktop and 360px mobile layouts, navigation, dark theme and error recovery', async ({
   page,
 }) => {
@@ -324,8 +273,7 @@ test('desktop and 360px mobile layouts, navigation, dark theme and error recover
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/accounts-mobile.png', fullPage: true })
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Appearance', exact: true }).last().click()
-  await page.getByRole('option', { name: 'Dark', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(20, 25, 30)')
   await page
@@ -346,15 +294,8 @@ test('desktop and 360px mobile layouts, navigation, dark theme and error recover
 test('field validation identifies invalid inputs and blocks requests without replacing server errors', async ({
   page,
 }) => {
-  const state = await mock(page, false)
+  const state = await mock(page)
   await page.goto('/')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  const loginPassword = page.getByLabel(/^Password/)
-  await expect(loginPassword).toHaveAttribute('aria-invalid', 'true')
-  await expect(loginPassword).toHaveAccessibleDescription('Password must be 1–256 characters')
-  expect(state.mutations).toHaveLength(0)
-  await loginPassword.fill('correct password')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await page.getByRole('button', { name: 'Add website', exact: true }).click()
   const website = page.getByRole('dialog', { name: 'Add website', exact: true })
   await website.getByRole('button', { name: 'Create', exact: true }).click()
@@ -403,19 +344,7 @@ test('field validation identifies invalid inputs and blocks requests without rep
     'Secret key is required.',
   )
   await accountForm.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.getByRole('button', { name: 'Change password', exact: true }).click()
-  const change = page.getByRole('dialog', { name: 'Change password', exact: true })
-  await change.getByLabel(/^New password/).fill('short')
-  await change.getByLabel(/^Confirm new password/).fill('different')
-  await change.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(change.getByLabel(/^Current password/)).toHaveAttribute('aria-invalid', 'true')
-  await expect(change.getByLabel(/^New password/)).toHaveAccessibleDescription(
-    'New password must be 12–256 characters',
-  )
-  await expect(change.getByLabel(/^Confirm new password/)).toHaveAccessibleDescription(
-    'Passwords do not match',
-  )
-  expect(state.mutations).toHaveLength(1)
+  expect(state.mutations).toHaveLength(0)
 })
 
 test('website cards never request resources from managed website origins', async ({ page }) => {
