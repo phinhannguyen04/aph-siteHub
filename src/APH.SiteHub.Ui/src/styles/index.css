@@ -857,19 +857,7 @@ tbody tr:hover {
   color: var(--text-subtle);
   text-align: center;
 }
-.order .tag-filter {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-.tag-filter .chips {
-  flex: 1;
-}
-.tag-filter-action {
-  flex: none;
-}
-.chips {
+.order .chips {
   flex: 1;
 }
 .swatches {
