@@ -23,8 +23,5 @@
   },
   "engines": {
     "node": ">=22"
-  },
-  "dependencies": {
-    "@tanstack/redact": "^0.3.1"
   }
 }
