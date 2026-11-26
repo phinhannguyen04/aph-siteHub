@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Pencil, Pipette, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import {
   Button,
@@ -88,6 +88,16 @@ export function TagForm({ tag, onClose, onCreated }) {
             {color === value && <Check size={14} aria-hidden />}
           </button>
         ))}
+        <label className="swatch swatch-custom" title={c.customColor}>
+          <input
+            type="color"
+            className="sr-only"
+            aria-label={c.customColor}
+            value={hex.test(color) ? color.toLowerCase() : palette[0]}
+            onChange={(e) => setColor(e.target.value)}
+          />
+          <Pipette size={14} aria-hidden />
+        </label>
       </div>
       <Field
         label={c.color}

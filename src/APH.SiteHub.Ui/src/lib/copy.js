@@ -62,6 +62,7 @@ export const c = {
   deleted: 'Deleted successfully',
   description: 'Description',
   color: 'Color',
+  customColor: 'Pick a custom color',
   newTag: 'New tag',
   editTag: 'Edit tag',
   deleteTag: 'Delete tag?',
