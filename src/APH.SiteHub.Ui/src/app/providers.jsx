@@ -1,8 +1,7 @@
-import { Toast } from '@base-ui/react/toast'
-import { Tooltip } from '@base-ui/react/tooltip'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
-import { ToastList } from '@/components/notice'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 export function Providers({ children }) {
   const [client] = useState(
@@ -15,12 +14,10 @@ export function Providers({ children }) {
   )
   return (
     <QueryClientProvider client={client}>
-      <Tooltip.Provider delay={300}>
-        <Toast.Provider limit={3}>
-          {children}
-          <ToastList />
-        </Toast.Provider>
-      </Tooltip.Provider>
+      <TooltipProvider delayDuration={300}>
+        {children}
+        <Toaster visibleToasts={3} />
+      </TooltipProvider>
     </QueryClientProvider>
   )
 }

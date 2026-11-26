@@ -1,139 +1,16 @@
-import { Dialog } from '@base-ui/react/dialog'
-import { Toggle } from '@base-ui/react/toggle'
-import { ToggleGroup } from '@base-ui/react/toggle-group'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Globe,
-  KeyRound,
-  Monitor,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Sun,
-  Tags,
-} from 'lucide-react'
-import { useEffect, useState, useSyncExternalStore } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router'
-import { Badge, Button, cx, Hint } from '@/components/ui'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Outlet, useLocation } from 'react-router'
+import { Button } from '@/components/ui'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { TagsManager } from '@/features/tags'
+import { useMobile } from '@/hooks/use-mobile'
 import { query } from '@/lib/api'
 import { c } from '@/lib/copy'
-import { useThemeMode } from '@/lib/theme'
-
-const SIDEBAR_KEY = 'sitehub-sidebar'
-const mobileQuery = '(max-width: 860px)'
-
-const themes = [
-  ['light', Sun, c.light],
-  ['dark', Moon, c.dark],
-  ['system', Monitor, c.system],
-]
-
-function useMobile() {
-  return useSyncExternalStore(
-    (notify) => {
-      const media = matchMedia(mobileQuery)
-      media.addEventListener('change', notify)
-      return () => media.removeEventListener('change', notify)
-    },
-    () => matchMedia(mobileQuery).matches,
-    () => false,
-  )
-}
-
-function readCollapsed() {
-  try {
-    return localStorage.getItem(SIDEBAR_KEY) === 'collapsed'
-  } catch {
-    return false
-  }
-}
-
-/** Sidebar content shared by the desktop rail and the mobile drawer. */
-function SidebarBody({ collapsed, count, onTags, onNavigate }) {
-  const { mode, setMode } = useThemeMode()
-  const current = themes.find(([value]) => value === mode) ?? themes[2]
-  const CurrentIcon = current[1]
-  const item = (to, Icon, label, extra) => (
-    <Hint label={label} side="right" disabled={!collapsed}>
-      <NavLink
-        to={to}
-        end={to === '/'}
-        className="nav-item"
-        onClick={onNavigate}
-        aria-label={collapsed ? label : undefined}
-      >
-        <Icon size={16} aria-hidden />
-        <span className="nav-label">{label}</span>
-        {extra}
-      </NavLink>
-    </Hint>
-  )
-  return (
-    <>
-      <div className="side-brand">
-        <img className="brand-mark" src="/logo.png" alt="" width={28} height={28} />
-        <span className="nav-label brand-name">{c.app}</span>
-      </div>
-      <nav aria-label={c.navigation} className="side-nav">
-        <p className="side-group nav-label">{c.overview}</p>
-        {item(
-          '/',
-          Globe,
-          c.websites,
-          count !== undefined && (
-            <Badge>
-              <span data-testid="website-count">{count > 9999 ? '9999+' : count}</span>
-            </Badge>
-          ),
-        )}
-        {item('/accounts', KeyRound, c.accounts)}
-        <p className="side-group nav-label">{c.manage}</p>
-        <Hint label={c.tags} side="right" disabled={!collapsed}>
-          <button
-            type="button"
-            className="nav-item"
-            aria-label={collapsed ? c.tags : undefined}
-            onClick={() => {
-              onNavigate?.()
-              onTags()
-            }}
-          >
-            <Tags size={16} aria-hidden />
-            <span className="nav-label">{c.tags}</span>
-          </button>
-        </Hint>
-      </nav>
-      <div className="side-foot">
-        {collapsed ? (
-          <Button
-            variant="ghost"
-            icon
-            aria-label={`${c.theme}: ${current[2]}`}
-            onClick={() => setMode(themes[(themes.indexOf(current) + 1) % themes.length][0])}
-          >
-            <CurrentIcon size={16} />
-          </Button>
-        ) : (
-          <ToggleGroup
-            className="segmented"
-            aria-label={c.theme}
-            value={[mode]}
-            onValueChange={(value) => value[0] && setMode(value[0])}
-          >
-            {themes.map(([value, Icon, label]) => (
-              <Hint key={value} label={label} side={collapsed ? 'right' : 'top'}>
-                <Toggle value={value} aria-label={label} className="segment">
-                  <Icon size={14} />
-                </Toggle>
-              </Hint>
-            ))}
-          </ToggleGroup>
-        )}
-      </div>
-    </>
-  )
-}
+import { cn } from '@/lib/utils'
+import { SidebarBody } from './sidebar-body'
+import { readCollapsed, SIDEBAR_KEY } from './sidebar-state'
 
 function pageTitle(pathname) {
   if (pathname === '/') return c.websites
@@ -185,7 +62,7 @@ export function Shell() {
     />
   )
   return (
-    <div className={cx('app', !mobile && collapsed && 'is-collapsed')}>
+    <div className={cn('app', !mobile && collapsed && 'is-collapsed')}>
       {!mobile && (
         <aside id="sidebar" className="sidebar" aria-label={c.sidebar}>
           {body()}
@@ -215,31 +92,19 @@ export function Shell() {
         </main>
       </div>
       {mobile && (
-        <Dialog.Root open={drawer} onOpenChange={setDrawer}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="backdrop" />
-            <Dialog.Viewport className="viewport side-viewport">
-              <Dialog.Popup id="sidebar" className="sidebar sidebar-drawer" aria-label={c.sidebar}>
-                <Dialog.Title className="sr-only">{c.sidebar}</Dialog.Title>
-                {body(() => setDrawer(false))}
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
+        <Dialog open={drawer} onOpenChange={setDrawer}>
+          <DialogContent
+            variant="bare"
+            id="sidebar"
+            className="sidebar sidebar-drawer"
+            aria-label={c.sidebar}
+          >
+            <DialogTitle className="sr-only">{c.sidebar}</DialogTitle>
+            {body(() => setDrawer(false))}
+          </DialogContent>
+        </Dialog>
       )}
       {tags && <TagsManager onClose={() => setTags(false)} />}
-    </div>
-  )
-}
-
-export function PageHead({ title, intro, children }) {
-  return (
-    <div className="page-head">
-      <div>
-        <h1>{title}</h1>
-        <p>{intro}</p>
-      </div>
-      {children && <div className="page-actions">{children}</div>}
     </div>
   )
 }

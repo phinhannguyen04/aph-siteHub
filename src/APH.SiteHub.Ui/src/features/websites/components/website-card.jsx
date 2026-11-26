@@ -1,5 +1,6 @@
 import { ExternalLink, Pencil, Trash2 } from 'lucide-react'
 import { Button, CopyButton, TagChip } from '@/components/ui'
+import { buttonVariants } from '@/components/ui/button'
 import { c } from '@/lib/copy'
 
 function hostOf(url) {
@@ -33,7 +34,7 @@ export function WebsiteCard({ website, onEdit, onDelete }) {
       )}
       <div className="site-foot">
         <a
-          className="btn btn-sm"
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
           href={website.url}
           target="_blank"
           rel="noopener noreferrer"

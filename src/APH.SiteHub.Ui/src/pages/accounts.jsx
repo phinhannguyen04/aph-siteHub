@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { PageHead } from '@/components/layout/shell'
+import { PageHead } from '@/components/layout/page-head'
 import { Busy, Button, Empty, ErrorBox } from '@/components/ui'
 import {
   AccountCards,
