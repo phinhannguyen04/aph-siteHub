@@ -28,6 +28,14 @@ export function Websites() {
   const dataTotal = data.data?.total ?? 0
   useClampPage(dataTotal, f)
 
+  // Sits at the end of the tag row; falls back to the toolbar when there are no tags to show.
+  const hasTags = !!tags.data?.tags.length
+  const clearButton = (
+    <Button variant="ghost" size="sm" onClick={f.clear}>
+      {c.clear}
+    </Button>
+  )
+
   return (
     <>
       <PageHead title={c.websites} intro={c.websiteIntro}>
@@ -38,13 +46,11 @@ export function Websites() {
       </PageHead>
       <div className="toolbar">
         <SearchBox label={c.searchWebsites} value={f.search} onChange={f.setSearch} />
-        {filtered && (
-          <Button variant="ghost" size="sm" onClick={f.clear}>
-            {c.clear}
-          </Button>
-        )}
+        {filtered && !hasTags && clearButton}
       </div>
-      <TagFilter tags={tags.data?.tags} selectedIds={filters.tagIds} onToggle={f.toggleTag} />
+      <TagFilter tags={tags.data?.tags} selectedIds={filters.tagIds} onToggle={f.toggleTag}>
+        {filtered && clearButton}
+      </TagFilter>
       <ErrorBox error={tags.error} retry={() => void tags.refetch()} />
       <ErrorBox error={data.error} retry={() => void data.refetch()} />
       {data.isPending ? (

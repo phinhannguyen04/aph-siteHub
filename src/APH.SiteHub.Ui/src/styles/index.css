@@ -548,6 +548,18 @@ a {
   gap: var(--space-3);
   margin-top: auto;
 }
+.tag-filter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.tag-filter .chips {
+  flex: 1;
+}
+.tag-filter-action {
+  flex: none;
+}
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -845,7 +857,19 @@ tbody tr:hover {
   color: var(--text-subtle);
   text-align: center;
 }
-.order .chips {
+.order .tag-filter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.tag-filter .chips {
+  flex: 1;
+}
+.tag-filter-action {
+  flex: none;
+}
+.chips {
   flex: 1;
 }
 .swatches {

@@ -26,11 +26,14 @@ public sealed class RequestBody
         }
         catch (JsonException) { return Result<RequestBody>.Failure(Error.Invalid("Invalid request body")); }
         catch (BadHttpRequestException ex) when (ex.StatusCode == 400) { return Result<RequestBody>.Failure(Error.Invalid("Invalid request body")); }
-        if (json.ValueKind != JsonValueKind.Object || json.EnumerateObject().Any(p => !fields.Any(field => field.Name == p.Name)) ||
-            json.EnumerateObject().GroupBy(p => p.Name).Any(g => g.Count() > 1))
-        {
+        if (
+            json.ValueKind != JsonValueKind.Object 
+            || json.EnumerateObject().Any(p => !fields.Any(field => field.Name == p.Name)) 
+            || json.EnumerateObject().GroupBy(p => p.Name).Any(g => g.Count() > 1)
+        ){
             return Result<RequestBody>.Failure(Error.Invalid("Invalid or unknown input fields"));
         }
+        
         foreach (var field in fields.Where(field => field.Required))
         {
             if (!json.TryGetProperty(field.Name, out _))
@@ -38,6 +41,7 @@ public sealed class RequestBody
                 return Result<RequestBody>.Failure(Error.Invalid($"{field.Name} is required"));
             }
         }
+        
         foreach (var property in json.EnumerateObject())
         {
             var value = property.Value;
