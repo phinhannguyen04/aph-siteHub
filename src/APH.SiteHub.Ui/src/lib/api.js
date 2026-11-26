@@ -91,7 +91,10 @@ export function websiteFilters(params) {
 }
 
 export function websiteSearch(filters) {
-  const p = new URLSearchParams({ page: String(filters.page), pageSize: String(filters.pageSize) })
+  const p = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: String(filters.pageSize),
+  })
   if (filters.search) p.set('search', filters.search)
   if (filters.tagIds.length) p.set('tagIds', filters.tagIds.join(','))
   return p.toString()

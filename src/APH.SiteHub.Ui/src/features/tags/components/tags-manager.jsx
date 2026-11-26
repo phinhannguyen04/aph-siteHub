@@ -11,9 +11,9 @@ import {
   TextArea,
   tagTextColor,
 } from '@/components/ui'
+import { useWrite } from '@/hooks/use-write'
 import { deleteTag, query } from '@/lib/api'
 import { c } from '@/lib/copy'
-import { useWrite } from '@/lib/hooks'
 import { tagName, tag as validate } from '@/lib/validation'
 
 const palette = ['#344e63', '#275f4c', '#825a20', '#8a3d51', '#62518b', '#226b80']

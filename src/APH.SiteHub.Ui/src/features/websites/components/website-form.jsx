@@ -1,11 +1,11 @@
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button, ErrorBox, Field, Modal, TagChip } from '@/components/ui'
+import { TagForm, useTags } from '@/features/tags'
+import { useWrite } from '@/hooks/use-write'
 import { websitePatch } from '@/lib/api'
 import { c } from '@/lib/copy'
-import { useTags, useWrite } from '@/lib/hooks'
 import { website as validate } from '@/lib/validation'
-import { TagForm } from './tags-manager'
 
 export function WebsiteForm({ website, onClose }) {
   const tags = useTags()

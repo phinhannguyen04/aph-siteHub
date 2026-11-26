@@ -1,6 +1,6 @@
 import { Copy } from 'lucide-react'
+import { useNotice } from '@/components/notice'
 import { c } from '@/lib/copy'
-import { useNotice } from '../notice'
 import { Button } from './button'
 
 /** Copies text to the clipboard and reports the outcome in a toast. */

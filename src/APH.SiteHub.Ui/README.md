@@ -1,6 +1,6 @@
 # APH SiteHub UI
 
-Single-page React (JavaScript) dashboard built with Vite and routed by React Router (`react-router`). Interactive primitives come from Base UI (`@base-ui/react`: Dialog, AlertDialog, Field, Select, Switch, Toggle/ToggleGroup, Tooltip, Toast). Server state uses TanStack Query, icons come from lucide-react and styling is plain hand-written CSS (`src/styles.css`) built on the Devlane "Drafts" design tokens (Inter 13px, oklch colours, 2–24px spacing scale, 6px radius, 150ms motion, light/dark themes). Requires Node.js 22+.
+Single-page React (JavaScript) dashboard built with Vite and routed by React Router (`react-router`). Interactive primitives come from Base UI (`@base-ui/react`: Dialog, AlertDialog, Field, Select, Switch, Toggle/ToggleGroup, Tooltip, Toast). Server state uses TanStack Query, icons come from lucide-react and styling is plain hand-written CSS (`src/styles/index.css`) built on the Apache Footwear Vietnam design tokens (Montserrat, orange accent, 3px radius, 200ms motion, light/dark themes). Requires Node.js 22+.
 
 ```sh
 cd src/APH.SiteHub.Ui
@@ -26,12 +26,14 @@ Secrets are fetched on demand with `cache: 'no-store'`, held only in the mounted
 ## Structure
 
 - `index.html`: Vite entry with the pre-paint theme script.
-- `src/main.jsx`: mounts `BrowserRouter` with the routes: a shell layout, `/` websites, `/accounts` and a not-found page. Website filters live in the URL (`?page=2&search=…&tagIds=a,b`) through `useSearchParams`.
-- `src/styles.css`: design tokens (`:root` / `[data-theme='dark']`) and all component styles. Base UI parts are styled through their `data-*` attributes (`data-pressed`, `data-checked`, `data-starting-style`, …).
+- `src/main.jsx`: entry point; mounts `<App />` from `src/app`.
+- `src/app/`: `app.jsx` (`BrowserRouter` with the routes: a shell layout, `/` websites, `/accounts` and a not-found page) and `providers.jsx` (query client, tooltip provider and toast). Website filters live in the URL (`?page=2&search=…&tagIds=a,b`) through `useSearchParams`.
+- `src/pages/`: route-level screens (`websites.jsx`, `accounts.jsx`, `not-found.jsx`) that only compose feature parts.
+- `src/features/<name>/`: one folder per domain (`websites`, `accounts`, `tags`) with `components/`, `hooks/` and an `index.js` public API; other code imports a feature through `@/features/<name>`, never from its inner files.
 - `src/components/ui/`: one file per shared control (`button.jsx`, `field.jsx`, `select.jsx`, `modal.jsx`, `confirm.jsx`, `tag-chip.jsx`, …) built on Base UI, plus `utils.js`; `index.js` re-exports them so pages import from `@/components/ui`.
-- `src/components`: `notice.jsx` (query client, tooltip provider and toast) and `shell.jsx` (collapsible sidebar, top bar, theme switch).
+- `src/components/layout/shell.jsx`: collapsible sidebar, top bar, theme switch. `src/components/notice.jsx`: toast hook and list.
   The sidebar collapses to an icon rail on desktop (state in `localStorage`, toggle with the top-bar button or Ctrl/Cmd + B) and becomes an off-canvas drawer below 860px.
-- `src/pages`: `websites.jsx` and `accounts.jsx`.
-- `src/features`: website, account and tag forms, account detail drawer and delete dialogs.
-- `src/lib`: API client and helpers (`api.js`), validation, copy text, theme and the shared write hook.
+- `src/hooks/`: hooks shared across features (`use-write.js`, the serialised write hook).
+- `src/lib/`: framework-free helpers: API client (`api.js`), validation, copy text and theme.
+- `src/styles/index.css`: design tokens (`:root` / `[data-theme='dark']`) and all component styles. Base UI parts are styled through their `data-*` attributes (`data-pressed`, `data-checked`, `data-starting-style`, …).
 - `tests`: `node --test` contract tests for the pure helpers (`npm test`).

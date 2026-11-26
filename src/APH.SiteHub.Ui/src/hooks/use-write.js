@@ -1,10 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useNotice } from '@/components/notice'
-import { query, request } from './api'
-import { c } from './copy'
-
-export const useTags = () => useQuery({ queryKey: ['tags'], queryFn: () => query('/api/tags') })
+import { request } from '@/lib/api'
+import { c } from '@/lib/copy'
 
 /**
  * Serialises writes (a second call while one is pending is ignored), refreshes the listed query

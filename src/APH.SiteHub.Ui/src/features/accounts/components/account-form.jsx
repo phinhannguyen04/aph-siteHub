@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Button, ErrorBox, Field, Modal, PasswordField, SwitchField } from '@/components/ui'
+import { useWrite } from '@/hooks/use-write'
 import { accountPatch } from '@/lib/api'
 import { c } from '@/lib/copy'
-import { useWrite } from '@/lib/hooks'
 import { account as validate } from '@/lib/validation'
 
 const fields = [

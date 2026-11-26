@@ -14,11 +14,11 @@ import {
 } from 'lucide-react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { TagsManager } from '@/features/tags-manager'
+import { Badge, Button, cx, Hint } from '@/components/ui'
+import { TagsManager } from '@/features/tags'
 import { query } from '@/lib/api'
 import { c } from '@/lib/copy'
 import { useThemeMode } from '@/lib/theme'
-import { Badge, Button, cx, Hint } from './ui'
 
 const SIDEBAR_KEY = 'sitehub-sidebar'
 const mobileQuery = '(max-width: 860px)'
@@ -72,9 +72,7 @@ function SidebarBody({ collapsed, count, onTags, onNavigate }) {
   return (
     <>
       <div className="side-brand">
-        <span className="brand-mark">
-          <Globe size={15} aria-hidden />
-        </span>
+        <img className="brand-mark" src="/logo.png" alt="" width={28} height={28} />
         <span className="nav-label brand-name">{c.app}</span>
       </div>
       <nav aria-label={c.navigation} className="side-nav">
