@@ -3,7 +3,7 @@ import { Slot } from 'radix-ui'
 import { cn } from '@/lib/utils'
 
 const badgeVariants = cva(
-  'badge inline-flex w-fit shrink-0 items-center gap-0.5 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
+  'inline-flex w-fit shrink-0 items-center gap-0.5 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
   {
     variants: {
       variant: {

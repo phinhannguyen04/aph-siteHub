@@ -1,5 +1,14 @@
 import { buttonVariants } from '@/components/ui/button'
 
+/** Shared Tailwind class strings for the SiteHub look. */
+export const card = 'rounded-md border border-border bg-background'
+export const help = 'text-xs text-subtle'
+export const row = 'flex items-center gap-2'
+export const rowActions = 'flex justify-end gap-0.5'
+export const toolbar = 'flex flex-wrap items-center gap-2'
+export const cellLink =
+  'cursor-pointer border-0 bg-transparent p-0 text-left font-semibold text-primary hover:underline'
+
 /** Class list for an anchor that should look like a primary button. */
 export const buttonLink = buttonVariants({ variant: 'default' })
 

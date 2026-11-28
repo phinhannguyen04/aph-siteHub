@@ -9,7 +9,7 @@ import { useMobile } from '@/hooks/use-mobile'
 import { query } from '@/lib/api'
 import { c } from '@/lib/copy'
 import { cn } from '@/lib/utils'
-import { SidebarBody } from './sidebar-body'
+import { SidebarBody, sidebarClass } from './sidebar-body'
 import { readCollapsed, SIDEBAR_KEY } from './sidebar-state'
 
 function pageTitle(pathname) {
@@ -62,14 +62,19 @@ export function Shell() {
     />
   )
   return (
-    <div className={cn('app', !mobile && collapsed && 'is-collapsed')}>
+    <div
+      className={cn(
+        'grid min-h-dvh grid-cols-[var(--sidebar-width)_minmax(0,1fr)] transition-[grid-template-columns] duration-200 ease-linear max-[860px]:grid-cols-[minmax(0,1fr)]',
+        !mobile && collapsed && 'grid-cols-[var(--sidebar-rail)_minmax(0,1fr)]',
+      )}
+    >
       {!mobile && (
-        <aside id="sidebar" className="sidebar" aria-label={c.sidebar}>
+        <aside id="sidebar" className={sidebarClass} aria-label={c.sidebar}>
           {body()}
         </aside>
       )}
-      <div className="main">
-        <header className="topbar">
+      <div className="flex min-w-0 flex-col">
+        <header className="sticky top-0 z-10 flex h-(--topbar-height) items-center gap-2 border-b border-border bg-[color-mix(in_oklab,var(--surface-muted)_92%,transparent)] px-4 backdrop-blur-sm">
           <Button
             variant="ghost"
             size="sm"
@@ -81,13 +86,16 @@ export function Shell() {
           >
             <Icon size={16} />
           </Button>
-          <span className="topbar-sep" aria-hidden />
-          <span className="topbar-title">{pageTitle(pathname)}</span>
-          <kbd className="kbd hide-sm" title={c.sidebarShortcut}>
+          <span className="h-4 w-px bg-input" aria-hidden />
+          <span className="font-semibold text-ink">{pageTitle(pathname)}</span>
+          <kbd
+            className="ml-auto rounded-md border border-border px-1.5 py-0.5 font-sans text-xs font-normal text-subtle max-[860px]:hidden"
+            title={c.sidebarShortcut}
+          >
             Ctrl B
           </kbd>
         </header>
-        <main className="page">
+        <main className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col gap-4 px-6 pt-6 pb-12 max-[560px]:px-3">
           <Outlet />
         </main>
       </div>
@@ -96,7 +104,10 @@ export function Shell() {
           <DialogContent
             variant="bare"
             id="sidebar"
-            className="sidebar sidebar-drawer"
+            className={cn(
+              sidebarClass,
+              'fixed inset-y-0 left-0 w-[min(280px,86vw)] shadow-[var(--shadow-popup)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
+            )}
             aria-label={c.sidebar}
           >
             <DialogTitle className="sr-only">{c.sidebar}</DialogTitle>

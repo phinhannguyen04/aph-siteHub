@@ -1,10 +1,10 @@
 import { Pencil, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, rowActions } from '@/components/ui'
 import { c } from '@/lib/copy'
 
 export function AccountActions({ account, onEdit, onDelete }) {
   return (
-    <div className="row-actions">
+    <div className={rowActions}>
       <Button
         variant="ghost"
         size="sm"

@@ -13,8 +13,18 @@ export { Modal } from './modal'
 export { PasswordField } from './password-field'
 export { SearchBox } from './search-box'
 export { SelectField as Select } from './select-field'
-export { Spinner } from './spinner'
+export { Spinner, spinnerClass } from './spinner'
 export { SwitchField } from './switch-field'
-export { TagChip } from './tag-chip'
+export { chipsClass, TagChip } from './tag-chip'
 export { TextArea } from './text-area'
-export { buttonLink, localDate, tagTextColor } from './utils'
+export {
+  buttonLink,
+  card,
+  cellLink,
+  help,
+  localDate,
+  row,
+  rowActions,
+  tagTextColor,
+  toolbar,
+} from './utils'

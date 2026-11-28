@@ -1,9 +1,20 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff, KeyRound, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Badge, Busy, Button, CopyButton, ErrorBox, localDate, Modal } from '@/components/ui'
+import {
+  Badge,
+  Busy,
+  Button,
+  CopyButton,
+  ErrorBox,
+  help,
+  localDate,
+  Modal,
+  row,
+} from '@/components/ui'
 import { query, request } from '@/lib/api'
 import { c } from '@/lib/copy'
+import { cn } from '@/lib/utils'
 import { Status } from './account-status'
 
 const copyable = new Set([c.loginName, c.email, c.externalId])
@@ -69,11 +80,11 @@ export function AccountDetail({ id, onClose, onEdit }) {
       ) : (
         a && (
           <>
-            <div className="row between">
+            <div className={cn(row, 'justify-between')}>
               <Badge>{a.provider}</Badge>
               <Status account={a} />
             </div>
-            <dl className="dl">
+            <dl className="rounded-md border border-border">
               {[
                 [c.id, a.id],
                 [c.provider, a.provider],
@@ -82,26 +93,31 @@ export function AccountDetail({ id, onClose, onEdit }) {
                 [c.externalId, a.external_account_id],
                 [c.createdAt, localDate(a.created_at)],
               ].map(([label, value]) => (
-                <div key={label}>
-                  <div className="grow">
-                    <dt>{label}</dt>
-                    <dd>{value}</dd>
+                <div
+                  key={label}
+                  className="flex items-center gap-2 px-3 py-2 not-first:border-t not-first:border-border"
+                >
+                  <div className="min-w-0 flex-1">
+                    <dt className="text-xs text-subtle">{label}</dt>
+                    <dd className="text-ink wrap-anywhere">{value}</dd>
                   </div>
                   {copyable.has(label) && <CopyButton value={value} label={`${c.copy} ${label}`} />}
                 </div>
               ))}
             </dl>
-            <section className="secret">
-              <h3 className="row" style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+            <section className="rounded-md bg-secondary p-3">
+              <h3 className={cn(row, 'mb-2 text-[0.9rem] text-ink')}>
                 <KeyRound size={16} aria-hidden />
                 {c.secret}
               </h3>
-              <div className="row">
-                <code style={{ flex: 1 }}>{secret ?? '••••••'}</code>
+              <div className={row}>
+                <code className="block flex-1 rounded-md border border-border bg-background px-2 py-1.5 font-mono text-sm whitespace-pre-wrap wrap-anywhere">
+                  {secret ?? '••••••'}
+                </code>
                 {secret !== null && <CopyButton value={secret} label={`${c.copy} ${c.secret}`} />}
               </div>
-              <div className="row between" style={{ marginTop: '0.6rem' }}>
-                <p className="help">{c.secretHint}</p>
+              <div className={cn(row, 'mt-2.5 justify-between')}>
+                <p className={help}>{c.secretHint}</p>
                 <Button
                   size="sm"
                   loading={busy}
@@ -117,7 +133,7 @@ export function AccountDetail({ id, onClose, onEdit }) {
               </div>
               <ErrorBox error={error} />
             </section>
-            <p className="help">{c.passwordHint}</p>
+            <p className={help}>{c.passwordHint}</p>
             <Button
               variant="primary"
               onClick={() => {

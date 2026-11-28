@@ -1,6 +1,15 @@
 import { Check, Pipette } from 'lucide-react'
 import { useState } from 'react'
-import { Button, ErrorBox, Field, Modal, TagChip, TextArea, tagTextColor } from '@/components/ui'
+import {
+  Button,
+  chipsClass,
+  ErrorBox,
+  Field,
+  Modal,
+  TagChip,
+  TextArea,
+  tagTextColor,
+} from '@/components/ui'
 import { useWrite } from '@/hooks/use-write'
 import { c } from '@/lib/copy'
 import { tagName, tag as validate } from '@/lib/validation'
@@ -63,12 +72,12 @@ export function TagForm({ tag, onClose, onCreated }) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
-      <div className="swatches">
+      <div className="flex flex-wrap gap-2">
         {palette.map((value) => (
           <button
             type="button"
             key={value}
-            className="swatch"
+            className="grid size-6 cursor-pointer place-items-center rounded-md border-0 aria-pressed:outline-2 aria-pressed:outline-offset-2 aria-pressed:outline-ink"
             aria-label={`${c.color} ${value}`}
             aria-pressed={color === value}
             style={{ backgroundColor: value, color: tagTextColor(value) }}
@@ -77,7 +86,10 @@ export function TagForm({ tag, onClose, onCreated }) {
             {color === value && <Check size={14} aria-hidden />}
           </button>
         ))}
-        <label className="swatch swatch-custom" title={c.customColor}>
+        <label
+          className="relative grid size-6 cursor-pointer place-items-center rounded-md bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)] text-white drop-shadow-[0_0_1px_#000] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary"
+          title={c.customColor}
+        >
           <input
             type="color"
             className="sr-only"
@@ -96,7 +108,7 @@ export function TagForm({ tag, onClose, onCreated }) {
         onChange={(e) => setColor(e.target.value)}
       />
       {hex.test(color) && (
-        <div className="chips">
+        <div className={chipsClass}>
           <TagChip tag={{ name: tagName(name) || c.newTag, color }} />
         </div>
       )}

@@ -1,10 +1,10 @@
 import { RefreshCw } from 'lucide-react'
-import { Button, SearchBox, Select } from '@/components/ui'
+import { Button, help, SearchBox, Select, toolbar } from '@/components/ui'
 import { c } from '@/lib/copy'
 
 export function AccountToolbar({ f, count, refreshing, onRefresh }) {
   return (
-    <div className="toolbar">
+    <div className={toolbar}>
       <SearchBox label={c.searchAccounts} value={f.search} onChange={f.setSearch} />
       <Select
         label={c.provider}
@@ -25,9 +25,12 @@ export function AccountToolbar({ f, count, refreshing, onRefresh }) {
           { value: 'unlimited', label: c.unlimited },
         ]}
       />
-      <span className="help">{c.count(count)}</span>
+      <span className={help}>{c.count(count)}</span>
       <Button size="sm" icon aria-label={c.refresh} onClick={onRefresh}>
-        <RefreshCw size={15} className={refreshing ? 'spinning' : undefined} />
+        <RefreshCw
+          size={15}
+          className={refreshing ? 'animate-[spin_0.8s_linear_infinite]' : undefined}
+        />
       </Button>
     </div>
   )

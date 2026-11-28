@@ -13,9 +13,10 @@ export function PasswordField({ label, error, helperText, ...props }) {
       error={error}
       helperText={helperText}
       control={(a11y) => (
-        <div className="input-wrap">
+        <div className="relative flex">
           <Input
             {...a11y}
+            className="pr-10"
             type={shown ? 'text' : 'password'}
             autoCapitalize="off"
             spellCheck={false}
@@ -25,6 +26,7 @@ export function PasswordField({ label, error, helperText, ...props }) {
             variant="ghost"
             size="sm"
             icon
+            className="absolute inset-y-0.5 right-0.5"
             aria-label={shown ? c.hidePassword : c.showPassword}
             aria-pressed={shown}
             onClick={() => setShown(!shown)}

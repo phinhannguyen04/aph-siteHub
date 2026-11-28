@@ -68,7 +68,7 @@ export function AccountForm({ account, onClose }) {
       }
     >
       <ErrorBox error={write.error} />
-      <div className="two">
+      <div className="grid grid-cols-2 gap-3 max-[560px]:grid-cols-1">
         {fields.map(([key, label], i) => (
           <Field
             key={key}

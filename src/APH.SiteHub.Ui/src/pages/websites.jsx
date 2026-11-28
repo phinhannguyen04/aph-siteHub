@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { PageHead } from '@/components/layout/page-head'
-import { Button, Empty, ErrorBox, SearchBox } from '@/components/ui'
+import { Button, Empty, ErrorBox, SearchBox, toolbar } from '@/components/ui'
 import { TagFilter, useTags } from '@/features/tags'
 import {
   DeleteWebsiteDialog,
@@ -14,6 +14,8 @@ import {
 } from '@/features/websites'
 import { query } from '@/lib/api'
 import { c } from '@/lib/copy'
+
+const grid = 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3'
 
 export function Websites() {
   const [form, setForm] = useState(null)
@@ -44,7 +46,7 @@ export function Websites() {
           {c.addWebsite}
         </Button>
       </PageHead>
-      <div className="toolbar">
+      <div className={toolbar}>
         <SearchBox label={c.searchWebsites} value={f.search} onChange={f.setSearch} />
         {filtered && !hasTags && clearButton}
       </div>
@@ -54,9 +56,12 @@ export function Websites() {
       <ErrorBox error={tags.error} retry={() => void tags.refetch()} />
       <ErrorBox error={data.error} retry={() => void data.refetch()} />
       {data.isPending ? (
-        <div className="grid">
+        <div className={grid}>
           {[1, 2, 3, 4, 5, 6].map((n) => (
-            <div key={n} className="skeleton" />
+            <div
+              key={n}
+              className="h-32 animate-[shimmer_1.4s_linear_infinite] rounded-md bg-[linear-gradient(100deg,var(--surface-strong)_30%,var(--hover)_50%,var(--surface-strong)_70%)] bg-[length:200%_100%]"
+            />
           ))}
         </div>
       ) : data.data?.websites.length === 0 ? (
@@ -70,7 +75,7 @@ export function Websites() {
           }
         />
       ) : (
-        <div className="grid">
+        <div className={grid}>
           {data.data?.websites.map((website) => (
             <WebsiteCard
               key={website.id}

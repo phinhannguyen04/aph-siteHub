@@ -1,10 +1,11 @@
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { Button, ErrorBox, Field, Modal, TagChip } from '@/components/ui'
+import { Button, chipsClass, ErrorBox, Field, help, Modal, TagChip } from '@/components/ui'
 import { TagForm, useTags } from '@/features/tags'
 import { useWrite } from '@/hooks/use-write'
 import { websitePatch } from '@/lib/api'
 import { c } from '@/lib/copy'
+import { cn } from '@/lib/utils'
 import { website as validate } from '@/lib/validation'
 
 export function WebsiteForm({ website, onClose }) {
@@ -81,11 +82,11 @@ export function WebsiteForm({ website, onClose }) {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
-        <div className="field">
-          <span className="label">{c.tagPicker}</span>
-          <fieldset className="tag-pick">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="font-semibold text-ink">{c.tagPicker}</span>
+          <fieldset className="m-0 flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-md border border-input p-2">
             <legend className="sr-only">{c.tagPicker}</legend>
-            {tags.data?.tags.length === 0 && <span className="help">{c.noTags}</span>}
+            {tags.data?.tags.length === 0 && <span className={help}>{c.noTags}</span>}
             {tags.data?.tags.map((t) => (
               <TagChip
                 key={t.id}
@@ -99,14 +100,17 @@ export function WebsiteForm({ website, onClose }) {
               {c.quickTag}
             </Button>
           </fieldset>
-          {validation.tag_ids && <p className="help error">{validation.tag_ids}</p>}
+          {validation.tag_ids && <p className="text-xs text-destructive">{validation.tag_ids}</p>}
         </div>
         {selected.length > 1 && (
-          <ol className="order">
+          <ol className="m-0 list-none rounded-md border border-border p-0">
             {selected.map((t, i) => (
-              <li key={t.id}>
-                <span className="n">{i + 1}</span>
-                <div className="chips">
+              <li
+                key={t.id}
+                className="flex items-center gap-2 px-2 py-0.5 not-first:border-t not-first:border-border"
+              >
+                <span className="w-4 text-center text-subtle">{i + 1}</span>
+                <div className={cn(chipsClass, 'flex-1')}>
                   <TagChip tag={t} />
                 </div>
                 <Button

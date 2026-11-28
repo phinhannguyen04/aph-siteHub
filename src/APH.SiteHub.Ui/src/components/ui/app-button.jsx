@@ -1,5 +1,6 @@
 import { Button as ShadcnButton } from '@/components/ui/button'
 import { Hint } from './hint'
+import { spinnerClass } from './spinner'
 
 // App-level variant names → shadcn variants.
 const variants = { default: 'outline', primary: 'default', danger: 'destructive', ghost: 'ghost' }
@@ -24,7 +25,7 @@ export function Button({
       className={className}
       {...props}
     >
-      {loading && <span className="spinner" aria-hidden />}
+      {loading && <span className={spinnerClass} aria-hidden />}
       {children}
     </ShadcnButton>
   )
